@@ -1,0 +1,68 @@
+﻿{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Entelechy (Debug)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build",
+                "--config",
+                "Debug",
+                "--parallel"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$msCompile"],
+            "detail": "构建 Debug 版本（需先执行配置任务）"
+        },
+        {
+            "label": "Build Entelechy (Release)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build",
+                "--config",
+                "Release",
+                "--parallel"
+            ],
+            "group": "build",
+            "problemMatcher": ["$msCompile"],
+            "detail": "构建 Release 版本（需先执行配置任务）"
+        },
+        {
+            "label": "Configure CMake (VS2022)",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-S", "${workspaceFolder}",
+                "-B", "${workspaceFolder}/build",
+                "-G", "Visual Studio 17 2022",
+                "-A", "x64",
+                "-DCMAKE_CONFIGURATION_TYPES=Debug;Release"
+            ],
+            "options": {
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": ["/c"]
+                }
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "从根 CMakeLists.txt 重新配置工程，自动生成 Source Forest"
+        },
+        {
+            "label": "Build with build.bat (Debug)",
+            "type": "shell",
+            "command": "${workspaceFolder}/build.bat",
+            "args": ["--debug"],
+            "group": "build",
+            "problemMatcher": ["$msCompile"],
+            "detail": "使用 build.bat 一键生成并构建 Debug"
+        }
+    ]
+}

@@ -1,0 +1,7 @@
+﻿{
+    "solution_name": "Entelechy",
+    "source_tree": [
+        "launch/cmake_projects.json",
+        "_game/cmake_projects.json"
+    ]
+}

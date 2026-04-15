@@ -1,5 +1,6 @@
 ﻿#pragma once
-#include <string>
+#include "small_string.h"
+#include "string_format.h"
 #include <vector>
 #include <unordered_map>
 #include <cstddef>
@@ -7,15 +8,18 @@
 
 namespace Entelechy {
 
+using ComponentTypeID = uint32_t;
+constexpr ComponentTypeID INVALID_COMPONENT_TYPE_ID = 0xFFFFFFFFu;
+
 struct FieldDesc {
-    std::string name;
-    std::string type;
+    SmallString name;
+    SmallString type;
     size_t offset = 0;
     size_t size = 0;
 };
 
 struct ComponentDesc {
-    std::string name;
+    SmallString name;
     size_t size = 0;
     std::vector<FieldDesc> fields;
 };
@@ -24,16 +28,37 @@ class TypeRegistry {
 public:
     static TypeRegistry& instance();
 
-    void registerComponent(const ComponentDesc& desc);
-    const ComponentDesc* findComponent(const std::string& name) const;
+    template<typename T>
+    ComponentTypeID getTypeID() {
+        static ComponentTypeID id = allocateNextID();
+        return id;
+    }
 
-    std::string listComponents() const;
-    std::string describeComponent(const std::string& name) const;
+    template<typename T>
+    uint32_t getMask() {
+        static uint32_t mask = (1u << getTypeID<T>());
+        return mask;
+    }
+
+    void registerComponent(ComponentTypeID id, uint32_t mask, const ComponentDesc& desc);
+    const ComponentDesc* findComponent(ComponentTypeID id) const;
+    const ComponentDesc* findComponent(const SmallString& name) const;
+    ComponentTypeID findComponentID(const SmallString& name) const;
+    uint32_t getComponentMask(const SmallString& name) const;
+
+    SmallString listComponents() const;
+    SmallString describeComponent(const SmallString& name) const;
     size_t componentCount() const;
 
 private:
     TypeRegistry() = default;
-    std::unordered_map<std::string, ComponentDesc> m_components;
+    ComponentTypeID allocateNextID() { return m_nextID++; }
+
+    std::unordered_map<ComponentTypeID, ComponentDesc> m_components;
+    std::unordered_map<SmallString, ComponentTypeID> m_nameToID;
+    std::unordered_map<ComponentTypeID, SmallString> m_idToName;
+    std::unordered_map<SmallString, uint32_t> m_nameToMask;
+    ComponentTypeID m_nextID = 0;
 };
 
 // Helper macro for registering fields
@@ -48,7 +73,9 @@ private:
     namespace { \
     struct _AutoReg_##Name { \
         _AutoReg_##Name() { \
-            Entelechy::TypeRegistry::instance().registerComponent(Entelechy::ComponentDesc{ \
+            Entelechy::ComponentTypeID id = Entelechy::TypeRegistry::instance().getTypeID<Name>(); \
+            uint32_t mask = (1u << id); \
+            Entelechy::TypeRegistry::instance().registerComponent(id, mask, Entelechy::ComponentDesc{ \
                 #Name, sizeof(Name), { __VA_ARGS__ } \
             }); \
         } \

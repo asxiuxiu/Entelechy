@@ -183,6 +183,10 @@ def generate_sourcetree(config_path, output_dir, source_root):
             link_libs.append('SystemLib')
         elif 'bridge' in m['name'].lower():
             link_libs.append('BridgeLib')
+        elif 'math' in m['name'].lower():
+            link_libs.append('MathLib')
+        elif 'memory' in m['name'].lower():
+            link_libs.append('MemoryLib')
         elif 'runtime' in m['name'].lower():
             link_libs.append('RuntimeLib')
 

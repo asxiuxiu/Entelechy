@@ -15,16 +15,22 @@ void registerBuiltinTypes() {
     printf("[Entelechy::core] registered %zu component types\n", TypeRegistry::instance().componentCount());
 }
 
-} // namespace Entelechy
-
 void printWorld(const World& world) {
     printf("=== World State (entities: %zu) ===\n", world.entityCount());
-    for (Entity e = 0; e < world.m_alive.size(); ++e) {
+    for (uint32_t id = 0; id < world.maxEntityID(); ++id) {
+        Entity e{id, world.getEntityGeneration(id)};
         if (world.valid(e)) {
-            const auto& p = world.m_positions[e];
-            const auto& v = world.m_velocities[e];
-            printf("Entity %u: Position(%.1f, %.1f) Velocity(%.1f, %.1f)\n", e, p.x, p.y, v.vx, v.vy);
+            const auto* pos = world.getComponent<Position>(e);
+            const auto* vel = world.getComponent<Velocity>(e);
+            const auto* health = world.getComponent<Health>(e);
+            printf("Entity %u: ", id);
+            if (pos) printf("Position(%.1f, %.1f) ", pos->x, pos->y);
+            if (vel) printf("Velocity(%.1f, %.1f) ", vel->vx, vel->vy);
+            if (health) printf("Health(%.1f) ", health->hp);
+            printf("\n");
         }
     }
     printf("\n");
 }
+
+} // namespace Entelechy

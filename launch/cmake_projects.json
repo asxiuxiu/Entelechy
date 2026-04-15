@@ -16,6 +16,16 @@
             "name": "bridge",
             "path": "source/bridge",
             "enabled": true
+        },
+        {
+            "name": "math",
+            "path": "source/math",
+            "enabled": true
+        },
+        {
+            "name": "memory",
+            "path": "source/memory",
+            "enabled": true
         }
     ]
 }

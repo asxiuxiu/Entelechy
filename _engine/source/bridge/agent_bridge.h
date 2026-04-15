@@ -22,6 +22,10 @@ public:
     std::string getComponent(Entity e, const std::string& comp_name) const;
     std::string setComponent(Entity e, const std::string& comp_name, const std::string& json);
 
+    // New AI-friendly tools
+    std::string queryEntitiesByMask(uint32_t mask) const;
+    std::string getWorldSummary() const;
+
     // ToolRegistry integration
     std::string callTool(const std::string& name, const std::string& json_args) const;
 };

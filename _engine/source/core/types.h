@@ -1,9 +1,18 @@
 ﻿#pragma once
 #include <cstdint>
-#include <string>
+#include <functional>
 #include "type_registry.h"
+#include "small_string.h"
 
-using Entity = uint32_t;
+namespace Entelechy {
+
+struct Entity {
+    uint32_t id{0xFFFFFFFF};
+    uint32_t generation{0};
+
+    bool valid() const { return id != 0xFFFFFFFF; }
+    bool operator==(const Entity& other) const { return id == other.id && generation == other.generation; }
+};
 
 struct Position {
     float x = 0.0f;
@@ -34,15 +43,22 @@ REFLECT_COMPONENT(Health,
 )
 
 struct NameTag {
-    std::string name;
+    SmallString name;
 };
 
 REFLECT_COMPONENT(NameTag,
-    REG_FIELD(NameTag, name, std::string)
+    REG_FIELD(NameTag, name, SmallString)
 )
-
-namespace Entelechy {
 
 void registerBuiltinTypes();
 
 } // namespace Entelechy
+
+namespace std {
+    template<>
+    struct hash<Entelechy::Entity> {
+        size_t operator()(const Entelechy::Entity& e) const noexcept {
+            return (static_cast<size_t>(e.id) << 32) | static_cast<size_t>(e.generation);
+        }
+    };
+} // namespace std

@@ -21,7 +21,6 @@ namespace {
         if (pos == std::string::npos) return false;
 
         ++pos;
-        // skip spaces and optional quotes
         while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '"')) ++pos;
 
         const char* str = json.c_str() + pos;
@@ -52,6 +51,24 @@ namespace {
         out = static_cast<uint32_t>(val);
         return true;
     }
+
+    bool jsonParseString(const std::string& json, const std::string& key, std::string& out) {
+        std::string pattern = "\"" + key + "\"";
+        size_t pos = json.find(pattern);
+        if (pos == std::string::npos) return false;
+
+        pos = json.find(':', pos + pattern.length());
+        if (pos == std::string::npos) return false;
+
+        ++pos;
+        while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) ++pos;
+        if (pos >= json.size() || json[pos] != '"') return false;
+        ++pos;
+        size_t end = pos;
+        while (end < json.size() && json[end] != '"') ++end;
+        out = json.substr(pos, end - pos);
+        return true;
+    }
 }
 
 void initBridge() {
@@ -61,7 +78,6 @@ void initBridge() {
 void AgentBridge::init() {
     m_scheduler.registerSystem(&m_movement_system);
 
-    // Register built-in tools to ToolRegistry
     AgentBridge* self = this;
 
     ToolRegistry::instance().registerTool(ToolDesc{
@@ -92,9 +108,9 @@ void AgentBridge::init() {
         "{\"entity\": uint32, \"comp_name\": \"string\"}",
         true,
         [self](const std::string& json_args) -> std::string {
-            uint32_t entity = 0;
+            uint32_t entity_id = 0;
             std::string comp_name;
-            jsonParseUint32(json_args, "entity", entity);
+            jsonParseUint32(json_args, "entity", entity_id);
             size_t pos = json_args.find("\"comp_name\"");
             if (pos != std::string::npos) {
                 pos = json_args.find(':', pos + 11);
@@ -106,7 +122,8 @@ void AgentBridge::init() {
                     comp_name = json_args.substr(pos, end - pos);
                 }
             }
-            return self->getComponent(entity, comp_name);
+            Entity e{entity_id, self->m_world.getEntityGeneration(entity_id)};
+            return self->getComponent(e, comp_name);
         }
     });
 
@@ -116,10 +133,10 @@ void AgentBridge::init() {
         "{\"entity\": uint32, \"comp_name\": \"string\", \"values\": {...}}",
         false,
         [self](const std::string& json_args) -> std::string {
-            uint32_t entity = 0;
+            uint32_t entity_id = 0;
             std::string comp_name;
             std::string values_json;
-            jsonParseUint32(json_args, "entity", entity);
+            jsonParseUint32(json_args, "entity", entity_id);
             size_t pos = json_args.find("\"comp_name\"");
             if (pos != std::string::npos) {
                 pos = json_args.find(':', pos + 11);
@@ -149,7 +166,8 @@ void AgentBridge::init() {
                     }
                 }
             }
-            return self->setComponent(entity, comp_name, values_json);
+            Entity e{entity_id, self->m_world.getEntityGeneration(entity_id)};
+            return self->setComponent(e, comp_name, values_json);
         }
     });
 
@@ -165,6 +183,29 @@ void AgentBridge::init() {
             return "{\"ok\":true}";
         }
     });
+
+    ToolRegistry::instance().registerTool(ToolDesc{
+        "queryEntitiesByMask",
+        "Query all alive entities that match a component mask",
+        "{\"mask\": uint32}",
+        true,
+        [self](const std::string& json_args) -> std::string {
+            uint32_t mask = 0;
+            jsonParseUint32(json_args, "mask", mask);
+            return self->queryEntitiesByMask(mask);
+        }
+    });
+
+    ToolRegistry::instance().registerTool(ToolDesc{
+        "getWorldSummary",
+        "Get a summary of the current world state",
+        "{}",
+        true,
+        [self](const std::string& json_args) -> std::string {
+            (void)json_args;
+            return self->getWorldSummary();
+        }
+    });
 }
 
 void AgentBridge::step(float dt) {
@@ -172,22 +213,44 @@ void AgentBridge::step(float dt) {
 }
 
 std::string AgentBridge::queryEntities(const std::string& comp_name) const {
-    const auto* desc = TypeRegistry::instance().findComponent(comp_name);
-    if (!desc) {
+    uint32_t mask = TypeRegistry::instance().getComponentMask(comp_name.c_str());
+    if (mask == 0) {
         return "{\"error\":\"component not found\"}";
     }
+    return queryEntitiesByMask(mask);
+}
 
+std::string AgentBridge::queryEntitiesByMask(uint32_t mask) const {
     std::string json = "[";
     bool first = true;
-    for (Entity e = 0; e < m_world.m_alive.size(); ++e) {
-        if (m_world.valid(e)) {
-            // In this minimal demo, all alive entities have Position and Velocity
+    for (uint32_t id = 0; id < m_world.maxEntityID(); ++id) {
+        Entity e{id, m_world.getEntityGeneration(id)};
+        if (m_world.valid(e) && (m_world.getEntityMask(id) & mask) == mask) {
             if (!first) json += ",";
             first = false;
-            json += std::to_string(e);
+            json += std::to_string(id);
         }
     }
     json += "]";
+    return json;
+}
+
+std::string AgentBridge::getWorldSummary() const {
+    std::string json = "{";
+    json += "\"entityCount\":" + std::to_string(m_world.entityCount()) + ",";
+    json += "\"componentArrays\":[";
+    bool first = true;
+    for (const auto& pair : m_world.componentArrays()) {
+        if (!first) json += ",";
+        first = false;
+        const auto* desc = TypeRegistry::instance().findComponent(pair.first);
+        json += "{";
+        json += "\"name\":\"" + std::string(desc ? desc->name.c_str() : "unknown") + "\",";
+        json += "\"count\":" + std::to_string(pair.second->count());
+        json += "}";
+    }
+    json += "]";
+    json += "}";
     return json;
 }
 
@@ -196,18 +259,21 @@ std::string AgentBridge::getComponent(Entity e, const std::string& comp_name) co
         return "{\"error\":\"invalid entity\"}";
     }
 
-    const auto* desc = TypeRegistry::instance().findComponent(comp_name);
-    if (!desc) {
+    ComponentTypeID typeID = TypeRegistry::instance().findComponentID(comp_name.c_str());
+    if (typeID == INVALID_COMPONENT_TYPE_ID) {
         return "{\"error\":\"component not found\"}";
     }
 
-    const void* comp_ptr = nullptr;
-    if (comp_name == "Position") {
-        comp_ptr = &m_world.m_positions[e];
-    } else if (comp_name == "Velocity") {
-        comp_ptr = &m_world.m_velocities[e];
-    } else {
-        return "{\"error\":\"component not mapped\"}";
+    const auto& arrays = m_world.componentArrays();
+    auto it = arrays.find(typeID);
+    if (it == arrays.end() || !it->second->has(e)) {
+        return "{\"error\":\"component not found on entity\"}";
+    }
+
+    const void* comp_ptr = it->second->getRaw(e);
+    const auto* desc = TypeRegistry::instance().findComponent(typeID);
+    if (!desc) {
+        return "{\"error\":\"component descriptor missing\"}";
     }
 
     std::string json = "{";
@@ -215,10 +281,13 @@ std::string AgentBridge::getComponent(Entity e, const std::string& comp_name) co
     for (const auto& field : desc->fields) {
         if (!first) json += ",";
         first = false;
-        json += "\"" + field.name + "\":";
+        json += "\"" + std::string(field.name.c_str()) + "\":";
         if (field.type == "float") {
             float val = *reinterpret_cast<const float*>(static_cast<const char*>(comp_ptr) + field.offset);
             json += std::to_string(val);
+        } else if (field.type == "SmallString") {
+            const SmallString* str = reinterpret_cast<const SmallString*>(static_cast<const char*>(comp_ptr) + field.offset);
+            json += "\"" + std::string(str->c_str()) + "\"";
         } else {
             json += "null";
         }
@@ -232,25 +301,33 @@ std::string AgentBridge::setComponent(Entity e, const std::string& comp_name, co
         return "{\"error\":\"invalid entity\"}";
     }
 
-    const auto* desc = TypeRegistry::instance().findComponent(comp_name);
-    if (!desc) {
+    ComponentTypeID typeID = TypeRegistry::instance().findComponentID(comp_name.c_str());
+    if (typeID == INVALID_COMPONENT_TYPE_ID) {
         return "{\"error\":\"component not found\"}";
     }
 
-    void* comp_ptr = nullptr;
-    if (comp_name == "Position") {
-        comp_ptr = &m_world.m_positions[e];
-    } else if (comp_name == "Velocity") {
-        comp_ptr = &m_world.m_velocities[e];
-    } else {
-        return "{\"error\":\"component not mapped\"}";
+    const auto& arrays = m_world.componentArrays();
+    auto it = arrays.find(typeID);
+    if (it == arrays.end() || !it->second->has(e)) {
+        return "{\"error\":\"component not found on entity\"}";
+    }
+
+    void* comp_ptr = it->second->getRaw(e);
+    const auto* desc = TypeRegistry::instance().findComponent(typeID);
+    if (!desc) {
+        return "{\"error\":\"component descriptor missing\"}";
     }
 
     for (const auto& field : desc->fields) {
-        float val = 0.0f;
-        if (jsonParseFloat(json, field.name, val)) {
-            if (field.type == "float") {
+        if (field.type == "float") {
+            float val = 0.0f;
+            if (jsonParseFloat(json, field.name.c_str(), val)) {
                 *reinterpret_cast<float*>(static_cast<char*>(comp_ptr) + field.offset) = val;
+            }
+        } else if (field.type == "SmallString") {
+            std::string val;
+            if (jsonParseString(json, field.name.c_str(), val)) {
+                *reinterpret_cast<SmallString*>(static_cast<char*>(comp_ptr) + field.offset) = val.c_str();
             }
         }
     }

@@ -7,7 +7,9 @@
 @FORWARD_DECLS@
 
 // External print helper (from CoreLib)
-extern void printWorld(const World& world);
+namespace Entelechy {
+    extern void printWorld(const World& world);
+}
 
 using Entelechy::TypeRegistry;
 using Entelechy::AgentBridge;
@@ -20,34 +22,34 @@ int main() {
 @INIT_CALLS@
 
     // Minimal ECS demo
-    World world;
+    Entelechy::World world;
 
-    Entity e0 = world.spawn();
-    Entity e1 = world.spawn();
-    Entity e2 = world.spawn();
+    Entelechy::Entity e0 = world.spawn();
+    Entelechy::Entity e1 = world.spawn();
+    Entelechy::Entity e2 = world.spawn();
 
-    world.m_positions[e0] = {0.0f, 0.0f};
-    world.m_velocities[e0] = {1.0f, 2.0f};
+    world.addComponent<Entelechy::Position>(e0, {0.0f, 0.0f});
+    world.addComponent<Entelechy::Velocity>(e0, {1.0f, 2.0f});
 
-    world.m_positions[e1] = {10.0f, 5.0f};
-    world.m_velocities[e1] = {-1.0f, 0.0f};
+    world.addComponent<Entelechy::Position>(e1, {10.0f, 5.0f});
+    world.addComponent<Entelechy::Velocity>(e1, {-1.0f, 0.0f});
 
-    world.m_positions[e2] = {3.0f, 3.0f};
-    world.m_velocities[e2] = {0.5f, 0.5f};
+    world.addComponent<Entelechy::Position>(e2, {3.0f, 3.0f});
+    world.addComponent<Entelechy::Velocity>(e2, {0.5f, 0.5f});
 
-    printWorld(world);
+    Entelechy::printWorld(world);
 
-    printf("Destroying Entity %u...\n\n", e1);
+    printf("Destroying Entity %u...\n\n", e1.id);
     world.destroy(e1);
 
-    printWorld(world);
+    Entelechy::printWorld(world);
 
-    Entity e3 = world.spawn();
-    world.m_positions[e3] = {99.0f, 99.0f};
-    world.m_velocities[e3] = {0.0f, 0.0f};
+    Entelechy::Entity e3 = world.spawn();
+    world.addComponent<Entelechy::Position>(e3, {99.0f, 99.0f});
+    world.addComponent<Entelechy::Velocity>(e3, {0.0f, 0.0f});
 
-    printf("Spawned Entity %u (reused slot):\n\n", e3);
-    printWorld(world);
+    printf("Spawned Entity %u (reused slot):\n\n", e3.id);
+    Entelechy::printWorld(world);
 
     printf("valid(e0)=%s, valid(e1)=%s, valid(e2)=%s, valid(e3)=%s\n",
            world.valid(e0) ? "true" : "false",
@@ -69,17 +71,17 @@ int main() {
     AgentBridge bridge;
     bridge.init();
 
-    Entity b0 = bridge.m_world.spawn();
-    Entity b1 = bridge.m_world.spawn();
-    bridge.m_world.m_positions[b0] = {0.0f, 0.0f};
-    bridge.m_world.m_velocities[b0] = {1.0f, 2.0f};
-    bridge.m_world.m_positions[b1] = {10.0f, 5.0f};
-    bridge.m_world.m_velocities[b1] = {-1.0f, 0.0f};
+    Entelechy::Entity b0 = bridge.m_world.spawn();
+    Entelechy::Entity b1 = bridge.m_world.spawn();
+    bridge.m_world.addComponent<Entelechy::Position>(b0, {0.0f, 0.0f});
+    bridge.m_world.addComponent<Entelechy::Velocity>(b0, {1.0f, 2.0f});
+    bridge.m_world.addComponent<Entelechy::Position>(b1, {10.0f, 5.0f});
+    bridge.m_world.addComponent<Entelechy::Velocity>(b1, {-1.0f, 0.0f});
 
     for (int i = 0; i < 3; ++i) {
         printf("-- Frame %d --\n", i + 1);
         bridge.step(1.0f);
-        printWorld(bridge.m_world);
+        Entelechy::printWorld(bridge.m_world);
     }
 
     // AgentBridge structured tools demo (Milestone 0.4)
@@ -97,7 +99,14 @@ int main() {
 
     printf("\n-- Frame after set --\n");
     bridge.step(1.0f);
-    printWorld(bridge.m_world);
+    Entelechy::printWorld(bridge.m_world);
+
+    // CommandBuffer demo
+    printf("\n=== CommandBuffer Demo ===\n");
+    bridge.m_scheduler.commandBuffer().set<Entelechy::Velocity>(b0, Entelechy::Velocity{20.0f, 20.0f});
+    bridge.step(1.0f);
+    printf("After command buffer stage Velocity(20,20): %s\n", bridge.getComponent(b0, "Velocity").c_str());
+    Entelechy::printWorld(bridge.m_world);
 
     // ToolRegistry demo
     printf("\n=== ToolRegistry ===\n");
@@ -119,7 +128,7 @@ int main() {
     printf("callTool(stepWorld): %s\n", tool_result.c_str());
 
     printf("\n-- Frame after tool step --\n");
-    printWorld(bridge.m_world);
+    Entelechy::printWorld(bridge.m_world);
 
     // ToolRegistry auto-registered tools via REFLECT_TOOL macro
     printf("\n=== Auto-registered Tools (REFLECT_TOOL) ===\n");

@@ -49,7 +49,7 @@ REFLECT_TOOL(listComponents,
     "{}",
     true,
     [](const std::string&) -> std::string {
-        return Entelechy::TypeRegistry::instance().listComponents();
+        return Entelechy::TypeRegistry::instance().listComponents().c_str();
     }
 )
 
@@ -62,7 +62,7 @@ REFLECT_TOOL(describeComponent,
         if (!jsonExtractString(json, "name", name)) {
             return "{\"error\":\"missing name\"}";
         }
-        return Entelechy::TypeRegistry::instance().describeComponent(name);
+        return Entelechy::TypeRegistry::instance().describeComponent(name.c_str()).c_str();
     }
 )
 

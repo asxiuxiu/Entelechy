@@ -1,12 +1,14 @@
 ﻿#include "movement_system.h"
+#include "query.h"
 
 namespace Entelechy {
 
-void MovementSystem::tick(World& world, float dt) {
-    for (Entity e = 0; e < world.m_alive.size(); ++e) {
-        if (world.valid(e)) {
-            world.m_positions[e].x += world.m_velocities[e].vx * dt;
-            world.m_positions[e].y += world.m_velocities[e].vy * dt;
+void MovementSystem::tick(World& world, FrameArena& arena, float dt) {
+    (void)arena;
+    for (auto [e, pos, vel] : Query<Position, Velocity>(world)) {
+        if (pos && vel) {
+            pos->x += vel->vx * dt;
+            pos->y += vel->vy * dt;
         }
     }
 }

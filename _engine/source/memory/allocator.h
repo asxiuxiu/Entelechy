@@ -17,7 +17,12 @@ struct DefaultAllocator {
 #ifdef _WIN32
         return _aligned_malloc(size, align);
 #else
-        return aligned_alloc(align, size);
+        if (align <= alignof(std::max_align_t)) {
+            return std::malloc(size);
+        }
+        void* ptr = nullptr;
+        posix_memalign(&ptr, align, size);
+        return ptr;
 #endif
     }
 

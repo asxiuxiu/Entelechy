@@ -56,13 +56,23 @@
             "detail": "从根 CMakeLists.txt 重新配置工程，自动生成 Source Forest"
         },
         {
-            "label": "Build with build.bat (Debug)",
+            "label": "Generate & Configure (build.py)",
             "type": "shell",
-            "command": "${workspaceFolder}/build.bat",
-            "args": ["--debug"],
+            "windows": {
+                "command": "${workspaceFolder}/build.bat",
+                "args": ["--debug"]
+            },
+            "linux": {
+                "command": "python3",
+                "args": ["${workspaceFolder}/build.py", "--debug"]
+            },
+            "osx": {
+                "command": "python3",
+                "args": ["${workspaceFolder}/build.py", "--debug"]
+            },
             "group": "build",
-            "problemMatcher": ["$msCompile"],
-            "detail": "使用 build.bat 一键生成并构建 Debug"
+            "problemMatcher": [],
+            "detail": "运行 build.py 生成 Source Forest 并配置 CMake（不编译）"
         }
     ]
 }

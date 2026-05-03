@@ -12,25 +12,36 @@
 
 ## 开发环境预设
 
-**本项目默认在 Windows 环境下开发与构建**。
+**本项目同时支持 Windows 与 macOS/Linux 开发**。
 
-这意味着：
-- 构建脚本、工具链调用、路径风格均按 Windows 约定编写
-- Agent 在给出命令时应优先使用 Windows PowerShell / CMD 语法，而非 POSIX Shell
-- 编译器预设为 MSVC（或 MinGW on Windows），路径分隔符使用 `\` 或 `/` 均可
+- **Windows**：使用 `build.bat`，编译器预设为 MSVC（或 MinGW）
+- **macOS / Linux**：使用 `build.sh`，编译器预设为 Clang / GCC
+- Agent 在给出命令时应根据当前平台选择对应脚本
 
 ## 目录结构
 
 ```
 Entelechy/
+├── .agents/                ← Agent skills
+│   └── skills/
+│       └── vault-context/
+├── .vscode/                ← VS Code 工作区配置
+│   ├── c_cpp_properties.json
+│   ├── launch.json
+│   └── tasks.json
 ├── AGENTS.md               ← 你在这里（根索引）
 ├── AGENTS-BUILD.md         ← 构建系统、模块添加指南与构建陷阱
 ├── AGENTS-CODE.md          ← 代码规范、命名约定与临时架构提醒
+├── CMakeLists.txt          ← 根 CMake 入口
+├── CMakeSettings.json      ← CMake 设置
+├── CMakeUserPresets.json   ← CMake 用户预设
+├── Note_TODO.md            ← 笔记待整理
 ├── README.md               ← 对外文档
 ├── TODO.md                 ← 技术债务
-├── plans/                  ← 路线图
-│   └── SelfGameEngine-Roadmap.md
-├── build.bat               ← 主构建入口
+├── build.py                ← 跨平台主构建入口（推荐）
+├── build.bat               ← Windows 包装（调用 build.py）
+├── build.sh                ← macOS / Linux 包装（调用 build.py）
+├── conanfile.py            ← Conan 依赖管理
 ├── configs/                ← 构建配置（JSON）
 │   ├── full_build.json
 │   └── engine_only.json
@@ -38,6 +49,8 @@ Entelechy/
 │   ├── generator.py
 │   ├── cmake_projects.json ← 引擎模块清单
 │   └── templates/          ← CMake / main.cpp 模板
+├── plans/                  ← 路线图
+│   └── SelfGameEngine-Roadmap.md
 ├── _engine/                ← 引擎核心（模拟独立仓库）
 │   ├── cmake_projects.json
 │   └── source/
@@ -62,4 +75,5 @@ Entelechy/
 
 ## Agent 工作规则
 
+- **目录结构变更时**：如果新增、删除、重命名目录或文件，或调整了目录的用途说明，**必须同步更新本文件（`AGENTS.md`）中的目录结构代码块及相关描述**，确保文档与实际结构保持一致。
 - **遇到不懂的概念时**：如果在代码、文档或讨论中遇到不理解的专业概念、术语或知识点，**先尝试通过 `vault-context` skill 在用户的 Obsidian 知识库中搜索相关笔记**；若知识库中找不到对应内容，再在根目录的 `Note_TODO.md` 中追加一条记录，方便用户后续整理笔记。

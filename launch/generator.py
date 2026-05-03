@@ -69,6 +69,9 @@ def generate_main_cpp(sourcetree_dir, solution_name, enabled_modules):
             elif 'bridge' in module_name.lower():
                 forward_decls.append("namespace Entelechy { void initBridge(); }")
                 init_calls.append("    Entelechy::initBridge();")
+            elif 'window' in module_name.lower():
+                forward_decls.append("namespace Entelechy { void initWindow(); }")
+                init_calls.append("    Entelechy::initWindow();")
         elif module_type == 'game':
             if 'runtime' in module_name.lower():
                 forward_decls.append("namespace game { void initRuntime(); }")
@@ -187,6 +190,8 @@ def generate_sourcetree(config_path, output_dir, source_root):
             link_libs.append('MathLib')
         elif 'memory' in m['name'].lower():
             link_libs.append('MemoryLib')
+        elif 'window' in m['name'].lower():
+            link_libs.append('WindowLib')
         elif 'runtime' in m['name'].lower():
             link_libs.append('RuntimeLib')
 

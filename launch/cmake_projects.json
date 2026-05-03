@@ -26,6 +26,11 @@
             "name": "memory",
             "path": "source/memory",
             "enabled": true
+        },
+        {
+            "name": "window",
+            "path": "source/window",
+            "enabled": true
         }
     ]
 }

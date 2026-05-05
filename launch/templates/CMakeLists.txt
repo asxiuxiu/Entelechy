@@ -4,6 +4,11 @@ project(@SOLUTION_NAME@ LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Shipping build: strip debug/info logs for minimal binary size
+if(SHIPPING_BUILD)
+    add_compile_definitions(SHIPPING_BUILD)
+endif()
+
 # Unified output directories (must be set before add_subdirectory)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)

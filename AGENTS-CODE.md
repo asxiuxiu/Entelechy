@@ -28,9 +28,41 @@
 |------|------|------|
 | 函数（含成员函数、自由函数） | `camelCase` | `initCore()`, `entityCount()`, `registerSystem()` |
 | 类/结构体 | `PascalCase` | `World`, `AgentBridge`, `Scheduler` |
+| 枚举值（enum values） | `PascalCase` | `Debug`, `KeyPress`, `MouseMove` |
 | 成员变量（无论 public/private） | `m_snake_case` | `m_free_list`, `m_next_id`, `m_positions` |
 | 局部变量 / 参数 | `camelCase`（无 `m_` 前缀） | `dt`, `entityCount` |
 | 宏/常量 | `UPPER_SNAKE_CASE` | `ENTITY_MAX` |
+
+> ⚠️ **命名风格是本项目最高优先级的硬约束**。Agent 在生成任何标识符前，**必须先查上表确认风格**，禁止凭训练惯性直接输出。写完后必须逐行回顾所有新引入的标识符，确保无一处违规。
+
+### ❌ 常见陷阱（反例墙）
+
+以下是在其他 C++ 项目中常见、但**在本项目严格禁止**的写法。Agent 若产生以下任何 pattern，视为必须立即修正的 bug：
+
+| 违规写法 | 问题 | 正确写法 |
+|----------|------|----------|
+| `m_writeQueue` | 成员变量用了 camelCase（Google/Unreal 惯性） | `m_write_queue` |
+| `m_write_queue_` | 尾部下划线（LLVM/libc++ 惯性） | `m_write_queue` |
+| `writeQueue_` | 尾部下划线无 `m_` 前缀 | `m_write_queue` |
+| `m_FileStream` | `m_` 后首字母大写（Microsoft 惯性） | `m_file_stream` |
+| `fileStream` | 成员变量无前缀 | `m_file_stream` |
+| `kMaxHistory` | 常量用了 `kCamelCase`（Google 惯性） | `MAX_HISTORY` |
+| `DEBUG` / `INFO` | 枚举值全大写 | `Debug` / `Info` |
+| `struct log_entry` | 结构体 snake_case | `struct LogEntry` |
+| `void process_batch()` | 函数 PascalCase | `void processBatch()` |
+
+**自检口诀**：`m_` 之后全小写加下划线；函数首单词全小写；类名每个单词首字母大写；枚举值每个单词首字母大写；宏全部大写。
+
+### 注释语言
+
+**所有代码注释必须使用英文**。包括：
+- 文件头注释（file header comments）
+- 行内注释（inline comments）
+- 文档注释（documentation comments, e.g. `///` or `//`）
+- TODO / FIXME / NOTE 等标记注释
+
+This rule applies to all source files under `_engine/` and `_game/`.
+Markdown / design docs / plans may still use Chinese for human readability.
 
 ### 文件编码
 

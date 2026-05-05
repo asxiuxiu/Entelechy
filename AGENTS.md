@@ -56,7 +56,11 @@ Entelechy/
 │   └── source/
 │       ├── core/           ← ECS 数据层（CoreLib）
 │       ├── system/         ← System / Scheduler（SystemLib）
-│       └── bridge/         ← AgentBridge（BridgeLib）
+│       ├── bridge/         ← AgentBridge（BridgeLib）
+│       ├── math/           ← 数学库（MathLib）
+│       ├── memory/         ← 内存管理（MemoryLib）
+│       ├── window/         ← 窗口系统（WindowLib）
+│       └── log/            ← 日志系统（LogLib）
 └── _game/                  ← 游戏逻辑（模拟独立仓库）
     ├── cmake_projects.json
     └── source/

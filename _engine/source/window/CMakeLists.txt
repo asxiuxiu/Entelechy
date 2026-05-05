@@ -17,4 +17,5 @@ target_compile_features(WindowLib PUBLIC cxx_std_17)
 target_link_libraries(WindowLib PUBLIC
     glfw
     CoreLib
+    LogLib
 )

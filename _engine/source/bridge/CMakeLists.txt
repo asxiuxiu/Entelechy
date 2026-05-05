@@ -16,4 +16,5 @@ target_compile_features(BridgeLib PUBLIC cxx_std_17)
 target_link_libraries(BridgeLib PUBLIC
     CoreLib
     SystemLib
+    LogLib
 )

@@ -15,4 +15,5 @@ target_compile_features(SystemLib PUBLIC cxx_std_17)
 
 target_link_libraries(SystemLib PUBLIC
     CoreLib
+    LogLib
 )

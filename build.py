@@ -28,6 +28,8 @@ def main():
                         help='Build Release configuration')
     parser.add_argument('--build', action='store_true',
                         help='Also compile after CMake configuration')
+    parser.add_argument('--shipping', action='store_true',
+                        help='Shipping build (strips debug/info logs)')
     args = parser.parse_args()
 
     build_type = 'Debug' if args.debug else 'Release'
@@ -65,6 +67,8 @@ def main():
         cmake_cmd += [f"-DCMAKE_BUILD_TYPE={build_type}"]
     cmake_cmd += ["-DCMAKE_TOOLCHAIN_FILE=build/conan/conan_toolchain.cmake"]
     cmake_cmd += ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
+    if args.shipping:
+        cmake_cmd += ["-DSHIPPING_BUILD=ON"]
     run(cmake_cmd)
 
     # Step 3: Build (optional)

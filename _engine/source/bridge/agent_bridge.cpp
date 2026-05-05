@@ -1,5 +1,6 @@
 ﻿#include "agent_bridge.h"
 #include "type_registry.h"
+#include "log/log_macros.h"
 #include <cstdio>
 #include <string>
 #include <cstring>
@@ -72,7 +73,7 @@ namespace {
 }
 
 void initBridge() {
-    printf("[Entelechy::bridge] initialized\n");
+    LOG_INFO(LogCategories::kEngine, "Bridge initialized");
 }
 
 void AgentBridge::init() {

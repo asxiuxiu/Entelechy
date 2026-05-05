@@ -192,6 +192,8 @@ def generate_sourcetree(config_path, output_dir, source_root):
             link_libs.append('MemoryLib')
         elif 'window' in m['name'].lower():
             link_libs.append('WindowLib')
+        elif 'log' in m['name'].lower():
+            link_libs.append('LogLib')
         elif 'runtime' in m['name'].lower():
             link_libs.append('RuntimeLib')
 

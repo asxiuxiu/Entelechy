@@ -1,9 +1,9 @@
-﻿#include <cstdio>
+﻿#include "log/log_macros.h"
 
 namespace Entelechy {
 
 void initSystem() {
-    printf("[Entelechy::system] initialized\n");
+    LOG_INFO(LogCategories::kEngine, "System initialized");
 }
 
 } // namespace Entelechy

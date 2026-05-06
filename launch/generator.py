@@ -72,6 +72,9 @@ def generate_main_cpp(sourcetree_dir, solution_name, enabled_modules):
             elif 'window' in module_name.lower():
                 forward_decls.append("namespace Entelechy { void initWindow(); }")
                 init_calls.append("    Entelechy::initWindow();")
+            elif 'imgui' in module_name.lower():
+                forward_decls.append("namespace Entelechy { void initImGui(); }")
+                init_calls.append("    Entelechy::initImGui();")
         elif module_type == 'game':
             if 'runtime' in module_name.lower():
                 forward_decls.append("namespace game { void initRuntime(); }")
@@ -194,6 +197,10 @@ def generate_sourcetree(config_path, output_dir, source_root):
             link_libs.append('WindowLib')
         elif 'log' in m['name'].lower():
             link_libs.append('LogLib')
+        elif 'render' in m['name'].lower():
+            link_libs.append('RenderLib')
+        elif 'imgui' in m['name'].lower():
+            link_libs.append('ImGuiLib')
         elif 'runtime' in m['name'].lower():
             link_libs.append('RuntimeLib')
 

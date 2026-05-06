@@ -8,8 +8,8 @@
 
 namespace Entelechy {
 
-// 基础分配器接口（静态分发，非虚）
-// 所有自定义分配器需提供：
+// Base allocator interface (static dispatch, non-virtual)
+// All custom allocators must provide:
 //   void* alloc(size_t size, size_t align)
 //   void  free(void* ptr)
 struct DefaultAllocator {

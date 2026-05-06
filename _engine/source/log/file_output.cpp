@@ -38,8 +38,13 @@ void FileOutput::write(const QueuedLogEntry& entry) {
 
     auto timeT = std::chrono::system_clock::to_time_t(entry.m_timestamp);
     std::tm* tm = std::localtime(&timeT);
-    char timeBuf[32] = {};
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        entry.m_timestamp.time_since_epoch()) % 1000;
+    char timeBuf[64] = {};
     std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", tm);
+    int timeLen = static_cast<int>(std::strlen(timeBuf));
+    std::snprintf(timeBuf + timeLen, sizeof(timeBuf) - timeLen, ".%03d",
+        static_cast<int>(ms.count()));
 
     char lineBuf[2048];
     int lineLen = std::snprintf(lineBuf, sizeof(lineBuf), "%s [%s][%s::%s] %s\n",
@@ -64,7 +69,7 @@ void FileOutput::flush() {
 bool FileOutput::openLogFile() {
     // Extract directory path and ensure it exists.
     const char* lastSep = nullptr;
-    for (const char* p = m_config.m_base_path; *p; ++p) {
+    for (const char* p = m_config.m_base_path.c_str(); *p; ++p) {
         if (*p == '/' || *p == '\\') {
             lastSep = p;
         }
@@ -72,11 +77,11 @@ bool FileOutput::openLogFile() {
 
     if (lastSep) {
         char dirBuf[256] = {};
-        size_t len = static_cast<size_t>(lastSep - m_config.m_base_path);
+        size_t len = static_cast<size_t>(lastSep - m_config.m_base_path.c_str());
         if (len >= sizeof(dirBuf)) {
             len = sizeof(dirBuf) - 1;
         }
-        std::memcpy(dirBuf, m_config.m_base_path, len);
+        std::memcpy(dirBuf, m_config.m_base_path.c_str(), len);
         dirBuf[len] = '\0';
 
 #ifdef _WIN32
@@ -86,7 +91,7 @@ bool FileOutput::openLogFile() {
 #endif
     }
 
-    m_file_stream.open(m_config.m_base_path, std::ios::out | std::ios::app);
+    m_file_stream.open(m_config.m_base_path.c_str(), std::ios::out | std::ios::app);
     m_file_opened = m_file_stream.is_open();
 
     if (m_file_opened) {
@@ -111,7 +116,7 @@ void FileOutput::rollFile() {
     // Delete the oldest file if it exists
     char oldestPath[256];
     std::snprintf(oldestPath, sizeof(oldestPath), "%s.%u",
-        m_config.m_base_path, m_config.m_max_files);
+        m_config.m_base_path.c_str(), m_config.m_max_files);
     std::remove(oldestPath);
 
     // Shift existing backups: N-1 -> N, N-2 -> N-1, ..., 1 -> 2
@@ -119,16 +124,16 @@ void FileOutput::rollFile() {
         char oldPath[256];
         char newPath[256];
         std::snprintf(oldPath, sizeof(oldPath), "%s.%d",
-            m_config.m_base_path, i);
+            m_config.m_base_path.c_str(), i);
         std::snprintf(newPath, sizeof(newPath), "%s.%d",
-            m_config.m_base_path, i + 1);
+            m_config.m_base_path.c_str(), i + 1);
         std::rename(oldPath, newPath);
     }
 
     // Rename current to .1
     char backupPath[256];
-    std::snprintf(backupPath, sizeof(backupPath), "%s.1", m_config.m_base_path);
-    std::rename(m_config.m_base_path, backupPath);
+    std::snprintf(backupPath, sizeof(backupPath), "%s.1", m_config.m_base_path.c_str());
+    std::rename(m_config.m_base_path.c_str(), backupPath);
 
     // Reopen new file
     openLogFile();

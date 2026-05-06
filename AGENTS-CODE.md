@@ -64,6 +64,22 @@
 This rule applies to all source files under `_engine/` and `_game/`.
 Markdown / design docs / plans may still use Chinese for human readability.
 
+### Commit Message 语言
+
+**所有 Git Commit Message 必须使用英文**。包括：
+- 标题（subject line）
+- 正文（body）
+- 页脚（footer，如 `Closes #123` 等）
+
+遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
 ### 文件编码
 
 **所有文本文件必须保存为 UTF-8 with BOM**。这是硬性要求，否则：

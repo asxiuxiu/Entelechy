@@ -76,12 +76,16 @@ GlfwWindow::~GlfwWindow() {
 }
 
 bool GlfwWindow::create(int width, int height, const char* title) {
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
     if (!m_window) {
         return false;
     }
+
+    glfwMakeContextCurrent(m_window);
 
     glfwSetKeyCallback(m_window, glfwKeyCallback);
     glfwSetMouseButtonCallback(m_window, glfwMouseButtonCallback);
@@ -90,6 +94,74 @@ bool GlfwWindow::create(int width, int height, const char* title) {
     glfwSetWindowCloseCallback(m_window, glfwWindowCloseCallback);
 
     return true;
+}
+
+void GlfwWindow::centerOnScreen() {
+    if (!m_window) {
+        return;
+    }
+
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    if (!monitor) {
+        return;
+    }
+
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    if (!mode) {
+        return;
+    }
+
+    int windowWidth, windowHeight;
+    glfwGetWindowSize(m_window, &windowWidth, &windowHeight);
+
+    int x = (mode->width - windowWidth) / 2;
+    int y = (mode->height - windowHeight) / 2;
+    glfwSetWindowPos(m_window, x, y);
+}
+
+void GlfwWindow::getPrimaryMonitorSize(int& width, int& height) {
+    width = 1920;
+    height = 1080;
+
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    if (!monitor) {
+        return;
+    }
+
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    if (mode) {
+        width = mode->width;
+        height = mode->height;
+    }
+}
+
+void GlfwWindow::getPrimaryMonitorContentScale(float& xscale, float& yscale) {
+    xscale = 1.0f;
+    yscale = 1.0f;
+
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    if (!monitor) {
+        return;
+    }
+
+    glfwGetMonitorContentScale(monitor, &xscale, &yscale);
+}
+
+void GlfwWindow::getRecommendedWindowSize(int& width, int& height, float fraction) {
+    int monitorW, monitorH;
+    getPrimaryMonitorSize(monitorW, monitorH);
+
+    width = static_cast<int>(monitorW * fraction);
+    height = static_cast<int>(monitorH * fraction);
+
+    // Clamp to reasonable bounds.
+    const int minW = 1280, minH = 720;
+    const int maxW = 1920, maxH = 1080;
+
+    if (width < minW)  width = minW;
+    if (height < minH) height = minH;
+    if (width > maxW)  width = maxW;
+    if (height > maxH) height = maxH;
 }
 
 void GlfwWindow::destroy() {
@@ -153,6 +225,18 @@ void* GlfwWindow::getNativeDisplay() const {
     //   Linux:   glfwGetX11Display() as Display*
     //   macOS:   not applicable (CAMetalLayer extracted from NSView)
     return nullptr;
+}
+
+void GlfwWindow::swapBuffers() {
+    if (m_window) {
+        glfwSwapBuffers(m_window);
+    }
+}
+
+void GlfwWindow::makeContextCurrent() {
+    if (m_window) {
+        glfwMakeContextCurrent(m_window);
+    }
 }
 
 } // namespace Entelechy

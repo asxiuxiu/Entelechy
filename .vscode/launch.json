@@ -2,28 +2,52 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Entelechy (cppvsdbg)",
+            "name": "Debug: Engine Only",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/Entelechy.exe",
+            "program": "${workspaceFolder}/build/bin/Debug/EntelechyEngineOnly.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "console": "integratedTerminal",
-            "preLaunchTask": "Build Entelechy (Debug)"
+            "preLaunchTask": "Build: Engine Only (Debug)"
         },
         {
-            "name": "Debug Entelechy (Release Build)",
+            "name": "Debug: Full Build",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/Entelechy.exe",
+            "program": "${workspaceFolder}/build/bin/Debug/Entelechy.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "console": "integratedTerminal",
-            "preLaunchTask": "Build Entelechy (Release)"
+            "preLaunchTask": "Build: Full (Debug)"
+        },
+        {
+            "name": "Release: Engine Only",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/Release/EntelechyEngineOnly.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build: Engine Only (Release)"
+        },
+        {
+            "name": "Release: Full Build",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/Release/Entelechy.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build: Full (Release)"
         }
     ]
 }

@@ -6,10 +6,10 @@
 
 ```batch
 REM 完整构建（引擎 + 游戏运行时）
-build.bat
+scripts\build\build.bat
 
 REM 仅构建引擎核心
-build.bat --config configs/engine_only.json
+scripts\build\build.bat --config configs\engine_only.json
 ```
 
 构建产物位于 `build/bin/` 和 `build/lib/`。
@@ -33,8 +33,16 @@ Entelechy/
 ├── plans/                      # 路线图与规划
 │   └── SelfGameEngine-Roadmap.md
 ├── TODO.md                     # 技术债务追踪
-├── build.bat                   # 主构建入口
-├── CMakeLists.txt              # （暂无）根 CMake 由生成器产出
+├── scripts/                    # 构建与工具脚本
+│   ├── build/                  # 构建系统
+│   │   ├── build.py            # 跨平台主构建入口
+│   │   ├── build.bat           # Windows 构建包装
+│   │   └── build.sh            # macOS / Linux 构建包装
+│   └── tools/                  # 开发工具
+│       ├── clean.py            # 跨平台清理脚本
+│       ├── clean.bat           # Windows 清理包装
+│       └── clean.sh            # macOS / Linux 清理包装
+├── CMakeLists.txt              # 根 CMake 入口
 ├── configs/                    # 构建配置（JSON 驱动）
 │   ├── full_build.json         # 完整构建
 │   └── engine_only.json        # 仅引擎核心
@@ -64,7 +72,7 @@ Entelechy/
 ### 构建流程
 
 ```
-build.bat
+scripts/build/build.bat
     │
     ▼
 launch/generator.py
@@ -112,7 +120,7 @@ include(${REAL_SOURCE_PATH}/CMakeLists.txt)
 1. 在 `_engine/source/` 或 `_game/source/` 下新建目录
 2. 编写模块源码 + `CMakeLists.txt`
 3. 在对应仓库的 `cmake_projects.json` 中注册模块
-4. 重新运行 `build.bat`
+4. 重新运行 `scripts/build/build.bat`
 
 示例（新增 `_engine/source/math`）：
 

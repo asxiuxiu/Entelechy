@@ -5,8 +5,8 @@
 
 namespace Entelechy {
 
-// 固定大小对象池：预分配一大块固定大小的 Slot，
-// 用空闲链表管理未使用的 Slot。分配和释放都是 O(1)。
+// Fixed-size object pool: pre-allocates a large block of equally-sized Slots.
+// Unused Slots are managed via a free list. Both alloc and free are O(1).
 template <typename T, size_t BLOCK_COUNT>
 class ObjectPool {
 public:

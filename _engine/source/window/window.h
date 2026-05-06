@@ -15,6 +15,8 @@ public:
     virtual void setSize(int width, int height) = 0;
     virtual void* getNativeHandle() const = 0;
     virtual void* getNativeDisplay() const = 0;
+    virtual void swapBuffers() = 0;
+    virtual void makeContextCurrent() = 0;
 };
 
 } // namespace Entelechy

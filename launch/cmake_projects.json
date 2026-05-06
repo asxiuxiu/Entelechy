@@ -36,6 +36,16 @@
             "name": "log",
             "path": "source/log",
             "enabled": true
+        },
+        {
+            "name": "render",
+            "path": "source/render",
+            "enabled": true
+        },
+        {
+            "name": "imgui",
+            "path": "source/imgui",
+            "enabled": true
         }
     ]
 }

@@ -28,7 +28,7 @@ JsonFileOutput::~JsonFileOutput() {
 bool JsonFileOutput::init() {
     // Ensure directory exists
     const char* lastSep = nullptr;
-    for (const char* p = m_base_path; *p; ++p) {
+    for (const char* p = m_base_path.c_str(); *p; ++p) {
         if (*p == '/' || *p == '\\') {
             lastSep = p;
         }
@@ -36,11 +36,11 @@ bool JsonFileOutput::init() {
 
     if (lastSep) {
         char dirBuf[256] = {};
-        size_t len = static_cast<size_t>(lastSep - m_base_path);
+        size_t len = static_cast<size_t>(lastSep - m_base_path.c_str());
         if (len >= sizeof(dirBuf)) {
             len = sizeof(dirBuf) - 1;
         }
-        std::memcpy(dirBuf, m_base_path, len);
+        std::memcpy(dirBuf, m_base_path.c_str(), len);
         dirBuf[len] = '\0';
 
 #ifdef _WIN32
@@ -64,8 +64,13 @@ void JsonFileOutput::write(const QueuedLogEntry& entry) {
 
     auto timeT = std::chrono::system_clock::to_time_t(entry.m_timestamp);
     std::tm* tm = std::localtime(&timeT);
-    char timeBuf[32] = {};
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        entry.m_timestamp.time_since_epoch()) % 1000;
+    char timeBuf[64] = {};
     std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%dT%H:%M:%S", tm);
+    int timeLen = static_cast<int>(std::strlen(timeBuf));
+    std::snprintf(timeBuf + timeLen, sizeof(timeBuf) - timeLen, ".%03d",
+        static_cast<int>(ms.count()));
 
     // Build JSON line in a buffer
     char buf[4096];
@@ -98,7 +103,7 @@ void JsonFileOutput::flush() {
 }
 
 bool JsonFileOutput::openLogFile() {
-    m_file_stream.open(m_base_path, std::ios::out | std::ios::app);
+    m_file_stream.open(m_base_path.c_str(), std::ios::out | std::ios::app);
     m_file_opened = m_file_stream.is_open();
 
     if (m_file_opened) {
@@ -121,20 +126,20 @@ void JsonFileOutput::rollFile() {
     m_file_opened = false;
 
     char oldestPath[256];
-    std::snprintf(oldestPath, sizeof(oldestPath), "%s.%u", m_base_path, m_max_files);
+    std::snprintf(oldestPath, sizeof(oldestPath), "%s.%u", m_base_path.c_str(), m_max_files);
     std::remove(oldestPath);
 
     for (int i = static_cast<int>(m_max_files) - 1; i >= 1; --i) {
         char oldPath[256];
         char newPath[256];
-        std::snprintf(oldPath, sizeof(oldPath), "%s.%d", m_base_path, i);
-        std::snprintf(newPath, sizeof(newPath), "%s.%d", m_base_path, i + 1);
+        std::snprintf(oldPath, sizeof(oldPath), "%s.%d", m_base_path.c_str(), i);
+        std::snprintf(newPath, sizeof(newPath), "%s.%d", m_base_path.c_str(), i + 1);
         std::rename(oldPath, newPath);
     }
 
     char backupPath[256];
-    std::snprintf(backupPath, sizeof(backupPath), "%s.1", m_base_path);
-    std::rename(m_base_path, backupPath);
+    std::snprintf(backupPath, sizeof(backupPath), "%s.1", m_base_path.c_str());
+    std::rename(m_base_path.c_str(), backupPath);
 
     openLogFile();
 }

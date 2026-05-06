@@ -15,22 +15,28 @@
 **跨平台（推荐）**
 ```bash
 # 完整构建（引擎 + 游戏运行时）
-python build.py
+python scripts/build.py
 
 # 仅构建引擎核心
-python build.py --config configs/engine_only.json
+python scripts/build.py --config configs/engine_only.json
+
+# Debug 构建（Agent 改动后的默认测试配置）
+python scripts/build.py --debug
+
+# Release 构建
+python scripts/build.py --release
 ```
 
 **Windows**
 ```batch
-build.bat
-build.bat --config configs/engine_only.json
+scripts/build/build.bat
+scripts/build/build.bat --config configs/engine_only.json
 ```
 
 **macOS / Linux**
 ```bash
-./build.sh
-./build.sh --config configs/engine_only.json
+./scripts/build/build.sh
+./scripts/build/build.sh --config configs/engine_only.json
 ```
 
 构建产物：
@@ -40,7 +46,7 @@ build.bat --config configs/engine_only.json
 ### 构建流程
 
 ```
-build.py
+scripts/build/build.py
   → launch/generator.py（读取 JSON 配置）
   → 生成 build/sourcetree/（代理 CMakeLists.txt + main.cpp）
   → cmake -S . -B build
@@ -102,7 +108,7 @@ target_compile_features(MathLib PUBLIC cxx_std_17)
 ### 4. 重新构建
 
 ```bash
-python build.py
+python scripts/build.py
 ```
 
 ---
@@ -126,7 +132,7 @@ elif 'math' in m['name'].lower():
 
 ### ❌ 不要直接改 `build/sourcetree/`
 
-`sourcetree/` 是生成目录，每次运行 `build.bat` 都会被覆盖。所有持久化修改应该发生在：
+`sourcetree/` 是生成目录，每次运行 `scripts/build/build.bat` 都会被覆盖。所有持久化修改应该发生在：
 - `_engine/source/...`
 - `_game/source/...`
 - `launch/templates/...`
@@ -150,7 +156,7 @@ add_library(MathLib STATIC ${CMAKE_CURRENT_LIST_DIR}/math.cpp)
 
 本项目通过 `compile_commands.json` 自动为 VS Code C++ 扩展提供 Conan 引入包的 include 路径，**无需手动维护 `includePath`**。
 
-- `build.py` 已启用 `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`
+- `scripts/build/build.py` 已启用 `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`
 - `.vscode/c_cpp_properties.json` 已配置 `compileCommands` 指向 `${workspaceFolder}/build/compile_commands.json`
 
-**以后引入任何 Conan 新包时**，只需重新运行 `build.py`（或 `build.sh` / `build.bat`），`compile_commands.json` 会自动更新，IntelliSense 即刻识别新包头文件。
+**以后引入任何 Conan 新包时**，只需重新运行 `scripts/build/build.py`（或 `scripts/build/build.sh` / `scripts/build/build.bat`），`compile_commands.json` 会自动更新，IntelliSense 即刻识别新包头文件。

@@ -1,8 +1,91 @@
 ﻿{
     "version": "2.0.0",
     "tasks": [
+        // ============================================================
+        // 一键构建：生成 Source Forest + 配置 CMake + 编译
+        // ============================================================
         {
-            "label": "Build Entelechy (Debug)",
+            "label": "Build: Engine Only (Debug)",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/scripts/build/build.bat",
+                "args": ["--config", "configs/engine_only.json", "--debug", "--build"]
+            },
+            "linux": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/engine_only.json", "--debug", "--build"]
+            },
+            "osx": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/engine_only.json", "--debug", "--build"]
+            },
+            "group": "build",
+            "problemMatcher": ["$msCompile"],
+            "detail": "完整流程：生成 → 配置 → 编译 Debug（仅引擎）"
+        },
+        {
+            "label": "Build: Engine Only (Release)",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/scripts/build/build.bat",
+                "args": ["--config", "configs/engine_only.json", "--release", "--build"]
+            },
+            "linux": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/engine_only.json", "--release", "--build"]
+            },
+            "osx": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/engine_only.json", "--release", "--build"]
+            },
+            "group": "build",
+            "problemMatcher": ["$msCompile"],
+            "detail": "完整流程：生成 → 配置 → 编译 Release（仅引擎）"
+        },
+        {
+            "label": "Build: Full (Debug)",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/scripts/build/build.bat",
+                "args": ["--config", "configs/full_build.json", "--debug", "--build"]
+            },
+            "linux": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/full_build.json", "--debug", "--build"]
+            },
+            "osx": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/full_build.json", "--debug", "--build"]
+            },
+            "group": "build",
+            "problemMatcher": ["$msCompile"],
+            "detail": "完整流程：生成 → 配置 → 编译 Debug（引擎+游戏）"
+        },
+        {
+            "label": "Build: Full (Release)",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/scripts/build/build.bat",
+                "args": ["--config", "configs/full_build.json", "--release", "--build"]
+            },
+            "linux": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/full_build.json", "--release", "--build"]
+            },
+            "osx": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/full_build.json", "--release", "--build"]
+            },
+            "group": "build",
+            "problemMatcher": ["$msCompile"],
+            "detail": "完整流程：生成 → 配置 → 编译 Release（引擎+游戏）"
+        },
+
+        // ============================================================
+        // 纯编译（不重新生成 Source Forest，依赖当前已配置的结果）
+        // ============================================================
+        {
+            "label": "Compile: Debug",
             "type": "shell",
             "command": "cmake",
             "args": [
@@ -17,10 +100,10 @@
                 "isDefault": true
             },
             "problemMatcher": ["$msCompile"],
-            "detail": "构建 Debug 版本（需先执行配置任务）"
+            "detail": "仅编译 Debug（不重新生成 Source Forest）"
         },
         {
-            "label": "Build Entelechy (Release)",
+            "label": "Compile: Release",
             "type": "shell",
             "command": "cmake",
             "args": [
@@ -32,47 +115,126 @@
             ],
             "group": "build",
             "problemMatcher": ["$msCompile"],
-            "detail": "构建 Release 版本（需先执行配置任务）"
+            "detail": "仅编译 Release（不重新生成 Source Forest）"
         },
+
+        // ============================================================
+        // 仅生成+配置（不编译）
+        // ============================================================
         {
-            "label": "Configure CMake (VS2022)",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "-S", "${workspaceFolder}",
-                "-B", "${workspaceFolder}/build",
-                "-G", "Visual Studio 17 2022",
-                "-A", "x64",
-                "-DCMAKE_CONFIGURATION_TYPES=Debug;Release"
-            ],
-            "options": {
-                "shell": {
-                    "executable": "cmd.exe",
-                    "args": ["/c"]
-                }
-            },
-            "group": "build",
-            "problemMatcher": [],
-            "detail": "从根 CMakeLists.txt 重新配置工程，自动生成 Source Forest"
-        },
-        {
-            "label": "Generate & Configure (build.py)",
+            "label": "Generate: Engine Only (Debug)",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/build.bat",
-                "args": ["--debug"]
+                "command": "${workspaceFolder}/scripts/build/build.bat",
+                "args": ["--config", "configs/engine_only.json", "--debug"]
             },
             "linux": {
-                "command": "python3",
-                "args": ["${workspaceFolder}/build.py", "--debug"]
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/engine_only.json", "--debug"]
             },
             "osx": {
-                "command": "python3",
-                "args": ["${workspaceFolder}/build.py", "--debug"]
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/engine_only.json", "--debug"]
             },
             "group": "build",
             "problemMatcher": [],
-            "detail": "运行 build.py 生成 Source Forest 并配置 CMake（不编译）"
+            "detail": "生成 Source Forest + 配置 CMake（仅引擎，Debug，不编译）"
+        },
+        {
+            "label": "Generate: Engine Only (Release)",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/scripts/build/build.bat",
+                "args": ["--config", "configs/engine_only.json", "--release"]
+            },
+            "linux": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/engine_only.json", "--release"]
+            },
+            "osx": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/engine_only.json", "--release"]
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "生成 Source Forest + 配置 CMake（仅引擎，Release，不编译）"
+        },
+        {
+            "label": "Generate: Full (Debug)",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/scripts/build/build.bat",
+                "args": ["--config", "configs/full_build.json", "--debug"]
+            },
+            "linux": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/full_build.json", "--debug"]
+            },
+            "osx": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/full_build.json", "--debug"]
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "生成 Source Forest + 配置 CMake（引擎+游戏，Debug，不编译）"
+        },
+        {
+            "label": "Generate: Full (Release)",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/scripts/build/build.bat",
+                "args": ["--config", "configs/full_build.json", "--release"]
+            },
+            "linux": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/full_build.json", "--release"]
+            },
+            "osx": {
+                "command": "${workspaceFolder}/scripts/build/build.sh",
+                "args": ["--config", "configs/full_build.json", "--release"]
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "生成 Source Forest + 配置 CMake（引擎+游戏，Release，不编译）"
+        },
+
+        // ============================================================
+        // 清理生成目录
+        // ============================================================
+        {
+            "label": "Clean: Remove Build Directory",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/scripts/tools/clean.bat"
+            },
+            "linux": {
+                "command": "${workspaceFolder}/scripts/tools/clean.sh"
+            },
+            "osx": {
+                "command": "${workspaceFolder}/scripts/tools/clean.sh"
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "删除 build/ 目录（CMake 缓存、Conan 生成文件、编译产物等）"
+        },
+        {
+            "label": "Clean: Deep Clean (Include .conan/)",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/scripts/tools/clean.bat",
+                "args": ["--deep"]
+            },
+            "linux": {
+                "command": "${workspaceFolder}/scripts/tools/clean.sh",
+                "args": ["--deep"]
+            },
+            "osx": {
+                "command": "${workspaceFolder}/scripts/tools/clean.sh",
+                "args": ["--deep"]
+            },
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "深度清理：删除 build/ + .conan/（下次构建需重新 conan install）"
         }
     ]
 }

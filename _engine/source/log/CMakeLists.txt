@@ -25,4 +25,8 @@ target_include_directories(LogLib PUBLIC
 
 target_link_libraries(LogLib PUBLIC CoreLib)
 
+if(MSVC)
+    target_compile_definitions(LogLib PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
 target_compile_features(LogLib PUBLIC cxx_std_17)

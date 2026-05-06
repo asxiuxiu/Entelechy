@@ -9,6 +9,8 @@ class EntelechyConan(ConanFile):
 
     def requirements(self):
         self.requires("glfw/3.4")
+        self.requires("glad/0.1.36")
+        self.requires("imgui/1.91.0-docking")
         # Future dependencies:
         # self.requires("spdlog/1.14.1")
         # self.requires("glm/1.0.1")

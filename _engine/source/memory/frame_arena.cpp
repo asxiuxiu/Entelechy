@@ -17,7 +17,7 @@ void* FrameArena::alloc(size_t size, size_t align) {
     size_t mask = align - 1;
     size_t padded = (m_offset + mask) & ~mask;
     if (padded + size > m_capacity) {
-        return nullptr; // 溢出，无回退
+        return nullptr; // Overflow, no fallback
     }
     m_offset = padded + size;
     return m_base + padded;

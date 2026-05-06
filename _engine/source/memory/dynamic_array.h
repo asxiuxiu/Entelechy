@@ -5,8 +5,8 @@
 
 namespace Entelechy {
 
-// 可插拔分配器的动态数组
-// AllocatorT 需提供静态方法：
+// Dynamic array with a pluggable allocator
+// AllocatorT must provide static methods:
 //   void* alloc(size_t size, size_t align)
 //   void  free(void* ptr)
 template <typename T, typename AllocatorT = DefaultAllocator>
@@ -15,7 +15,7 @@ public:
     DynamicArray() : m_data(nullptr), m_count(0), m_capacity(0) {}
     ~DynamicArray() { clear(); }
 
-    // 禁止拷贝，允许移动
+    // Copy is disallowed; move is allowed
     DynamicArray(const DynamicArray&) = delete;
     DynamicArray& operator=(const DynamicArray&) = delete;
 

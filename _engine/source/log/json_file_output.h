@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <fstream>
+#include <string>
 #include <cstdint>
 #include "log_output_device.h"
 #include "queued_log_entry.h"
@@ -23,7 +24,7 @@ public:
     void flush() override;
 
 private:
-    const char* m_base_path;
+    std::string m_base_path;
     uint32_t m_max_size_mb;
     uint32_t m_max_files;
     std::ofstream m_file_stream;

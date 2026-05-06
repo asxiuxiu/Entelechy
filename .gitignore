@@ -31,3 +31,6 @@ Thumbs.db
 
 # Local vault context config
 .vault-context.json
+
+.conan
+logs

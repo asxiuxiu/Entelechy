@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <fstream>
+#include <string>
 #include <cstdint>
 #include "log_output_device.h"
 #include "queued_log_entry.h"
@@ -10,7 +11,7 @@ namespace Entelechy {
 // File output configuration
 // ============================================================
 struct LogFileConfig {
-    const char* m_base_path = "logs/engine.log";
+    std::string m_base_path = "logs/engine.log";
     uint32_t m_max_size_mb = 10;
     uint32_t m_max_files = 5;
 };

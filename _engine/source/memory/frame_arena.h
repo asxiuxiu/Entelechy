@@ -4,8 +4,8 @@
 
 namespace Entelechy {
 
-// 帧分配器：一帧内所有临时内存共享一块大缓冲区，
-// 帧结束时 reset()，O(1) 全部回收。
+// Frame allocator: all temporary memory within one frame shares a large buffer.
+// Call reset() at the end of the frame to reclaim everything in O(1).
 class FrameArena {
 public:
     explicit FrameArena(size_t capacity);

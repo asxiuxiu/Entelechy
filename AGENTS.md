@@ -14,8 +14,8 @@
 
 **本项目同时支持 Windows 与 macOS/Linux 开发**。
 
-- **Windows**：使用 `build.bat`，编译器预设为 MSVC（或 MinGW）
-- **macOS / Linux**：使用 `build.sh`，编译器预设为 Clang / GCC
+- **Windows**：使用 `scripts/build/build.bat`，编译器预设为 MSVC（或 MinGW）
+- **macOS / Linux**：使用 `scripts/build/build.sh`，编译器预设为 Clang / GCC
 - Agent 在给出命令时应根据当前平台选择对应脚本
 
 ## 目录结构
@@ -38,9 +38,15 @@ Entelechy/
 ├── Note_TODO.md            ← 笔记待整理
 ├── README.md               ← 对外文档
 ├── TODO.md                 ← 技术债务
-├── build.py                ← 跨平台主构建入口（推荐）
-├── build.bat               ← Windows 包装（调用 build.py）
-├── build.sh                ← macOS / Linux 包装（调用 build.py）
+├── scripts/                ← 构建与工具脚本
+│   ├── build/              ← 构建系统
+│   │   ├── build.py        ← 跨平台主构建入口（推荐）
+│   │   ├── build.bat       ← Windows 包装（调用 build.py）
+│   │   └── build.sh        ← macOS / Linux 包装（调用 build.py）
+│   └── tools/              ← 开发工具
+│       ├── clean.py        ← 跨平台清理脚本
+│       ├── clean.bat       ← Windows 清理包装
+│       └── clean.sh        ← macOS / Linux 清理包装
 ├── conanfile.py            ← Conan 依赖管理
 ├── configs/                ← 构建配置（JSON）
 │   ├── full_build.json
@@ -54,17 +60,19 @@ Entelechy/
 ├── _engine/                ← 引擎核心（模拟独立仓库）
 │   ├── cmake_projects.json
 │   └── source/
-│       ├── core/           ← ECS 数据层（CoreLib）
-│       ├── system/         ← System / Scheduler（SystemLib）
-│       ├── bridge/         ← AgentBridge（BridgeLib）
-│       ├── math/           ← 数学库（MathLib）
-│       ├── memory/         ← 内存管理（MemoryLib）
-│       ├── window/         ← 窗口系统（WindowLib）
-│       └── log/            ← 日志系统（LogLib）
+│       ├── core/           ← ECS 数据层（CoreLib） [AGENTS.md](./_engine/source/core/AGENTS.md)
+│       ├── system/         ← System / Scheduler（SystemLib） [AGENTS.md](./_engine/source/system/AGENTS.md)
+│       ├── bridge/         ← AgentBridge（BridgeLib） [AGENTS.md](./_engine/source/bridge/AGENTS.md)
+│       ├── math/           ← 数学库（MathLib） [AGENTS.md](./_engine/source/math/AGENTS.md)
+│       ├── memory/         ← 内存管理（MemoryLib） [AGENTS.md](./_engine/source/memory/AGENTS.md)
+│       ├── window/         ← 窗口系统（WindowLib） [AGENTS.md](./_engine/source/window/AGENTS.md)
+│       ├── log/            ← 日志系统（LogLib） [AGENTS.md](./_engine/source/log/AGENTS.md)
+│       ├── render/         ← 图形后端（RenderLib） [AGENTS.md](./_engine/source/render/AGENTS.md)
+│       └── imgui/          ← ImGui 调试 UI（ImGuiLib） [AGENTS.md](./_engine/source/imgui/AGENTS.md)
 └── _game/                  ← 游戏逻辑（模拟独立仓库）
     ├── cmake_projects.json
     └── source/
-        └── runtime/        ← 游戏运行时（RuntimeLib）
+        └── runtime/        ← 游戏运行时（RuntimeLib） [AGENTS.md](./_game/source/runtime/AGENTS.md)
 ```
 
 ## 子文档索引
@@ -77,7 +85,17 @@ Entelechy/
 ## 外部参考
 - 开发路线图：`plans/SelfGameEngine-Roadmap.md`
 
+## Agent 探索路径
+
+每个模块目录下都有 `AGENTS.md`，提供该模块的关键文件、入口点和本地规范，可作为探索起点。
+
 ## Agent 工作规则
 
 - **目录结构变更时**：如果新增、删除、重命名目录或文件，或调整了目录的用途说明，**必须同步更新本文件（`AGENTS.md`）中的目录结构代码块及相关描述**，确保文档与实际结构保持一致。
+- **模块文档维护（关键）**：
+  - 如果修改了某模块的代码（类、函数、文件、架构决策），**必须同步检查并更新该模块目录下的 `AGENTS.md`**，确保文件列表、职责描述、重要入口、依赖关系与实际代码保持一致。
+  - 如果新增了一个模块目录，**必须为该模块创建 `AGENTS.md`**，可用 `python scripts/tools/generate_module_docs.py` 生成初始模板后再人工补充。
+  - 如果迁移或删除了模块目录，**必须同步迁移或删除对应的 `AGENTS.md`**，并检查根 `AGENTS.md` 中的链接。
+- **跨模块引用约定**：在 `AGENTS.md` 中引用其他模块时，使用 `[模块名](相对路径)` 的格式，例如 `[Window 模块](../window/AGENTS.md)`。禁止写死具体的类名/函数名（如 `GlfwWindow::create`），避免被引用模块重构后链接失效。
 - **遇到不懂的概念时**：如果在代码、文档或讨论中遇到不理解的专业概念、术语或知识点，**先尝试通过 `vault-context` skill 在用户的 Obsidian 知识库中搜索相关笔记**；若知识库中找不到对应内容，再在根目录的 `Note_TODO.md` 中追加一条记录，方便用户后续整理笔记。
+- **代码改动后的构建测试**：Agent 在完成任何代码改动后，**必须以 Debug 配置为主进行目标构建测试**，确认改动不会引入编译错误或链接失败。仅在用户明确要求或场景特定需要时，才使用 Release 配置进行验证。Debug 构建命令参考 `AGENTS-BUILD.md`。

@@ -4,6 +4,7 @@
 #include "json_file_output.h"
 #include <iostream>
 #include <ctime>
+#include <cstring>
 
 namespace Entelechy {
 
@@ -23,26 +24,51 @@ Logger::~Logger() {
 // Lifecycle
 // ============================================================
 bool Logger::init(const char* filePath) {
+    // Generate timestamped base path: insert _YYYYMMDD_HHMMSS_mmm before extension
+    auto now = std::chrono::system_clock::now();
+    auto timeT = std::chrono::system_clock::to_time_t(now);
+    std::tm* tm = std::localtime(&timeT);
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
+    char timeSuffixBuf[64];
+    std::strftime(timeSuffixBuf, sizeof(timeSuffixBuf), "_%Y%m%d_%H%M%S", tm);
+    std::string timeSuffix = timeSuffixBuf;
+    char msBuf[8];
+    std::snprintf(msBuf, sizeof(msBuf), "_%03d", static_cast<int>(ms.count()));
+    timeSuffix += msBuf;
+
+    // Build timestamped text path
+    std::string textPath;
+    const char* dot = std::strrchr(filePath, '.');
+    if (dot) {
+        textPath.assign(filePath, dot - filePath);
+        textPath += timeSuffix;
+        textPath += dot;
+    } else {
+        textPath = filePath;
+        textPath += timeSuffix;
+    }
+
+    // Derive json path from text path
+    std::string jsonPath;
+    size_t pathLen = textPath.size();
+    if (pathLen > 4 && textPath.compare(pathLen - 4, 4, ".log") == 0) {
+        jsonPath = textPath.substr(0, pathLen - 4) + ".jsonl";
+    } else {
+        jsonPath = textPath + ".jsonl";
+    }
+
     // Console output
     addOutputDevice(std::make_unique<ConsoleOutput>());
 
     // Text file output
-    auto fileOutput = std::make_unique<FileOutput>(LogFileConfig{filePath, 10, 5});
+    auto fileOutput = std::make_unique<FileOutput>(LogFileConfig{textPath, 10, 5});
     if (fileOutput->init()) {
         addOutputDevice(std::move(fileOutput));
     }
 
     // JSON Lines output
-    // Derive .jsonl path from .log path, e.g. "logs/engine.log" -> "logs/engine.jsonl"
-    char jsonPath[256];
-    size_t pathLen = std::strlen(filePath);
-    if (pathLen > 4 && std::strcmp(filePath + pathLen - 4, ".log") == 0) {
-        std::snprintf(jsonPath, sizeof(jsonPath), "%.*s.jsonl",
-            static_cast<int>(pathLen - 4), filePath);
-    } else {
-        std::snprintf(jsonPath, sizeof(jsonPath), "%s.jsonl", filePath);
-    }
-    auto jsonOutput = std::make_unique<JsonFileOutput>(jsonPath, 10, 5);
+    auto jsonOutput = std::make_unique<JsonFileOutput>(jsonPath.c_str(), 10, 5);
     if (jsonOutput->init()) {
         addOutputDevice(std::move(jsonOutput));
     }

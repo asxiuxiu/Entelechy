@@ -2,6 +2,10 @@
 #include <imgui.h>
 #include "log/logger.h"
 #include "log/log_level.h"
+#include "world.h"
+#include "scheduler.h"
+#include "type_registry.h"
+#include "math/vec.h"
 #include <ctime>
 #include <chrono>
 
@@ -27,6 +31,29 @@ const char* logLevelToShortString(LogLevel level) {
         case LogLevel::Error:   return "E";
     }
     return "?";
+}
+
+void drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
+    void* fieldPtr = static_cast<uint8_t*>(componentRaw) + field.offset;
+
+    if (field.type == "float") {
+        ImGui::DragFloat(field.name.c_str(), static_cast<float*>(fieldPtr), 0.1f);
+    } else if (field.type == "Vec2") {
+        ImGui::DragFloat2(field.name.c_str(), &static_cast<Entelechy::Vec2*>(fieldPtr)->x, 0.1f);
+    } else if (field.type == "Vec3") {
+        ImGui::DragFloat3(field.name.c_str(), &static_cast<Entelechy::Vec3*>(fieldPtr)->x, 0.1f);
+    } else if (field.type == "SmallString") {
+        auto* str = static_cast<Entelechy::SmallString*>(fieldPtr);
+        ImGui::Text("%s: %s", field.name.c_str(), str->c_str());
+    } else if (field.type == "int" || field.type == "int32_t") {
+        ImGui::DragInt(field.name.c_str(), static_cast<int*>(fieldPtr));
+    } else if (field.type == "uint32_t") {
+        ImGui::DragScalar(field.name.c_str(), ImGuiDataType_U32, fieldPtr);
+    } else if (field.type == "bool") {
+        ImGui::Checkbox(field.name.c_str(), static_cast<bool*>(fieldPtr));
+    } else {
+        ImGui::TextDisabled("%s: (%s)", field.name.c_str(), field.type.c_str());
+    }
 }
 
 } // anonymous namespace
@@ -181,6 +208,96 @@ void buildLogPanel() {
     }
 
     ImGui::EndChild();
+    ImGui::End();
+}
+
+void buildECSInspector(World& world, Scheduler& scheduler, float dt, bool& autoRun) {
+    static Entity selected{0xFFFFFFFF, 0};
+
+    // ---------- Left panel: ECS World ----------
+    ImGui::SetNextWindowPos(ImVec2(20, 360), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(320, 400), ImGuiCond_FirstUseEver);
+    ImGui::Begin("ECS World");
+
+    if (ImGui::Button("Add Entity")) {
+        Entity e = world.spawn();
+        world.addComponent<Position>(e, {0.0f, 0.0f});
+        world.addComponent<Velocity>(e, {1.0f, 0.0f});
+        world.addComponent<Health>(e, {100.0f});
+        world.addComponent<NameTag>(e, {SmallString("NewEntity")});
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Delete Selected") && selected.valid() && world.valid(selected)) {
+        world.destroy(selected);
+        selected = {0xFFFFFFFF, 0};
+    }
+
+    ImGui::Separator();
+    ImGui::Checkbox("Auto Run Systems", &autoRun);
+    ImGui::SameLine();
+    if (ImGui::Button("Tick Once")) {
+        scheduler.tick(world, dt);
+    }
+    ImGui::Separator();
+
+    size_t aliveCount = world.entityCount();
+    ImGui::Text("Entities (%zu alive):", aliveCount);
+
+    for (uint32_t id = 0; id < world.maxEntityID(); ++id) {
+        Entity e{id, world.getEntityGeneration(id)};
+        if (!world.valid(e)) continue;
+
+        SmallString label = formatString("Entity {0}", static_cast<int>(e.id));
+        bool hasAny = false;
+        for (const auto& pair : world.componentArrays()) {
+            if (pair.second->has(e)) {
+                const auto* desc = TypeRegistry::instance().findComponent(pair.first);
+                if (desc) {
+                    if (hasAny) {
+                        label += ", ";
+                    } else {
+                        label += " [";
+                    }
+                    label += desc->name;
+                    hasAny = true;
+                }
+            }
+        }
+        if (hasAny) label += "]";
+
+        bool isSelected = (selected == e);
+        if (ImGui::Selectable(label.c_str(), isSelected)) {
+            selected = e;
+        }
+    }
+    ImGui::End();
+
+    // ---------- Right panel: Inspector ----------
+    ImGui::SetNextWindowPos(ImVec2(360, 360), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Inspector");
+
+    if (selected.valid() && world.valid(selected)) {
+        ImGui::Text("Entity ID: %u, Generation: %u", selected.id, selected.generation);
+        ImGui::Separator();
+
+        for (const auto& pair : world.componentArrays()) {
+            if (!pair.second->has(selected)) continue;
+            const auto* desc = TypeRegistry::instance().findComponent(pair.first);
+            if (!desc) continue;
+            void* raw = const_cast<void*>(pair.second->getRaw(selected));
+            if (!raw) continue;
+
+            if (ImGui::TreeNodeEx(desc->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                for (const auto& field : desc->fields) {
+                    drawField(field, raw);
+                }
+                ImGui::TreePop();
+            }
+        }
+    } else {
+        ImGui::TextDisabled("No entity selected.");
+    }
     ImGui::End();
 }
 

@@ -2,6 +2,10 @@
 
 namespace Entelechy {
 
+// Forward declarations
+class World;
+class Scheduler;
+
 // Request emitted by the debug panel when the user chooses a new resolution.
 struct WindowSizeRequest {
     int width = 0;
@@ -23,5 +27,9 @@ void buildDebugPanel(float dt, float fps, float clearColor[4],
 // Log panel: renders the async logger's history ring buffer with
 // level filtering, color coding, and auto-scroll.
 void buildLogPanel();
+
+// ECS Inspector: two-column layout (Entity list + Component detail).
+// autoRun is an in/out parameter controlling Scheduler tick.
+void buildECSInspector(World& world, Scheduler& scheduler, float dt, bool& autoRun);
 
 } // namespace Entelechy

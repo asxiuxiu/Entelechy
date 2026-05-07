@@ -39,4 +39,6 @@ target_link_libraries(ImGuiLib PUBLIC
     glfw
     WindowLib
     LogLib
+    CoreLib
+    SystemLib
 )

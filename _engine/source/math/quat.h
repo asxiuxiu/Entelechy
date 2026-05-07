@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "vec.h"
+#include "math_config.h"
 #include <cmath>
 
 namespace Entelechy {
@@ -31,6 +32,7 @@ struct Quat {
 
     [[nodiscard]] Quat normalized() const {
         float len = length();
+        MATH_CHECK_FINITE_QUAT((*this));
         return len > 0.0f ? Quat{x / len, y / len, z / len, w / len} : Quat{0.0f, 0.0f, 0.0f, 1.0f};
     }
 
@@ -70,6 +72,20 @@ struct Quat {
     return v + cross1 * (2.0f * s) + cross2 * 2.0f;
 }
 
+// Normalized Linear Interpolation: fast, good enough for 99% of cases
+[[nodiscard]] inline Quat nlerp(const Quat& a, const Quat& b, float t) {
+    float d = a.dot(b);
+    float sign = d < 0.0f ? -1.0f : 1.0f;
+    Quat r{
+        a.x + (b.x * sign - a.x) * t,
+        a.y + (b.y * sign - a.y) * t,
+        a.z + (b.z * sign - a.z) * t,
+        a.w + (b.w * sign - a.w) * t
+    };
+    return r.normalized();
+}
+
+// Spherical Linear Interpolation: constant angular velocity, more expensive
 [[nodiscard]] inline Quat slerp(const Quat& a, const Quat& b, float t) {
     float dot = a.dot(b);
     Quat b2 = b;

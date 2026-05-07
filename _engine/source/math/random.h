@@ -2,6 +2,7 @@
 #include "foundation_types.h"
 #include <bit>
 #include <cmath>
+#include <cstring>
 
 namespace Entelechy {
 
@@ -19,17 +20,17 @@ public:
         return m_state;
     }
 
+    // Deterministic float in [0, 1) using bit-magic (IEEE 754)
     [[nodiscard]] f32 nextFloat01() {
-        constexpr u32 MAGIC = 0x3F800000u;
-        return std::bit_cast<f32>(MAGIC | (nextUint32() >> 9)) - 1.0f;
+        constexpr u32 MAGIC = 0x3F800000u; // 1.0f in IEEE 754
+        u32 bits = MAGIC | (nextUint32() >> 9);
+        f32 f;
+        std::memcpy(&f, &bits, sizeof(f));
+        return f - 1.0f;
     }
 
-    [[nodiscard]] f32 nextFloatRange(f32 minVal, f32 maxVal) {
-        return minVal + nextFloat01() * (maxVal - minVal);
-    }
-
-    [[nodiscard]] u32 nextUintRange(u32 minVal, u32 maxVal) {
-        return minVal + (nextUint32() % (maxVal - minVal + 1));
+    [[nodiscard]] f32 nextFloatRange(f32 min, f32 max) {
+        return min + nextFloat01() * (max - min);
     }
 };
 

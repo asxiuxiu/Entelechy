@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include "foundation_types.h"
+#include "math_config.h"
 #include <cmath>
 #include <cstdint>
 
@@ -26,6 +28,7 @@ struct Vec2 {
 
     [[nodiscard]] Vec2 normalized() const {
         float len = length();
+        MATH_CHECK_FINITE_2((*this));
         return len > 0.0f ? (*this) / len : Vec2{0.0f, 0.0f};
     }
 };
@@ -71,13 +74,15 @@ struct Vec3 {
 
     [[nodiscard]] Vec3 normalized() const {
         float len = length();
+        MATH_CHECK_FINITE_3((*this));
         return len > 0.0f ? (*this) / len : Vec3{0.0f, 0.0f, 0.0f};
     }
 };
 
 inline Vec3 operator*(float s, const Vec3& v) { return v * s; }
 
-struct Vec4 {
+// SIMD computation format: 16-byte aligned, 4 floats
+struct alignas(16) Vec4 {
     float x = 0.0f;
     float y = 0.0f;
     float z = 0.0f;
@@ -101,6 +106,7 @@ struct Vec4 {
 
     [[nodiscard]] Vec4 normalized() const {
         float len = length();
+        MATH_CHECK_FINITE_4((*this));
         return len > 0.0f ? (*this) / len : Vec4{0.0f, 0.0f, 0.0f, 0.0f};
     }
 };

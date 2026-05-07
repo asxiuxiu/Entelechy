@@ -3,12 +3,18 @@ cmake_minimum_required(VERSION 3.20)
 add_library(MathLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/math_lib.cpp
     ${CMAKE_CURRENT_LIST_DIR}/math_lib.h
+    ${CMAKE_CURRENT_LIST_DIR}/math_config.h
     ${CMAKE_CURRENT_LIST_DIR}/align.h
     ${CMAKE_CURRENT_LIST_DIR}/vec.h
     ${CMAKE_CURRENT_LIST_DIR}/quat.h
     ${CMAKE_CURRENT_LIST_DIR}/mat4.h
     ${CMAKE_CURRENT_LIST_DIR}/aabb.h
     ${CMAKE_CURRENT_LIST_DIR}/random.h
+    ${CMAKE_CURRENT_LIST_DIR}/simd.h
+    ${CMAKE_CURRENT_LIST_DIR}/half.h
+    ${CMAKE_CURRENT_LIST_DIR}/ray.h
+    ${CMAKE_CURRENT_LIST_DIR}/frustum.h
+    ${CMAKE_CURRENT_LIST_DIR}/transform_component.h
 )
 
 target_include_directories(MathLib PUBLIC
@@ -18,3 +24,20 @@ target_include_directories(MathLib PUBLIC
 target_link_libraries(MathLib PUBLIC FoundationLib)
 
 target_compile_features(MathLib PUBLIC cxx_std_20)
+
+# Float determinism: avoid aggressive fast-math that breaks cross-platform consistency
+if (MSVC)
+    target_compile_options(MathLib PRIVATE /fp:precise)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    # Do not add -ffast-math by default
+endif()
+
+# Optional strict-FP switch (disable FMA auto-contraction)
+option(ENTELECHY_MATH_STRICT_FP "Disable FMA and floating-point contraction for deterministic math" OFF)
+if (ENTELECHY_MATH_STRICT_FP)
+    if (MSVC)
+        target_compile_options(MathLib PRIVATE /fp:strict)
+    elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(MathLib PRIVATE -ffp-contract=off)
+    endif()
+endif()

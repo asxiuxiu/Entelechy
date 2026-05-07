@@ -25,37 +25,16 @@ struct AABB {
         max.z = std::max(max.z, point.z);
     }
 
-    void expand(const AABB& other) {
-        expand(other.min);
-        expand(other.max);
+    [[nodiscard]] bool intersects(const AABB& other) const {
+        return min.x <= other.max.x && max.x >= other.min.x
+            && min.y <= other.max.y && max.y >= other.min.y
+            && min.z <= other.max.z && max.z >= other.min.z;
     }
 
     [[nodiscard]] bool contains(const Vec3& point) const {
-        return point.x >= min.x && point.x <= max.x &&
-               point.y >= min.y && point.y <= max.y &&
-               point.z >= min.z && point.z <= max.z;
-    }
-
-    [[nodiscard]] bool intersects(const AABB& other) const {
-        return min.x <= other.max.x && max.x >= other.min.x &&
-               min.y <= other.max.y && max.y >= other.min.y &&
-               min.z <= other.max.z && max.z >= other.min.z;
-    }
-
-    [[nodiscard]] Vec3 center() const {
-        return (min + max) * 0.5f;
-    }
-
-    [[nodiscard]] Vec3 size() const {
-        return max - min;
-    }
-
-    [[nodiscard]] Vec3 extent() const {
-        return size() * 0.5f;
-    }
-
-    [[nodiscard]] bool isEmpty() const {
-        return min.x > max.x || min.y > max.y || min.z > max.z;
+        return point.x >= min.x && point.x <= max.x
+            && point.y >= min.y && point.y <= max.y
+            && point.z >= min.z && point.z <= max.z;
     }
 };
 

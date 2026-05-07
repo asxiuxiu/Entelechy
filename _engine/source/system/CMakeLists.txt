@@ -5,6 +5,8 @@ add_library(SystemLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/system_init.cpp
     ${CMAKE_CURRENT_LIST_DIR}/movement_system.h
     ${CMAKE_CURRENT_LIST_DIR}/movement_system.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transform_propagation_system.h
+    ${CMAKE_CURRENT_LIST_DIR}/transform_propagation_system.cpp
 )
 
 target_include_directories(SystemLib PUBLIC
@@ -16,4 +18,5 @@ target_compile_features(SystemLib PUBLIC cxx_std_20)
 target_link_libraries(SystemLib PUBLIC
     CoreLib
     LogLib
+    MathLib
 )

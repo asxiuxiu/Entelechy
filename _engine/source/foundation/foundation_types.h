@@ -58,6 +58,26 @@ using isize = std::ptrdiff_t;
     #define ARCH_32BIT 1
 #endif
 
+// ---------- 2.5 Architecture SIMD families ----------
+#define ARCH_X86   0
+#define ARCH_ARM   0
+#define ARCH_WASM  0
+#define ARCH_SCALAR 0
+
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+    #undef ARCH_X86
+    #define ARCH_X86 1
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(__arm__) || defined(_M_ARM)
+    #undef ARCH_ARM
+    #define ARCH_ARM 1
+#elif defined(__wasm__) || defined(__wasm32__) || defined(__wasm64__)
+    #undef ARCH_WASM
+    #define ARCH_WASM 1
+#else
+    #undef ARCH_SCALAR
+    #define ARCH_SCALAR 1
+#endif
+
 // ---------- 3. Symbol export macro ----------
 #if defined(ENGINE_BUILD_DLL)
     #if PLATFORM_WINDOWS

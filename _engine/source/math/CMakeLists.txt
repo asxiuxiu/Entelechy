@@ -15,4 +15,6 @@ target_include_directories(MathLib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
+target_link_libraries(MathLib PUBLIC FoundationLib)
+
 target_compile_features(MathLib PUBLIC cxx_std_20)

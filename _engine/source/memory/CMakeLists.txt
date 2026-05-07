@@ -12,4 +12,6 @@ target_include_directories(MemoryLib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
+target_link_libraries(MemoryLib PUBLIC FoundationLib)
+
 target_compile_features(MemoryLib PUBLIC cxx_std_20)

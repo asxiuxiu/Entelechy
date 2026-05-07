@@ -3,6 +3,11 @@
     "root_path": "_engine",
     "modules": [
         {
+            "name": "foundation",
+            "path": "source/foundation",
+            "enabled": true
+        },
+        {
             "name": "core",
             "path": "source/core",
             "enabled": true

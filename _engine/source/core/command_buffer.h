@@ -64,7 +64,7 @@ public:
         m_commands.clear();
     }
 
-    bool empty() const {
+    [[nodiscard]] bool empty() const {
         return m_commands.empty();
     }
 

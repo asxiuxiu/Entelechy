@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)
 
 find_package(imgui REQUIRED)
 find_package(glad REQUIRED)
@@ -31,7 +31,7 @@ target_include_directories(ImGuiLib PUBLIC
     ${IMGUI_BACKENDS_DIR}
 )
 
-target_compile_features(ImGuiLib PUBLIC cxx_std_17)
+target_compile_features(ImGuiLib PUBLIC cxx_std_20)
 
 target_link_libraries(ImGuiLib PUBLIC
     imgui::imgui

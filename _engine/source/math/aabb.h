@@ -8,11 +8,11 @@ struct AABB {
     Vec3 min;
     Vec3 max;
 
-    static AABB fromCenterExtent(const Vec3& center, const Vec3& extent) {
+    [[nodiscard]] static AABB fromCenterExtent(const Vec3& center, const Vec3& extent) {
         return {center - extent, center + extent};
     }
 
-    static AABB fromMinMax(const Vec3& minimum, const Vec3& maximum) {
+    [[nodiscard]] static AABB fromMinMax(const Vec3& minimum, const Vec3& maximum) {
         return {minimum, maximum};
     }
 
@@ -30,31 +30,31 @@ struct AABB {
         expand(other.max);
     }
 
-    bool contains(const Vec3& point) const {
+    [[nodiscard]] bool contains(const Vec3& point) const {
         return point.x >= min.x && point.x <= max.x &&
                point.y >= min.y && point.y <= max.y &&
                point.z >= min.z && point.z <= max.z;
     }
 
-    bool intersects(const AABB& other) const {
+    [[nodiscard]] bool intersects(const AABB& other) const {
         return min.x <= other.max.x && max.x >= other.min.x &&
                min.y <= other.max.y && max.y >= other.min.y &&
                min.z <= other.max.z && max.z >= other.min.z;
     }
 
-    Vec3 center() const {
+    [[nodiscard]] Vec3 center() const {
         return (min + max) * 0.5f;
     }
 
-    Vec3 size() const {
+    [[nodiscard]] Vec3 size() const {
         return max - min;
     }
 
-    Vec3 extent() const {
+    [[nodiscard]] Vec3 extent() const {
         return size() * 0.5f;
     }
 
-    bool isEmpty() const {
+    [[nodiscard]] bool isEmpty() const {
         return min.x > max.x || min.y > max.y || min.z > max.z;
     }
 };

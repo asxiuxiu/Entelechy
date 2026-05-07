@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <cstdint>
 #include <functional>
+#include <compare>
 
 namespace Entelechy {
 
@@ -15,13 +16,12 @@ public:
     constexpr StringId() : m_hash(0) {}
     constexpr StringId(const char* str) : m_hash(hashFNV1a(str)) {}
 
-    constexpr uint64_t value() const { return m_hash; }
-    constexpr bool operator==(StringId other) const { return m_hash == other.m_hash; }
-    constexpr bool operator!=(StringId other) const { return m_hash != other.m_hash; }
-    constexpr bool operator<(StringId other) const { return m_hash < other.m_hash; }
+    [[nodiscard]] constexpr uint64_t value() const { return m_hash; }
+    constexpr auto operator<=>(const StringId& other) const = default;
+    constexpr bool operator==(const StringId& other) const = default;
 };
 
-constexpr StringId operator"" _sid(const char* str, size_t) {
+consteval StringId operator"" _sid(const char* str, size_t) {
     return StringId(str);
 }
 

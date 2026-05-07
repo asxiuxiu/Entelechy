@@ -3,10 +3,12 @@
 #include "type_registry.h"
 #include <tuple>
 #include <cstdint>
+#include <iterator>
 
 namespace Entelechy {
 
 template<typename... Cs>
+    requires (sizeof...(Cs) > 0)
 class Query {
 public:
     explicit Query(World& world) : m_world(&world) {
@@ -14,6 +16,12 @@ public:
     }
 
     struct Iterator {
+        using iterator_category = std::input_iterator_tag;
+        using value_type = std::tuple<Entity, Cs*...>;
+        using difference_type = std::ptrdiff_t;
+        using pointer = value_type*;
+        using reference = value_type;
+
         World* world;
         const uint32_t* ids;
         size_t index;
@@ -30,6 +38,10 @@ public:
             }
         }
 
+        bool operator==(const Iterator& other) const {
+            return index == other.index;
+        }
+
         bool operator!=(const Iterator& other) const {
             return index != other.index;
         }
@@ -39,7 +51,7 @@ public:
             advanceToNextValid();
         }
 
-        std::tuple<Entity, Cs*...> operator*() const {
+        value_type operator*() const {
             Entity e{ids[index], world->getEntityGeneration(ids[index])};
             return std::make_tuple(e, world->getComponent<Cs>(e)...);
         }

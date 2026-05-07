@@ -125,7 +125,7 @@ target_include_directories(RenderLib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
-target_compile_features(RenderLib PUBLIC cxx_std_17)
+target_compile_features(RenderLib PUBLIC cxx_std_20)
 
 target_link_libraries(RenderLib PUBLIC
     glad

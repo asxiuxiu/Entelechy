@@ -25,28 +25,28 @@ struct Quat {
     Quat operator-(const Quat& o) const { return {x - o.x, y - o.y, z - o.z, w - o.w}; }
     Quat operator-() const { return {-x, -y, -z, -w}; }
 
-    float dot(const Quat& o) const { return x * o.x + y * o.y + z * o.z + w * o.w; }
-    float lengthSq() const { return dot(*this); }
-    float length() const { return std::sqrt(lengthSq()); }
+    [[nodiscard]] float dot(const Quat& o) const { return x * o.x + y * o.y + z * o.z + w * o.w; }
+    [[nodiscard]] float lengthSq() const { return dot(*this); }
+    [[nodiscard]] float length() const { return std::sqrt(lengthSq()); }
 
-    Quat normalized() const {
+    [[nodiscard]] Quat normalized() const {
         float len = length();
         return len > 0.0f ? Quat{x / len, y / len, z / len, w / len} : Quat{0.0f, 0.0f, 0.0f, 1.0f};
     }
 
-    Quat conjugate() const { return {-x, -y, -z, w}; }
-    Quat inverse() const { return conjugate() / lengthSq(); }
+    [[nodiscard]] Quat conjugate() const { return {-x, -y, -z, w}; }
+    [[nodiscard]] Quat inverse() const { return conjugate() / lengthSq(); }
 
-    static Quat identity() { return {0.0f, 0.0f, 0.0f, 1.0f}; }
+    [[nodiscard]] static Quat identity() { return {0.0f, 0.0f, 0.0f, 1.0f}; }
 
-    static Quat fromAxisAngle(const Vec3& axis, float angle) {
+    [[nodiscard]] static Quat fromAxisAngle(const Vec3& axis, float angle) {
         float half = angle * 0.5f;
         float s = std::sin(half);
         Vec3 n = axis.normalized();
         return {n.x * s, n.y * s, n.z * s, std::cos(half)};
     }
 
-    static Quat fromEuler(float pitch, float yaw, float roll) {
+    [[nodiscard]] static Quat fromEuler(float pitch, float yaw, float roll) {
         float cy = std::cos(yaw * 0.5f);
         float sy = std::sin(yaw * 0.5f);
         float cp = std::cos(pitch * 0.5f);
@@ -62,7 +62,7 @@ struct Quat {
     }
 };
 
-inline Vec3 rotate(const Quat& q, const Vec3& v) {
+[[nodiscard]] inline Vec3 rotate(const Quat& q, const Vec3& v) {
     Vec3 u = {q.x, q.y, q.z};
     float s = q.w;
     Vec3 cross1 = u.cross(v);
@@ -70,7 +70,7 @@ inline Vec3 rotate(const Quat& q, const Vec3& v) {
     return v + cross1 * (2.0f * s) + cross2 * 2.0f;
 }
 
-inline Quat slerp(const Quat& a, const Quat& b, float t) {
+[[nodiscard]] inline Quat slerp(const Quat& a, const Quat& b, float t) {
     float dot = a.dot(b);
     Quat b2 = b;
     if (dot < 0.0f) {

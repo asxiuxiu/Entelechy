@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)
 
 add_library(MemoryLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/frame_arena.cpp
@@ -12,4 +12,4 @@ target_include_directories(MemoryLib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
-target_compile_features(MemoryLib PUBLIC cxx_std_17)
+target_compile_features(MemoryLib PUBLIC cxx_std_20)

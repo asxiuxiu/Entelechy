@@ -8,7 +8,7 @@
 
 - **核心目标**：从可编译的 ECS demo 演进到工业级引擎
 - **当前状态**：已具备 Source Forest 构建架构、基础 ECS 数据层、CMake 工程化
-- **技术栈**：C++17、CMake、Python（构建生成器）
+- **技术栈**：C++20、CMake、Python（构建生成器）
 
 ## 开发环境预设
 

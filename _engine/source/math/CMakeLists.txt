@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)
 
 add_library(MathLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/math_lib.cpp
@@ -15,4 +15,4 @@ target_include_directories(MathLib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
-target_compile_features(MathLib PUBLIC cxx_std_17)
+target_compile_features(MathLib PUBLIC cxx_std_20)

@@ -8,13 +8,13 @@ namespace Entelechy {
 struct Mat4 {
     float m[16]; // column-major: m[col * 4 + row]
 
-    static Mat4 identity() {
+    [[nodiscard]] static Mat4 identity() {
         Mat4 out{};
         out.m[0] = out.m[5] = out.m[10] = out.m[15] = 1.0f;
         return out;
     }
 
-    static Mat4 zero() {
+    [[nodiscard]] static Mat4 zero() {
         return Mat4{};
     }
 
@@ -35,7 +35,7 @@ struct Mat4 {
         return r;
     }
 
-    Mat4 transpose() const {
+    [[nodiscard]] Mat4 transpose() const {
         Mat4 r{};
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
@@ -45,7 +45,7 @@ struct Mat4 {
         return r;
     }
 
-    Vec3 transformPoint(const Vec3& v) const {
+    [[nodiscard]] Vec3 transformPoint(const Vec3& v) const {
         float x = m[0] * v.x + m[4] * v.y + m[8]  * v.z + m[12];
         float y = m[1] * v.x + m[5] * v.y + m[9]  * v.z + m[13];
         float z = m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14];
@@ -53,7 +53,7 @@ struct Mat4 {
         return w != 0.0f ? Vec3{x / w, y / w, z / w} : Vec3{x, y, z};
     }
 
-    Vec3 transformVector(const Vec3& v) const {
+    [[nodiscard]] Vec3 transformVector(const Vec3& v) const {
         return {
             m[0] * v.x + m[4] * v.y + m[8]  * v.z,
             m[1] * v.x + m[5] * v.y + m[9]  * v.z,
@@ -61,7 +61,7 @@ struct Mat4 {
         };
     }
 
-    static Mat4 fromTranslation(const Vec3& t) {
+    [[nodiscard]] static Mat4 fromTranslation(const Vec3& t) {
         Mat4 r = identity();
         r.m[12] = t.x;
         r.m[13] = t.y;
@@ -69,7 +69,7 @@ struct Mat4 {
         return r;
     }
 
-    static Mat4 fromScale(const Vec3& s) {
+    [[nodiscard]] static Mat4 fromScale(const Vec3& s) {
         Mat4 r = identity();
         r.m[0]  = s.x;
         r.m[5]  = s.y;
@@ -77,13 +77,13 @@ struct Mat4 {
         return r;
     }
 
-    static Mat4 fromRotation(const Quat& q);
+    [[nodiscard]] static Mat4 fromRotation(const Quat& q);
 
-    static Mat4 fromTRS(const Vec3& t, const Quat& r, const Vec3& s) {
+    [[nodiscard]] static Mat4 fromTRS(const Vec3& t, const Quat& r, const Vec3& s) {
         return fromTranslation(t) * fromRotation(r) * fromScale(s);
     }
 
-    static Mat4 perspective(float fovY, float aspect, float nearZ, float farZ) {
+    [[nodiscard]] static Mat4 perspective(float fovY, float aspect, float nearZ, float farZ) {
         Mat4 r{};
         float tanHalfFov = std::tan(fovY * 0.5f);
         r.m[0] = 1.0f / (aspect * tanHalfFov);
@@ -94,7 +94,7 @@ struct Mat4 {
         return r;
     }
 
-    static Mat4 ortho(float left, float right, float bottom, float top, float nearZ, float farZ) {
+    [[nodiscard]] static Mat4 ortho(float left, float right, float bottom, float top, float nearZ, float farZ) {
         Mat4 r = identity();
         r.m[0]  = 2.0f / (right - left);
         r.m[5]  = 2.0f / (top - bottom);
@@ -105,7 +105,7 @@ struct Mat4 {
         return r;
     }
 
-    static Mat4 lookAt(const Vec3& eye, const Vec3& center, const Vec3& up) {
+    [[nodiscard]] static Mat4 lookAt(const Vec3& eye, const Vec3& center, const Vec3& up) {
         Vec3 f = (center - eye).normalized();
         Vec3 s = f.cross(up).normalized();
         Vec3 u = s.cross(f);

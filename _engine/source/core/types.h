@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <cstdint>
 #include <functional>
+#include <compare>
 #include "type_registry.h"
 #include "small_string.h"
 
@@ -10,8 +11,9 @@ struct Entity {
     uint32_t id{0xFFFFFFFF};
     uint32_t generation{0};
 
-    bool valid() const { return id != 0xFFFFFFFF; }
-    bool operator==(const Entity& other) const { return id == other.id && generation == other.generation; }
+    [[nodiscard]] bool valid() const { return id != 0xFFFFFFFF; }
+    constexpr auto operator<=>(const Entity& other) const = default;
+    constexpr bool operator==(const Entity& other) const = default;
 };
 
 struct Position {

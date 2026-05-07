@@ -11,11 +11,11 @@ class IComponentArray {
 public:
     virtual ~IComponentArray() = default;
     virtual void remove(Entity e) = 0;
-    virtual bool has(Entity e) const = 0;
-    virtual size_t count() const = 0;
-    virtual const void* getRaw(Entity e) const = 0;
-    virtual void* getRaw(Entity e) = 0;
-    virtual const uint32_t* entityIds() const = 0;
+    [[nodiscard]] virtual bool has(Entity e) const = 0;
+    [[nodiscard]] virtual size_t count() const = 0;
+    [[nodiscard]] virtual const void* getRaw(Entity e) const = 0;
+    [[nodiscard]] virtual void* getRaw(Entity e) = 0;
+    [[nodiscard]] virtual const uint32_t* entityIds() const = 0;
 };
 
 template<typename T>
@@ -53,32 +53,32 @@ public:
         return e.id < m_entityIndex.size() && m_entityIndex[e.id] != -1;
     }
 
-    T* get(Entity e) {
+    [[nodiscard]] T* get(Entity e) {
         if (!has(e)) return nullptr;
         return &m_dense[m_entityIndex[e.id]];
     }
 
-    const T* get(Entity e) const {
+    [[nodiscard]] const T* get(Entity e) const {
         if (!has(e)) return nullptr;
         return &m_dense[m_entityIndex[e.id]];
     }
 
-    size_t count() const override {
+    [[nodiscard]] size_t count() const override {
         return m_dense.size();
     }
 
-    T* data() { return m_dense.data(); }
-    const T* data() const { return m_dense.data(); }
+    [[nodiscard]] T* data() { return m_dense.data(); }
+    [[nodiscard]] const T* data() const { return m_dense.data(); }
 
-    const uint32_t* entityIds() const override {
+    [[nodiscard]] const uint32_t* entityIds() const override {
         return m_denseEntityIds.data();
     }
 
-    const void* getRaw(Entity e) const override {
+    [[nodiscard]] const void* getRaw(Entity e) const override {
         return get(e);
     }
 
-    void* getRaw(Entity e) override {
+    [[nodiscard]] void* getRaw(Entity e) override {
         return get(e);
     }
 

@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)
 
 add_library(CoreLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/world.cpp
@@ -18,4 +18,4 @@ target_include_directories(CoreLib PUBLIC
 
 target_link_libraries(CoreLib PUBLIC MemoryLib)
 
-target_compile_features(CoreLib PUBLIC cxx_std_17)
+target_compile_features(CoreLib PUBLIC cxx_std_20)

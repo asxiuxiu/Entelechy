@@ -83,7 +83,7 @@ target_include_directories(MathLib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
-target_compile_features(MathLib PUBLIC cxx_std_17)
+target_compile_features(MathLib PUBLIC cxx_std_20)
 ```
 
 **关键**：源码路径必须使用 `${CMAKE_CURRENT_LIST_DIR}`，因为真实文件会被代理 include。

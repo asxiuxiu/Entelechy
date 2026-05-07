@@ -13,7 +13,7 @@ namespace Entelechy {
 
 class World {
 public:
-    Entity spawn() {
+    [[nodiscard]] Entity spawn() {
         Entity e;
         if (!m_freeEntities.empty()) {
             e.id = m_freeEntities.back();
@@ -39,24 +39,24 @@ public:
         m_freeEntities.pushBack(e.id);
     }
 
-    bool valid(Entity e) const {
+    [[nodiscard]] bool valid(Entity e) const {
         return e.id < m_entityGenerations.size() && m_entityGenerations[e.id] == e.generation;
     }
 
-    size_t entityCount() const {
+    [[nodiscard]] size_t entityCount() const {
         return m_entityGenerations.size() - m_freeEntities.size();
     }
 
-    size_t maxEntityID() const {
+    [[nodiscard]] size_t maxEntityID() const {
         return m_entityGenerations.size();
     }
 
-    uint32_t getEntityGeneration(uint32_t id) const {
+    [[nodiscard]] uint32_t getEntityGeneration(uint32_t id) const {
         if (id < m_entityGenerations.size()) return m_entityGenerations[id];
         return 0xFFFFFFFFu;
     }
 
-    uint32_t getEntityMask(uint32_t id) const {
+    [[nodiscard]] uint32_t getEntityMask(uint32_t id) const {
         if (id < m_entityMasks.size()) return m_entityMasks[id];
         return 0;
     }
@@ -80,28 +80,28 @@ public:
     }
 
     template<typename T>
-    T* getComponent(Entity e) {
+    [[nodiscard]] T* getComponent(Entity e) {
         auto* array = getComponentArray<T>();
         if (!array) return nullptr;
         return array->get(e);
     }
 
     template<typename T>
-    const T* getComponent(Entity e) const {
+    [[nodiscard]] const T* getComponent(Entity e) const {
         auto* array = getComponentArray<T>();
         if (!array) return nullptr;
         return array->get(e);
     }
 
     template<typename T>
-    bool hasComponent(Entity e) const {
+    [[nodiscard]] bool hasComponent(Entity e) const {
         auto* array = getComponentArray<T>();
         if (!array) return false;
         return array->has(e);
     }
 
     template<typename T>
-    ComponentArray<T>* getComponentArray() {
+    [[nodiscard]] ComponentArray<T>* getComponentArray() {
         Entelechy::ComponentTypeID typeID = Entelechy::TypeRegistry::instance().getTypeID<T>();
         auto it = m_componentArrays.find(typeID);
         if (it == m_componentArrays.end()) return nullptr;
@@ -109,7 +109,7 @@ public:
     }
 
     template<typename T>
-    const ComponentArray<T>* getComponentArray() const {
+    [[nodiscard]] const ComponentArray<T>* getComponentArray() const {
         Entelechy::ComponentTypeID typeID = Entelechy::TypeRegistry::instance().getTypeID<T>();
         auto it = m_componentArrays.find(typeID);
         if (it == m_componentArrays.end()) return nullptr;

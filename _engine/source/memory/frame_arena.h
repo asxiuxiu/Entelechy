@@ -11,11 +11,11 @@ public:
     explicit FrameArena(size_t capacity);
     ~FrameArena();
 
-    void* alloc(size_t size, size_t align = 8);
+    [[nodiscard]] void* alloc(size_t size, size_t align = 8);
     void reset();
 
-    size_t capacity() const { return m_capacity; }
-    size_t consumedBytes() const { return m_offset; }
+    [[nodiscard]] size_t capacity() const { return m_capacity; }
+    [[nodiscard]] size_t consumedBytes() const { return m_offset; }
 
 private:
     uint8_t* m_base;

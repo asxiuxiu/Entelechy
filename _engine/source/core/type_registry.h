@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <cstddef>
 #include <cstdint>
+#include <cassert>
 
 namespace Entelechy {
 
@@ -52,7 +53,10 @@ public:
 
 private:
     TypeRegistry() = default;
-    ComponentTypeID allocateNextID() { return m_nextID++; }
+    ComponentTypeID allocateNextID() {
+        assert(m_nextID < 32 && "Exceeded maximum 32 component types");
+        return m_nextID++;
+    }
 
     std::unordered_map<ComponentTypeID, ComponentDesc> m_components;
     std::unordered_map<SmallString, ComponentTypeID> m_nameToID;

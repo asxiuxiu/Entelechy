@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)
 
 add_library(LogLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/log_level.h
@@ -29,4 +29,4 @@ if(MSVC)
     target_compile_definitions(LogLib PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
 
-target_compile_features(LogLib PUBLIC cxx_std_17)
+target_compile_features(LogLib PUBLIC cxx_std_20)

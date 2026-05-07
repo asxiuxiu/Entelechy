@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)
 
 find_package(glfw3 REQUIRED)
 
@@ -12,7 +12,7 @@ target_include_directories(WindowLib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
-target_compile_features(WindowLib PUBLIC cxx_std_17)
+target_compile_features(WindowLib PUBLIC cxx_std_20)
 
 target_link_libraries(WindowLib PUBLIC
     glfw

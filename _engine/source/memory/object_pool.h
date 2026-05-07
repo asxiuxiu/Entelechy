@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <cstddef>
 #include <cstdlib>
+#include <memory>
 #include <utility>
 
 namespace Entelechy {
@@ -21,10 +22,10 @@ public:
     ~ObjectPool();
 
     template <typename... Args>
-    T* allocate(Args&&... args);
+    [[nodiscard]] T* allocate(Args&&... args);
     void free(T* obj);
 
-    bool empty() const { return m_free_list == nullptr; }
+    [[nodiscard]] bool empty() const { return m_free_list == nullptr; }
 
 private:
     Slot* m_memory;
@@ -52,14 +53,14 @@ T* ObjectPool<T, BLOCK_COUNT>::allocate(Args&&... args) {
     if (!m_free_list) return nullptr;
     Slot* slot = m_free_list;
     m_free_list = m_free_list->nextFree;
-    return new (slot) T(std::forward<Args>(args)...);
+    return std::construct_at(slot, std::forward<Args>(args)...);
 }
 
 template <typename T, size_t BLOCK_COUNT>
 void ObjectPool<T, BLOCK_COUNT>::free(T* obj) {
     if (!obj) return;
     Slot* slot = reinterpret_cast<Slot*>(obj);
-    slot->object.~T();
+    std::destroy_at(&slot->object);
     slot->nextFree = m_free_list;
     m_free_list = slot;
 }

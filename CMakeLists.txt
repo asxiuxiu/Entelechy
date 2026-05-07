@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
+project(Entelechy)
+
 # 自动检测 Python 解释器
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 

@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include "allocator.h"
-#include <cstddef>
 #include <memory>
 #include <utility>
 
@@ -65,34 +64,34 @@ public:
         }
     }
 
-    void resize(size_t newCount) {
+    void resize(usize newCount) {
         if (newCount > m_capacity) {
             grow(newCount);
         }
-        for (size_t i = m_count; i < newCount; ++i) {
+        for (usize i = m_count; i < newCount; ++i) {
             std::construct_at(&m_data[i]);
         }
-        for (size_t i = newCount; i < m_count; ++i) {
+        for (usize i = newCount; i < m_count; ++i) {
             std::destroy_at(&m_data[i]);
         }
         m_count = newCount;
     }
 
-    void resize(size_t newCount, const T& value) {
+    void resize(usize newCount, const T& value) {
         if (newCount > m_capacity) {
             grow(newCount);
         }
-        for (size_t i = m_count; i < newCount; ++i) {
+        for (usize i = m_count; i < newCount; ++i) {
             std::construct_at(&m_data[i], value);
         }
-        for (size_t i = newCount; i < m_count; ++i) {
+        for (usize i = newCount; i < m_count; ++i) {
             std::destroy_at(&m_data[i]);
         }
         m_count = newCount;
     }
 
     void clear() {
-        for (size_t i = m_count; i > 0; --i) {
+        for (usize i = m_count; i > 0; --i) {
             std::destroy_at(&m_data[i - 1]);
         }
         if (m_data) {
@@ -103,7 +102,7 @@ public:
         m_capacity = 0;
     }
 
-    void reserve(size_t newCapacity) {
+    void reserve(usize newCapacity) {
         if (newCapacity > m_capacity) {
             grow(newCapacity);
         }
@@ -111,12 +110,12 @@ public:
 
     [[nodiscard]] T* data() { return m_data; }
     [[nodiscard]] const T* data() const { return m_data; }
-    [[nodiscard]] size_t size() const { return m_count; }
-    [[nodiscard]] size_t capacity() const { return m_capacity; }
+    [[nodiscard]] usize size() const { return m_count; }
+    [[nodiscard]] usize capacity() const { return m_capacity; }
     [[nodiscard]] bool empty() const { return m_count == 0; }
 
-    T& operator[](size_t i) { return m_data[i]; }
-    const T& operator[](size_t i) const { return m_data[i]; }
+    T& operator[](usize i) { return m_data[i]; }
+    const T& operator[](usize i) const { return m_data[i]; }
 
     [[nodiscard]] T& front() { return m_data[0]; }
     [[nodiscard]] const T& front() const { return m_data[0]; }
@@ -129,9 +128,9 @@ public:
     [[nodiscard]] const T* end() const { return m_data + m_count; }
 
 private:
-    void grow(size_t newCapacity) {
+    void grow(usize newCapacity) {
         T* newData = static_cast<T*>(AllocatorT::alloc(newCapacity * sizeof(T), alignof(T)));
-        for (size_t i = 0; i < m_count; ++i) {
+        for (usize i = 0; i < m_count; ++i) {
             std::construct_at(&newData[i], std::move(m_data[i]));
             std::destroy_at(&m_data[i]);
         }
@@ -143,8 +142,8 @@ private:
     }
 
     T* m_data;
-    size_t m_count;
-    size_t m_capacity;
+    usize m_count;
+    usize m_capacity;
 };
 
 } // namespace Entelechy

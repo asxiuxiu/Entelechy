@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include <cstdint>
+#include "foundation_types.h"
 #include <functional>
 #include <compare>
 #include "type_registry.h"
@@ -8,8 +8,8 @@
 namespace Entelechy {
 
 struct Entity {
-    uint32_t id{0xFFFFFFFF};
-    uint32_t generation{0};
+    u32 id{0xFFFFFFFF};
+    u32 generation{0};
 
     [[nodiscard]] bool valid() const { return id != 0xFFFFFFFF; }
     constexpr auto operator<=>(const Entity& other) const = default;

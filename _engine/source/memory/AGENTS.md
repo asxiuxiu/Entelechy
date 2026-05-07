@@ -10,7 +10,7 @@
 |------|------|
 | `frame_arena.h` | `FrameArena` 帧分配器声明 |
 | `frame_arena.cpp` | `FrameArena` 实现：`alloc()` / `reset()`，基于 malloc 的连续缓冲区 |
-| `allocator.h` | 分配器抽象接口（预留） |
+| `allocator.h` | `DefaultAllocator`；跨平台对齐内存分配，使用 Foundation 类型 |
 | `object_pool.h` | 对象池模板 |
 | `dynamic_array.h` | `DynamicArray<T>` 动态数组模板（类似 std::vector 的轻量替代） |
 
@@ -21,9 +21,10 @@
 
 ## 依赖关系
 - 向上依赖：
-  - 无（最底层）
+  - [Foundation 模块](../foundation/AGENTS.md)（`usize`、`PLATFORM_WINDOWS`、断言）
 - 被依赖：
   - [Core 模块](../core/AGENTS.md)（World 使用 DynamicArray 存储实体数据）
+  - [Math 模块](../math/AGENTS.md)（对齐工具使用 `usize`）
   - [System 模块](../system/AGENTS.md)（Scheduler 每帧创建 1MiB FrameArena）
   - 其他模块
 

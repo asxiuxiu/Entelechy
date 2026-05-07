@@ -23,7 +23,7 @@ public:
     std::string setComponent(Entity e, const std::string& comp_name, const std::string& json);
 
     // New AI-friendly tools
-    std::string queryEntitiesByMask(uint32_t mask) const;
+    std::string queryEntitiesByMask(u32 mask) const;
     std::string getWorldSummary() const;
 
     // ToolRegistry integration

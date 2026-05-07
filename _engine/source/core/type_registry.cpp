@@ -8,7 +8,7 @@ TypeRegistry& TypeRegistry::instance() {
     return reg;
 }
 
-void TypeRegistry::registerComponent(ComponentTypeID id, uint32_t mask, const ComponentDesc& desc) {
+void TypeRegistry::registerComponent(ComponentTypeID id, u32 mask, const ComponentDesc& desc) {
     m_components[id] = desc;
     m_nameToID[desc.name] = id;
     m_idToName[id] = desc.name;
@@ -39,7 +39,7 @@ ComponentTypeID TypeRegistry::findComponentID(const SmallString& name) const {
     return INVALID_COMPONENT_TYPE_ID;
 }
 
-uint32_t TypeRegistry::getComponentMask(const SmallString& name) const {
+u32 TypeRegistry::getComponentMask(const SmallString& name) const {
     auto it = m_nameToMask.find(name);
     if (it != m_nameToMask.end()) {
         return it->second;
@@ -61,7 +61,7 @@ SmallString TypeRegistry::listComponents() const {
     return json;
 }
 
-size_t TypeRegistry::componentCount() const {
+usize TypeRegistry::componentCount() const {
     return m_components.size();
 }
 
@@ -80,7 +80,7 @@ SmallString TypeRegistry::describeComponent(const SmallString& name) const {
     json += ",\n";
     json += "  \"fields\": [\n";
 
-    for (size_t i = 0; i < desc->fields.size(); ++i) {
+    for (usize i = 0; i < desc->fields.size(); ++i) {
         const auto& f = desc->fields[i];
         json += "    {\n";
         json += "      \"name\": \"";

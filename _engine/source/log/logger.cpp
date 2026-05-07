@@ -51,7 +51,7 @@ bool Logger::init(const char* filePath) {
 
     // Derive json path from text path
     std::string jsonPath;
-    size_t pathLen = textPath.size();
+    usize pathLen = textPath.size();
     if (pathLen > 4 && textPath.compare(pathLen - 4, 4, ".log") == 0) {
         jsonPath = textPath.substr(0, pathLen - 4) + ".jsonl";
     } else {
@@ -106,7 +106,7 @@ LogLevel Logger::getMinLevel() const {
 // ============================================================
 void Logger::log(const LogEntry& entry) {
     // Fast path: atomic level check without lock
-    if (static_cast<uint8_t>(entry.m_level) < static_cast<uint8_t>(m_min_level.load(std::memory_order_relaxed))) {
+    if (static_cast<u8>(entry.m_level) < static_cast<u8>(m_min_level.load(std::memory_order_relaxed))) {
         return;
     }
 

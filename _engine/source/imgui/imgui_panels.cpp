@@ -34,7 +34,7 @@ const char* logLevelToShortString(LogLevel level) {
 }
 
 void drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
-    void* fieldPtr = static_cast<uint8_t*>(componentRaw) + field.offset;
+    void* fieldPtr = static_cast<u8*>(componentRaw) + field.offset;
 
     if (field.type == "float") {
         ImGui::DragFloat(field.name.c_str(), static_cast<float*>(fieldPtr), 0.1f);
@@ -180,7 +180,7 @@ void buildLogPanel() {
             // Timestamp
             auto timeT = std::chrono::system_clock::to_time_t(entry.m_timestamp);
             std::tm tmBuf{};
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
             localtime_s(&tmBuf, &timeT);
 #else
             localtime_r(&timeT, &tmBuf);
@@ -240,10 +240,10 @@ void buildECSInspector(World& world, Scheduler& scheduler, float dt, bool& autoR
     }
     ImGui::Separator();
 
-    size_t aliveCount = world.entityCount();
+    usize aliveCount = world.entityCount();
     ImGui::Text("Entities (%zu alive):", aliveCount);
 
-    for (uint32_t id = 0; id < world.maxEntityID(); ++id) {
+    for (u32 id = 0; id < world.maxEntityID(); ++id) {
         Entity e{id, world.getEntityGeneration(id)};
         if (!world.valid(e)) continue;
 

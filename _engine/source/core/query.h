@@ -2,7 +2,6 @@
 #include "world.h"
 #include "type_registry.h"
 #include <tuple>
-#include <cstdint>
 #include <iterator>
 
 namespace Entelechy {
@@ -23,14 +22,14 @@ public:
         using reference = value_type;
 
         World* world;
-        const uint32_t* ids;
-        size_t index;
-        size_t count;
-        uint32_t requiredMask;
+        const u32* ids;
+        usize index;
+        usize count;
+        u32 requiredMask;
 
         void advanceToNextValid() {
             while (index < count) {
-                uint32_t id = ids[index];
+                u32 id = ids[index];
                 if ((world->getEntityMask(id) & requiredMask) == requiredMask) {
                     break;
                 }
@@ -58,7 +57,7 @@ public:
     };
 
     Iterator begin() {
-        uint32_t requiredMask = (TypeRegistry::instance().getMask<Cs>() | ...);
+        u32 requiredMask = (TypeRegistry::instance().getMask<Cs>() | ...);
         if (!m_primaryArray || m_primaryArray->count() == 0) {
             return end();
         }
@@ -68,8 +67,8 @@ public:
     }
 
     Iterator end() {
-        uint32_t requiredMask = (TypeRegistry::instance().getMask<Cs>() | ...);
-        size_t count = m_primaryArray ? m_primaryArray->count() : 0;
+        u32 requiredMask = (TypeRegistry::instance().getMask<Cs>() | ...);
+        usize count = m_primaryArray ? m_primaryArray->count() : 0;
         return Iterator{m_world, nullptr, count, count, requiredMask};
     }
 

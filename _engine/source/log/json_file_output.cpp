@@ -4,7 +4,7 @@
 #include <cstring>
 #include <cstdio>
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #include <direct.h>
 #else
 #include <sys/stat.h>
@@ -12,7 +12,7 @@
 
 namespace Entelechy {
 
-JsonFileOutput::JsonFileOutput(const char* basePath, uint32_t maxSizeMb, uint32_t maxFiles)
+JsonFileOutput::JsonFileOutput(const char* basePath, u32 maxSizeMb, u32 maxFiles)
     : m_base_path(basePath)
     , m_max_size_mb(maxSizeMb)
     , m_max_files(maxFiles)
@@ -36,14 +36,14 @@ bool JsonFileOutput::init() {
 
     if (lastSep) {
         char dirBuf[256] = {};
-        size_t len = static_cast<size_t>(lastSep - m_base_path.c_str());
+        usize len = static_cast<usize>(lastSep - m_base_path.c_str());
         if (len >= sizeof(dirBuf)) {
             len = sizeof(dirBuf) - 1;
         }
         std::memcpy(dirBuf, m_base_path.c_str(), len);
         dirBuf[len] = '\0';
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
         _mkdir(dirBuf);
 #else
         mkdir(dirBuf, 0755);
@@ -93,7 +93,7 @@ void JsonFileOutput::write(const QueuedLogEntry& entry) {
     writeJsonEscaped(m_file_stream, entry.m_message.c_str());
 
     m_file_stream.write("\"}\n", 3);
-    m_current_size += static_cast<uint64_t>(pos + 3); // approximate
+    m_current_size += static_cast<u64>(pos + 3); // approximate
 }
 
 void JsonFileOutput::flush() {
@@ -108,8 +108,8 @@ bool JsonFileOutput::openLogFile() {
 
     if (m_file_opened) {
         m_file_stream.seekp(0, std::ios::end);
-        m_current_size = static_cast<uint64_t>(m_file_stream.tellp());
-        if (m_current_size == static_cast<uint64_t>(-1)) {
+        m_current_size = static_cast<u64>(m_file_stream.tellp());
+        if (m_current_size == static_cast<u64>(-1)) {
             m_current_size = 0;
         }
     }
@@ -145,7 +145,7 @@ void JsonFileOutput::rollFile() {
 }
 
 bool JsonFileOutput::checkAndRoll() {
-    const uint64_t maxSizeBytes = static_cast<uint64_t>(m_max_size_mb) * 1024 * 1024;
+    const u64 maxSizeBytes = static_cast<u64>(m_max_size_mb) * 1024 * 1024;
     if (m_current_size >= maxSizeBytes) {
         rollFile();
     }

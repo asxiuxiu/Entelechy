@@ -8,13 +8,13 @@ namespace Entelechy {
 namespace {
     bool jsonExtractString(const std::string& json, const std::string& key, std::string& out) {
         std::string pattern = "\"" + key + "\"";
-        size_t pos = json.find(pattern);
+        usize pos = json.find(pattern);
         if (pos == std::string::npos) return false;
         pos = json.find(':', pos + pattern.length());
         if (pos == std::string::npos) return false;
         ++pos;
         while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '"')) ++pos;
-        size_t end = pos;
+        usize end = pos;
         while (end < json.size() && json[end] != '"' && json[end] != ',' && json[end] != '}') ++end;
         out = json.substr(pos, end - pos);
         return true;
@@ -83,7 +83,7 @@ const ToolDesc* ToolRegistry::findTool(const std::string& name) const {
     return nullptr;
 }
 
-size_t ToolRegistry::toolCount() const {
+usize ToolRegistry::toolCount() const {
     return m_tools.size();
 }
 

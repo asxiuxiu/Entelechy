@@ -2,8 +2,6 @@
 #include "types.h"
 #include "dynamic_array.h"
 #include "allocator.h"
-#include <cstdint>
-#include <cstddef>
 
 namespace Entelechy {
 
@@ -12,10 +10,10 @@ public:
     virtual ~IComponentArray() = default;
     virtual void remove(Entity e) = 0;
     [[nodiscard]] virtual bool has(Entity e) const = 0;
-    [[nodiscard]] virtual size_t count() const = 0;
+    [[nodiscard]] virtual usize count() const = 0;
     [[nodiscard]] virtual const void* getRaw(Entity e) const = 0;
     [[nodiscard]] virtual void* getRaw(Entity e) = 0;
-    [[nodiscard]] virtual const uint32_t* entityIds() const = 0;
+    [[nodiscard]] virtual const u32* entityIds() const = 0;
 };
 
 template<typename T>
@@ -63,14 +61,14 @@ public:
         return &m_dense[m_entityIndex[e.id]];
     }
 
-    [[nodiscard]] size_t count() const override {
+    [[nodiscard]] usize count() const override {
         return m_dense.size();
     }
 
     [[nodiscard]] T* data() { return m_dense.data(); }
     [[nodiscard]] const T* data() const { return m_dense.data(); }
 
-    [[nodiscard]] const uint32_t* entityIds() const override {
+    [[nodiscard]] const u32* entityIds() const override {
         return m_denseEntityIds.data();
     }
 
@@ -83,9 +81,9 @@ public:
     }
 
 private:
-    DynamicArray<int32_t> m_entityIndex;    // sparse table: entity.id -> dense index (or -1)
-    DynamicArray<T> m_dense;                // dense component data
-    DynamicArray<uint32_t> m_denseEntityIds; // dense[i] corresponds to which entity.id
+    DynamicArray<i32> m_entityIndex;    // sparse table: entity.id -> dense index (or -1)
+    DynamicArray<T> m_dense;            // dense component data
+    DynamicArray<u32> m_denseEntityIds; // dense[i] corresponds to which entity.id
 };
 
 } // namespace Entelechy

@@ -1,8 +1,8 @@
 ﻿#pragma once
-#include <cstddef>
+#include "foundation_types.h"
 #include <cstdlib>
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #include <malloc.h>
 #endif
 
@@ -13,8 +13,8 @@ namespace Entelechy {
 //   void* alloc(size_t size, size_t align)
 //   void  free(void* ptr)
 struct DefaultAllocator {
-    static void* alloc(size_t size, size_t align = alignof(std::max_align_t)) {
-#ifdef _WIN32
+    static void* alloc(usize size, usize align = alignof(std::max_align_t)) {
+#if PLATFORM_WINDOWS
         return _aligned_malloc(size, align);
 #else
         if (align <= alignof(std::max_align_t)) {
@@ -27,7 +27,7 @@ struct DefaultAllocator {
     }
 
     static void free(void* ptr) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
         _aligned_free(ptr);
 #else
         std::free(ptr);

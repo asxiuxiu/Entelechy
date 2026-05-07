@@ -17,7 +17,7 @@ void registerBuiltinTypes() {
 
 void printWorld(const World& world) {
     printf("=== World State (entities: %zu) ===\n", world.entityCount());
-    for (uint32_t id = 0; id < world.maxEntityID(); ++id) {
+    for (u32 id = 0; id < world.maxEntityID(); ++id) {
         Entity e{id, world.getEntityGeneration(id)};
         if (world.valid(e)) {
             const auto* pos = world.getComponent<Position>(e);

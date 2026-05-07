@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "foundation_types.h"
 #include <string>
 #include <unordered_map>
 #include <functional>
@@ -22,7 +23,7 @@ public:
     std::string listTools() const;
     std::string describeTool(const std::string& name) const;
     std::string callTool(const std::string& name, const std::string& json_args) const;
-    size_t toolCount() const;
+    usize toolCount() const;
 
 private:
     ToolRegistry() = default;

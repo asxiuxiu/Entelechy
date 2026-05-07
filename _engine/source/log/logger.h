@@ -26,7 +26,7 @@ namespace Entelechy {
 // - Output is routed through pluggable LogOutputDevice instances.
 class Logger {
 public:
-    static constexpr size_t MAX_HISTORY = 4096;
+    static constexpr usize MAX_HISTORY = 4096;
 
     static Logger& instance();
 

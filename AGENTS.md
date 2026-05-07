@@ -60,6 +60,7 @@ Entelechy/
 ├── _engine/                ← 引擎核心（模拟独立仓库）
 │   ├── cmake_projects.json
 │   └── source/
+│       ├── foundation/     ← 基础类型与平台抽象（FoundationLib） [AGENTS.md](./_engine/source/foundation/AGENTS.md)
 │       ├── core/           ← ECS 数据层（CoreLib） [AGENTS.md](./_engine/source/core/AGENTS.md)
 │       ├── system/         ← System / Scheduler（SystemLib） [AGENTS.md](./_engine/source/system/AGENTS.md)
 │       ├── bridge/         ← AgentBridge（BridgeLib） [AGENTS.md](./_engine/source/bridge/AGENTS.md)

@@ -8,7 +8,7 @@
 ## 关键文件
 | 文件 | 职责 |
 |------|------|
-| `vec.h` | 向量（Vec2 / Vec3 / Vec4）及运算 |
+| `vec.h` | 向量（Vec2 / Vec3 / Vec4）及运算；`Vec3` 支持 `operator[]` |
 | `mat4.h` | 4×4 矩阵及运算 |
 | `quat.h` | 四元数及旋转相关运算 |
 | `aabb.h` | 轴对齐包围盒（AABB） |
@@ -24,7 +24,7 @@
 
 ## 依赖关系
 - 向上依赖：
-  - 无（纯数学，无外部依赖）
+  - [Foundation 模块](../foundation/AGENTS.md)（`u32`/`usize` 用于随机数/对齐）
 - 被依赖：
   - [Core 模块](../core/AGENTS.md)（World 中可能用到）
   - [System 模块](../system/AGENTS.md)（MovementSystem 等）

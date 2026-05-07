@@ -1,6 +1,5 @@
 ﻿#pragma once
-#include <cstdint>
-#include <cstddef>
+#include "foundation_types.h"
 
 namespace Entelechy {
 
@@ -8,19 +7,19 @@ namespace Entelechy {
 // Call reset() at the end of the frame to reclaim everything in O(1).
 class FrameArena {
 public:
-    explicit FrameArena(size_t capacity);
+    explicit FrameArena(usize capacity);
     ~FrameArena();
 
-    [[nodiscard]] void* alloc(size_t size, size_t align = 8);
+    [[nodiscard]] void* alloc(usize size, usize align = 8);
     void reset();
 
-    [[nodiscard]] size_t capacity() const { return m_capacity; }
-    [[nodiscard]] size_t consumedBytes() const { return m_offset; }
+    [[nodiscard]] usize capacity() const { return m_capacity; }
+    [[nodiscard]] usize consumedBytes() const { return m_offset; }
 
 private:
-    uint8_t* m_base;
-    size_t m_capacity;
-    size_t m_offset;
+    u8* m_base;
+    usize m_capacity;
+    usize m_offset;
 };
 
 } // namespace Entelechy

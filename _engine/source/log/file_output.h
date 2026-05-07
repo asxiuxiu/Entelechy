@@ -1,7 +1,7 @@
 ﻿#pragma once
+#include "foundation_types.h"
 #include <fstream>
 #include <string>
-#include <cstdint>
 #include "log_output_device.h"
 #include "queued_log_entry.h"
 
@@ -12,8 +12,8 @@ namespace Entelechy {
 // ============================================================
 struct LogFileConfig {
     std::string m_base_path = "logs/engine.log";
-    uint32_t m_max_size_mb = 10;
-    uint32_t m_max_files = 5;
+    u32 m_max_size_mb = 10;
+    u32 m_max_files = 5;
 };
 
 // ============================================================
@@ -34,7 +34,7 @@ private:
     LogFileConfig m_config;
     std::ofstream m_file_stream;
     bool m_file_opened = false;
-    uint64_t m_current_size = 0;
+    u64 m_current_size = 0;
 
     bool openLogFile();
     void rollFile();

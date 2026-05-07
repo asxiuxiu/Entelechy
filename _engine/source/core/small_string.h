@@ -1,15 +1,15 @@
 ﻿#pragma once
+#include "foundation_types.h"
 #include <cstring>
-#include <cstddef>
 #include <functional>
 
 namespace Entelechy {
 
 class SmallString {
-    static constexpr size_t SSO_CAPACITY = 15;
+    static constexpr usize SSO_CAPACITY = 15;
     char m_inline[SSO_CAPACITY + 1];
     char* m_data;
-    size_t m_len;
+    usize m_len;
 
 public:
     SmallString() {
@@ -125,10 +125,10 @@ public:
     }
 
     const char* c_str() const { return m_data; }
-    size_t length() const { return m_len; }
+    usize length() const { return m_len; }
     bool empty() const { return m_len == 0; }
     bool isInline() const { return m_data == m_inline; }
-    static constexpr size_t inlineCapacity() { return SSO_CAPACITY; }
+    static constexpr usize inlineCapacity() { return SSO_CAPACITY; }
 
     void clear() {
         if (m_data != m_inline) {
@@ -143,8 +143,8 @@ public:
         if (!str || str[0] == '\0') {
             return *this;
         }
-        size_t add_len = std::strlen(str);
-        size_t new_len = m_len + add_len;
+        usize add_len = std::strlen(str);
+        usize new_len = m_len + add_len;
         if (new_len <= SSO_CAPACITY) {
             std::memcpy(m_inline + m_len, str, add_len + 1);
             m_data = m_inline;
@@ -210,7 +210,7 @@ namespace std {
             const char* s = str.c_str();
             uint64_t h = 0xcbf29ce484222325ULL;
             while (*s) {
-                h ^= static_cast<uint64_t>(*s);
+                h ^= static_cast<u64>(*s);
                 h *= 0x100000001b3ULL;
                 ++s;
             }

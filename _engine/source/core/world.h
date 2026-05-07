@@ -3,7 +3,6 @@
 #include "component_array.h"
 #include "type_registry.h"
 #include "dynamic_array.h"
-#include <cstdint>
 #include <cstdio>
 #include <unordered_map>
 #include <memory>
@@ -20,7 +19,7 @@ public:
             m_freeEntities.popBack();
             e.generation = m_entityGenerations[e.id];
         } else {
-            e.id = static_cast<uint32_t>(m_entityGenerations.size());
+            e.id = static_cast<u32>(m_entityGenerations.size());
             m_entityGenerations.pushBack(0);
             m_entityMasks.pushBack(0);
         }
@@ -43,20 +42,20 @@ public:
         return e.id < m_entityGenerations.size() && m_entityGenerations[e.id] == e.generation;
     }
 
-    [[nodiscard]] size_t entityCount() const {
+    [[nodiscard]] usize entityCount() const {
         return m_entityGenerations.size() - m_freeEntities.size();
     }
 
-    [[nodiscard]] size_t maxEntityID() const {
+    [[nodiscard]] usize maxEntityID() const {
         return m_entityGenerations.size();
     }
 
-    [[nodiscard]] uint32_t getEntityGeneration(uint32_t id) const {
+    [[nodiscard]] u32 getEntityGeneration(u32 id) const {
         if (id < m_entityGenerations.size()) return m_entityGenerations[id];
         return 0xFFFFFFFFu;
     }
 
-    [[nodiscard]] uint32_t getEntityMask(uint32_t id) const {
+    [[nodiscard]] u32 getEntityMask(u32 id) const {
         if (id < m_entityMasks.size()) return m_entityMasks[id];
         return 0;
     }
@@ -133,9 +132,9 @@ private:
         return array.get();
     }
 
-    DynamicArray<uint32_t> m_entityGenerations;
-    DynamicArray<uint32_t> m_freeEntities;
-    DynamicArray<uint32_t> m_entityMasks;
+    DynamicArray<u32> m_entityGenerations;
+    DynamicArray<u32> m_freeEntities;
+    DynamicArray<u32> m_entityMasks;
     std::unordered_map<Entelechy::ComponentTypeID, std::shared_ptr<IComponentArray>> m_componentArrays;
 };
 

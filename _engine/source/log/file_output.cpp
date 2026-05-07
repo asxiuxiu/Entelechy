@@ -4,7 +4,7 @@
 #include <cstring>
 #include <cstdio>
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #include <direct.h>
 #else
 #include <sys/stat.h>
@@ -56,7 +56,7 @@ void FileOutput::write(const QueuedLogEntry& entry) {
 
     if (lineLen > 0) {
         m_file_stream.write(lineBuf, lineLen);
-        m_current_size += static_cast<uint64_t>(lineLen);
+        m_current_size += static_cast<u64>(lineLen);
     }
 }
 
@@ -77,14 +77,14 @@ bool FileOutput::openLogFile() {
 
     if (lastSep) {
         char dirBuf[256] = {};
-        size_t len = static_cast<size_t>(lastSep - m_config.m_base_path.c_str());
+        usize len = static_cast<usize>(lastSep - m_config.m_base_path.c_str());
         if (len >= sizeof(dirBuf)) {
             len = sizeof(dirBuf) - 1;
         }
         std::memcpy(dirBuf, m_config.m_base_path.c_str(), len);
         dirBuf[len] = '\0';
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
         _mkdir(dirBuf);
 #else
         mkdir(dirBuf, 0755);
@@ -96,8 +96,8 @@ bool FileOutput::openLogFile() {
 
     if (m_file_opened) {
         m_file_stream.seekp(0, std::ios::end);
-        m_current_size = static_cast<uint64_t>(m_file_stream.tellp());
-        if (m_current_size == static_cast<uint64_t>(-1)) {
+        m_current_size = static_cast<u64>(m_file_stream.tellp());
+        if (m_current_size == static_cast<u64>(-1)) {
             m_current_size = 0;
         }
     }
@@ -140,7 +140,7 @@ void FileOutput::rollFile() {
 }
 
 bool FileOutput::checkAndRoll() {
-    const uint64_t maxSizeBytes = static_cast<uint64_t>(m_config.m_max_size_mb) * 1024 * 1024;
+    const u64 maxSizeBytes = static_cast<u64>(m_config.m_max_size_mb) * 1024 * 1024;
     if (m_current_size >= maxSizeBytes) {
         rollFile();
     }

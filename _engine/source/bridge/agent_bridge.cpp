@@ -15,7 +15,7 @@ namespace {
 
     bool jsonParseFloat(const std::string& json, const std::string& key, float& out) {
         std::string pattern = "\"" + key + "\"";
-        size_t pos = json.find(pattern);
+        usize pos = json.find(pattern);
         if (pos == std::string::npos) return false;
 
         pos = json.find(':', pos + pattern.length());
@@ -33,9 +33,9 @@ namespace {
         return true;
     }
 
-    bool jsonParseUint32(const std::string& json, const std::string& key, uint32_t& out) {
+    bool jsonParseUint32(const std::string& json, const std::string& key, u32& out) {
         std::string pattern = "\"" + key + "\"";
-        size_t pos = json.find(pattern);
+        usize pos = json.find(pattern);
         if (pos == std::string::npos) return false;
 
         pos = json.find(':', pos + pattern.length());
@@ -55,7 +55,7 @@ namespace {
 
     bool jsonParseString(const std::string& json, const std::string& key, std::string& out) {
         std::string pattern = "\"" + key + "\"";
-        size_t pos = json.find(pattern);
+        usize pos = json.find(pattern);
         if (pos == std::string::npos) return false;
 
         pos = json.find(':', pos + pattern.length());
@@ -65,7 +65,7 @@ namespace {
         while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) ++pos;
         if (pos >= json.size() || json[pos] != '"') return false;
         ++pos;
-        size_t end = pos;
+        usize end = pos;
         while (end < json.size() && json[end] != '"') ++end;
         out = json.substr(pos, end - pos);
         return true;
@@ -94,7 +94,7 @@ void AgentBridge::init() {
                 if (pos != std::string::npos) {
                     ++pos;
                     while (pos < json_args.size() && (json_args[pos] == ' ' || json_args[pos] == '\t' || json_args[pos] == '"')) ++pos;
-                    size_t end = pos;
+                    usize end = pos;
                     while (end < json_args.size() && json_args[end] != '"' && json_args[end] != ',' && json_args[end] != '}') ++end;
                     comp_name = json_args.substr(pos, end - pos);
                 }
@@ -109,7 +109,7 @@ void AgentBridge::init() {
         "{\"entity\": uint32, \"comp_name\": \"string\"}",
         true,
         [self](const std::string& json_args) -> std::string {
-            uint32_t entity_id = 0;
+            u32 entity_id = 0;
             std::string comp_name;
             jsonParseUint32(json_args, "entity", entity_id);
             size_t pos = json_args.find("\"comp_name\"");
@@ -118,7 +118,7 @@ void AgentBridge::init() {
                 if (pos != std::string::npos) {
                     ++pos;
                     while (pos < json_args.size() && (json_args[pos] == ' ' || json_args[pos] == '\t' || json_args[pos] == '"')) ++pos;
-                    size_t end = pos;
+                    usize end = pos;
                     while (end < json_args.size() && json_args[end] != '"' && json_args[end] != ',' && json_args[end] != '}') ++end;
                     comp_name = json_args.substr(pos, end - pos);
                 }
@@ -134,7 +134,7 @@ void AgentBridge::init() {
         "{\"entity\": uint32, \"comp_name\": \"string\", \"values\": {...}}",
         false,
         [self](const std::string& json_args) -> std::string {
-            uint32_t entity_id = 0;
+            u32 entity_id = 0;
             std::string comp_name;
             std::string values_json;
             jsonParseUint32(json_args, "entity", entity_id);
@@ -144,7 +144,7 @@ void AgentBridge::init() {
                 if (pos != std::string::npos) {
                     ++pos;
                     while (pos < json_args.size() && (json_args[pos] == ' ' || json_args[pos] == '\t' || json_args[pos] == '"')) ++pos;
-                    size_t end = pos;
+                    usize end = pos;
                     while (end < json_args.size() && json_args[end] != '"' && json_args[end] != ',' && json_args[end] != '}') ++end;
                     comp_name = json_args.substr(pos, end - pos);
                 }
@@ -191,7 +191,7 @@ void AgentBridge::init() {
         "{\"mask\": uint32}",
         true,
         [self](const std::string& json_args) -> std::string {
-            uint32_t mask = 0;
+            u32 mask = 0;
             jsonParseUint32(json_args, "mask", mask);
             return self->queryEntitiesByMask(mask);
         }
@@ -214,17 +214,17 @@ void AgentBridge::step(float dt) {
 }
 
 std::string AgentBridge::queryEntities(const std::string& comp_name) const {
-    uint32_t mask = TypeRegistry::instance().getComponentMask(comp_name.c_str());
+    u32 mask = TypeRegistry::instance().getComponentMask(comp_name.c_str());
     if (mask == 0) {
         return "{\"error\":\"component not found\"}";
     }
     return queryEntitiesByMask(mask);
 }
 
-std::string AgentBridge::queryEntitiesByMask(uint32_t mask) const {
+std::string AgentBridge::queryEntitiesByMask(u32 mask) const {
     std::string json = "[";
     bool first = true;
-    for (uint32_t id = 0; id < m_world.maxEntityID(); ++id) {
+    for (u32 id = 0; id < m_world.maxEntityID(); ++id) {
         Entity e{id, m_world.getEntityGeneration(id)};
         if (m_world.valid(e) && (m_world.getEntityMask(id) & mask) == mask) {
             if (!first) json += ",";

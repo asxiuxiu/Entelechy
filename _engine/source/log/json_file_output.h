@@ -1,7 +1,7 @@
 ﻿#pragma once
+#include "foundation_types.h"
 #include <fstream>
 #include <string>
-#include <cstdint>
 #include "log_output_device.h"
 #include "queued_log_entry.h"
 
@@ -15,8 +15,8 @@ namespace Entelechy {
 class JsonFileOutput : public LogOutputDevice {
 public:
     explicit JsonFileOutput(const char* basePath = "logs/engine.jsonl",
-                            uint32_t maxSizeMb = 10,
-                            uint32_t maxFiles = 5);
+                            u32 maxSizeMb = 10,
+                            u32 maxFiles = 5);
     ~JsonFileOutput() override;
 
     bool init();
@@ -25,11 +25,11 @@ public:
 
 private:
     std::string m_base_path;
-    uint32_t m_max_size_mb;
-    uint32_t m_max_files;
+    u32 m_max_size_mb;
+    u32 m_max_files;
     std::ofstream m_file_stream;
     bool m_file_opened = false;
-    uint64_t m_current_size = 0;
+    u64 m_current_size = 0;
 
     bool openLogFile();
     void rollFile();

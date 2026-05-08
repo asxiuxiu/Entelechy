@@ -10,6 +10,8 @@ add_library(CoreLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/string_id.h
     ${CMAKE_CURRENT_LIST_DIR}/small_string.h
     ${CMAKE_CURRENT_LIST_DIR}/string_format.h
+    ${CMAKE_CURRENT_LIST_DIR}/string_intern_pool.h
+    ${CMAKE_CURRENT_LIST_DIR}/string_intern_pool.cpp
 )
 
 target_include_directories(CoreLib PUBLIC

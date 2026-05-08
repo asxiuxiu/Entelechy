@@ -7,61 +7,63 @@ namespace Entelechy {
 
 class SmallString {
     static constexpr usize SSO_CAPACITY = 15;
-    char m_inline[SSO_CAPACITY + 1];
-    char* m_data;
+    union {
+        char m_inline[SSO_CAPACITY + 1];
+        struct {
+            char* m_data;
+            usize m_capacity;
+        } m_heap;
+    };
     usize m_len;
 
 public:
     SmallString() {
         m_inline[0] = '\0';
-        m_data = m_inline;
         m_len = 0;
     }
 
     SmallString(const char* str) {
         if (!str) {
             m_inline[0] = '\0';
-            m_data = m_inline;
             m_len = 0;
             return;
         }
         m_len = std::strlen(str);
         if (m_len <= SSO_CAPACITY) {
             std::memcpy(m_inline, str, m_len + 1);
-            m_data = m_inline;
         } else {
-            m_data = new char[m_len + 1];
-            std::memcpy(m_data, str, m_len + 1);
+            m_heap.m_capacity = m_len + 1;
+            m_heap.m_data = new char[m_heap.m_capacity];
+            std::memcpy(m_heap.m_data, str, m_len + 1);
         }
     }
 
     SmallString(const SmallString& other) {
         m_len = other.m_len;
         if (m_len <= SSO_CAPACITY) {
-            std::memcpy(m_inline, other.m_data, m_len + 1);
-            m_data = m_inline;
+            std::memcpy(m_inline, other.m_inline, m_len + 1);
         } else {
-            m_data = new char[m_len + 1];
-            std::memcpy(m_data, other.m_data, m_len + 1);
+            m_heap.m_capacity = other.m_heap.m_capacity;
+            m_heap.m_data = new char[m_heap.m_capacity];
+            std::memcpy(m_heap.m_data, other.m_heap.m_data, m_len + 1);
         }
     }
 
     SmallString(SmallString&& other) noexcept {
         m_len = other.m_len;
-        if (other.m_data == other.m_inline) {
+        if (other.m_len <= SSO_CAPACITY) {
             std::memcpy(m_inline, other.m_inline, m_len + 1);
-            m_data = m_inline;
         } else {
-            m_data = other.m_data;
-            other.m_data = other.m_inline;
+            m_heap.m_data = other.m_heap.m_data;
+            m_heap.m_capacity = other.m_heap.m_capacity;
             other.m_inline[0] = '\0';
             other.m_len = 0;
         }
     }
 
     ~SmallString() {
-        if (m_data != m_inline) {
-            delete[] m_data;
+        if (m_len > SSO_CAPACITY) {
+            delete[] m_heap.m_data;
         }
     }
 
@@ -69,16 +71,16 @@ public:
         if (this == &other) {
             return *this;
         }
-        if (m_data != m_inline) {
-            delete[] m_data;
+        if (m_len > SSO_CAPACITY) {
+            delete[] m_heap.m_data;
         }
         m_len = other.m_len;
         if (m_len <= SSO_CAPACITY) {
-            std::memcpy(m_inline, other.m_data, m_len + 1);
-            m_data = m_inline;
+            std::memcpy(m_inline, other.m_inline, m_len + 1);
         } else {
-            m_data = new char[m_len + 1];
-            std::memcpy(m_data, other.m_data, m_len + 1);
+            m_heap.m_capacity = other.m_heap.m_capacity;
+            m_heap.m_data = new char[m_heap.m_capacity];
+            std::memcpy(m_heap.m_data, other.m_heap.m_data, m_len + 1);
         }
         return *this;
     }
@@ -87,16 +89,15 @@ public:
         if (this == &other) {
             return *this;
         }
-        if (m_data != m_inline) {
-            delete[] m_data;
+        if (m_len > SSO_CAPACITY) {
+            delete[] m_heap.m_data;
         }
         m_len = other.m_len;
-        if (other.m_data == other.m_inline) {
+        if (other.m_len <= SSO_CAPACITY) {
             std::memcpy(m_inline, other.m_inline, m_len + 1);
-            m_data = m_inline;
         } else {
-            m_data = other.m_data;
-            other.m_data = other.m_inline;
+            m_heap.m_data = other.m_heap.m_data;
+            m_heap.m_capacity = other.m_heap.m_capacity;
             other.m_inline[0] = '\0';
             other.m_len = 0;
         }
@@ -104,36 +105,36 @@ public:
     }
 
     SmallString& operator=(const char* str) {
-        if (m_data != m_inline) {
-            delete[] m_data;
+        if (m_len > SSO_CAPACITY) {
+            delete[] m_heap.m_data;
         }
         if (!str) {
             m_inline[0] = '\0';
-            m_data = m_inline;
             m_len = 0;
             return *this;
         }
         m_len = std::strlen(str);
         if (m_len <= SSO_CAPACITY) {
             std::memcpy(m_inline, str, m_len + 1);
-            m_data = m_inline;
         } else {
-            m_data = new char[m_len + 1];
-            std::memcpy(m_data, str, m_len + 1);
+            m_heap.m_capacity = m_len + 1;
+            m_heap.m_data = new char[m_heap.m_capacity];
+            std::memcpy(m_heap.m_data, str, m_len + 1);
         }
         return *this;
     }
 
-    const char* c_str() const { return m_data; }
+    const char* c_str() const {
+        return m_len <= SSO_CAPACITY ? m_inline : m_heap.m_data;
+    }
     usize length() const { return m_len; }
     bool empty() const { return m_len == 0; }
-    bool isInline() const { return m_data == m_inline; }
+    bool isInline() const { return m_len <= SSO_CAPACITY; }
     static constexpr usize inlineCapacity() { return SSO_CAPACITY; }
 
     void clear() {
-        if (m_data != m_inline) {
-            delete[] m_data;
-            m_data = m_inline;
+        if (m_len > SSO_CAPACITY) {
+            delete[] m_heap.m_data;
         }
         m_inline[0] = '\0';
         m_len = 0;
@@ -147,15 +148,16 @@ public:
         usize new_len = m_len + add_len;
         if (new_len <= SSO_CAPACITY) {
             std::memcpy(m_inline + m_len, str, add_len + 1);
-            m_data = m_inline;
         } else {
-            char* new_data = new char[new_len + 1];
-            std::memcpy(new_data, m_data, m_len);
+            usize new_cap = new_len + 1;
+            char* new_data = new char[new_cap];
+            std::memcpy(new_data, c_str(), m_len);
             std::memcpy(new_data + m_len, str, add_len + 1);
-            if (m_data != m_inline) {
-                delete[] m_data;
+            if (m_len > SSO_CAPACITY) {
+                delete[] m_heap.m_data;
             }
-            m_data = new_data;
+            m_heap.m_data = new_data;
+            m_heap.m_capacity = new_cap;
         }
         m_len = new_len;
         return *this;
@@ -175,7 +177,7 @@ public:
     SmallString& operator+=(char ch) { return append(ch); }
 
     bool operator==(const SmallString& other) const {
-        return m_len == other.m_len && std::memcmp(m_data, other.m_data, m_len) == 0;
+        return m_len == other.m_len && std::memcmp(c_str(), other.c_str(), m_len) == 0;
     }
 
     bool operator!=(const SmallString& other) const {
@@ -184,7 +186,7 @@ public:
 
     bool operator==(const char* str) const {
         if (!str) return m_len == 0;
-        return std::strcmp(m_data, str) == 0;
+        return std::strcmp(c_str(), str) == 0;
     }
 
     bool operator!=(const char* str) const {

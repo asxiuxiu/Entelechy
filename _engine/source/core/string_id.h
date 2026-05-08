@@ -15,6 +15,7 @@ class StringId {
 public:
     constexpr StringId() : m_hash(0) {}
     constexpr StringId(const char* str) : m_hash(hashFNV1a(str)) {}
+    constexpr explicit StringId(u64 hash) : m_hash(hash) {}
 
     [[nodiscard]] constexpr u64 value() const { return m_hash; }
     constexpr auto operator<=>(const StringId& other) const = default;

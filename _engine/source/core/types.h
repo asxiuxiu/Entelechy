@@ -4,6 +4,7 @@
 #include <compare>
 #include "type_registry.h"
 #include "small_string.h"
+#include "string_id.h"
 
 namespace Entelechy {
 
@@ -45,11 +46,11 @@ REFLECT_COMPONENT(Health,
 )
 
 struct NameTag {
-    SmallString name;
+    StringId name;
 };
 
 REFLECT_COMPONENT(NameTag,
-    REG_FIELD(NameTag, name, SmallString)
+    REG_FIELD(NameTag, name, StringId)
 )
 
 void registerBuiltinTypes();

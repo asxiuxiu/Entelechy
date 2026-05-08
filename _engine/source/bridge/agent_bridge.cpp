@@ -1,6 +1,7 @@
 ﻿#include "agent_bridge.h"
 #include "type_registry.h"
 #include "log/log_macros.h"
+#include "core/string_intern_pool.h"
 #include <cstdio>
 #include <string>
 #include <cstring>
@@ -289,6 +290,12 @@ std::string AgentBridge::getComponent(Entity e, const std::string& comp_name) co
         } else if (field.type == "SmallString") {
             const SmallString* str = reinterpret_cast<const SmallString*>(static_cast<const char*>(comp_ptr) + field.offset);
             json += "\"" + std::string(str->c_str()) + "\"";
+        } else if (field.type == "StringId") {
+            const StringId* id = reinterpret_cast<const StringId*>(static_cast<const char*>(comp_ptr) + field.offset);
+            const char* resolved = StringInternPool::instance().resolve(*id);
+            json += "\"";
+            json += (resolved ? resolved : "<unresolved>");
+            json += "\"";
         } else {
             json += "null";
         }
@@ -329,6 +336,12 @@ std::string AgentBridge::setComponent(Entity e, const std::string& comp_name, co
             std::string val;
             if (jsonParseString(json, field.name.c_str(), val)) {
                 *reinterpret_cast<SmallString*>(static_cast<char*>(comp_ptr) + field.offset) = val.c_str();
+            }
+        } else if (field.type == "StringId") {
+            std::string val;
+            if (jsonParseString(json, field.name.c_str(), val)) {
+                StringId id = StringInternPool::instance().intern(val.c_str());
+                *reinterpret_cast<StringId*>(static_cast<char*>(comp_ptr) + field.offset) = id;
             }
         }
     }

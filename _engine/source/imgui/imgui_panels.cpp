@@ -6,6 +6,7 @@
 #include "scheduler.h"
 #include "type_registry.h"
 #include "math/vec.h"
+#include "core/string_intern_pool.h"
 #include <ctime>
 #include <chrono>
 
@@ -45,6 +46,10 @@ void drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
     } else if (field.type == "SmallString") {
         auto* str = static_cast<Entelechy::SmallString*>(fieldPtr);
         ImGui::Text("%s: %s", field.name.c_str(), str->c_str());
+    } else if (field.type == "StringId") {
+        auto* id = static_cast<Entelechy::StringId*>(fieldPtr);
+        const char* resolved = StringInternPool::instance().resolve(*id);
+        ImGui::Text("%s: %s", field.name.c_str(), resolved ? resolved : "<unresolved>");
     } else if (field.type == "int" || field.type == "int32_t") {
         ImGui::DragInt(field.name.c_str(), static_cast<int*>(fieldPtr));
     } else if (field.type == "uint32_t") {
@@ -224,7 +229,7 @@ void buildECSInspector(World& world, Scheduler& scheduler, float dt, bool& autoR
         world.addComponent<Position>(e, {0.0f, 0.0f});
         world.addComponent<Velocity>(e, {1.0f, 0.0f});
         world.addComponent<Health>(e, {100.0f});
-        world.addComponent<NameTag>(e, {SmallString("NewEntity")});
+        world.addComponent<NameTag>(e, {StringId("NewEntity")});
     }
     ImGui::SameLine();
     if (ImGui::Button("Delete Selected") && selected.valid() && world.valid(selected)) {

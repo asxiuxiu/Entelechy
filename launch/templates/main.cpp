@@ -78,14 +78,14 @@ int main() {
         world.addComponent<Entelechy::Position>(e, {0.0f, 0.0f});
         world.addComponent<Entelechy::Velocity>(e, {1.0f, 0.0f});
         world.addComponent<Entelechy::Health>(e, {100.0f});
-        world.addComponent<Entelechy::NameTag>(e, {Entelechy::SmallString("Player")});
+        world.addComponent<Entelechy::NameTag>(e, {Entelechy::StringId("Player")});
     }
     {
         auto e = world.spawn();
         world.addComponent<Entelechy::Position>(e, {5.0f, 0.0f});
         world.addComponent<Entelechy::Velocity>(e, {-0.5f, 0.0f});
         world.addComponent<Entelechy::Health>(e, {50.0f});
-        world.addComponent<Entelechy::NameTag>(e, {Entelechy::SmallString("Enemy")});
+        world.addComponent<Entelechy::NameTag>(e, {Entelechy::StringId("Enemy")});
     }
 
     bool autoRunSystems = true;

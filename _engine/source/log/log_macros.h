@@ -5,6 +5,7 @@
 #include "log_entry.h"
 #include "log_category.h"
 #include "logger.h"
+#include "core/string_format.h"
 
 namespace Entelechy {
 
@@ -70,6 +71,30 @@ inline void logDispatch(const LogCategory& category, const char* file, const cha
     }
 }
 
+// ============================================================
+// Type-safe format-string log macros ({0} style)
+// ============================================================
+// Uses formatString() instead of snprintf for type safety and zero heap alloc.
+// Syntax: "Player {0} pos=({1}, {2})"
+//
+// Usage:
+//   LOG_FMT_INFO(Entelechy::LogCategories::kEngine, "Player {0} pos=({1}, {2})", "hero", 1.0f, 2.0f);
+
+template<LogLevel Level, typename... Args>
+inline void logDispatchFmt(const LogCategory& category, const char* file, const char* function, const char* fmt, Args&&... args) {
+    if constexpr (isLogEnabled<Level>()) {
+        if constexpr (sizeof...(Args) == 0) {
+            LogEntry entry = buildLogEntry<Level>(category, fmt, file, function);
+            Logger::instance().log(entry);
+        } else {
+            char buf[1024];
+            formatString(buf, sizeof(buf), fmt, std::forward<Args>(args)...);
+            LogEntry entry = buildLogEntry<Level>(category, buf, file, function);
+            Logger::instance().log(entry);
+        }
+    }
+}
+
 } // namespace Entelechy
 
 // ============================================================
@@ -111,3 +136,18 @@ inline void logDispatch(const LogCategory& category, const char* file, const cha
 
 #define LOG_ERROR_ONCE(category, ...) \
     do { static bool _logged = false; if (!_logged) { _logged = true; LOG_ERROR(category, __VA_ARGS__); } } while(0)
+
+// ============================================================
+// User-facing type-safe format log macros ({0} style)
+// ============================================================
+#define LOG_FMT_DEBUG(category, ...) \
+    ::Entelechy::logDispatchFmt<::Entelechy::LogLevel::Debug>(category, __FILE__, __FUNCTION__, __VA_ARGS__)
+
+#define LOG_FMT_INFO(category, ...) \
+    ::Entelechy::logDispatchFmt<::Entelechy::LogLevel::Info>(category, __FILE__, __FUNCTION__, __VA_ARGS__)
+
+#define LOG_FMT_WARN(category, ...) \
+    ::Entelechy::logDispatchFmt<::Entelechy::LogLevel::Warning>(category, __FILE__, __FUNCTION__, __VA_ARGS__)
+
+#define LOG_FMT_ERROR(category, ...) \
+    ::Entelechy::logDispatchFmt<::Entelechy::LogLevel::Error>(category, __FILE__, __FUNCTION__, __VA_ARGS__)

@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from setup_skills import setup_skills_link
+
 
 def run(cmd):
     """Run a command and forward stdout/stderr. Exit on failure."""
@@ -227,6 +229,12 @@ def main():
 
     # Patch toolchain for old CMake compatibility (no-op on CMake >= 3.26)
     patch_conan_toolchain()
+
+    # Step 0: Ensure shared agent skills are linked under .claude/skills so
+    # that Claude Code and other agents see the same skills directory.
+    # Idempotent — no-op if the link already points at the right target.
+    project_root = Path(__file__).resolve().parents[2]
+    setup_skills_link(project_root)
 
     # Step 1: Generate Source Forest
     print("[Build] Step 1: Generating Source Forest...")

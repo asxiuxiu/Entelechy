@@ -34,3 +34,6 @@ Thumbs.db
 
 .conan
 logs
+
+# Claude Code: skills is a generated link to .agents/skills
+.claude/skills

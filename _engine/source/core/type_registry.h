@@ -1,9 +1,9 @@
-﻿#pragma once
+#pragma once
 #include "foundation_types.h"
 #include "small_string.h"
 #include "string_format.h"
+#include "hash_map.h"
 #include <vector>
-#include <unordered_map>
 #include <cstddef>
 
 namespace Entelechy {
@@ -57,10 +57,10 @@ private:
         return m_nextID++;
     }
 
-    std::unordered_map<ComponentTypeID, ComponentDesc> m_components;
-    std::unordered_map<SmallString, ComponentTypeID> m_nameToID;
-    std::unordered_map<ComponentTypeID, SmallString> m_idToName;
-    std::unordered_map<SmallString, u32> m_nameToMask;
+    HashMap<ComponentTypeID, ComponentDesc> m_components;
+    HashMap<SmallString, ComponentTypeID> m_nameToID;
+    HashMap<ComponentTypeID, SmallString> m_idToName;
+    HashMap<SmallString, u32> m_nameToMask;
     ComponentTypeID m_nextID = 0;
 };
 

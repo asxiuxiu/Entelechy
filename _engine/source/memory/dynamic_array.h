@@ -5,10 +5,12 @@
 
 namespace Entelechy {
 
-// Dynamic array with a pluggable allocator
+// Dynamic array with a pluggable allocator.
 // AllocatorT must provide static methods:
 //   void* alloc(size_t size, size_t align)
 //   void  free(void* ptr)
+//
+// Allocation decision guide: see ALLOCATOR_GUIDE.md
 template <typename T, typename AllocatorT = DefaultAllocator>
 class DynamicArray {
 public:

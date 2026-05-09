@@ -1,4 +1,4 @@
-﻿#include "type_registry.h"
+#include "type_registry.h"
 #include <cstdio>
 
 namespace Entelechy {
@@ -9,40 +9,40 @@ TypeRegistry& TypeRegistry::instance() {
 }
 
 void TypeRegistry::registerComponent(ComponentTypeID id, u32 mask, const ComponentDesc& desc) {
-    m_components[id] = desc;
-    m_nameToID[desc.name] = id;
-    m_idToName[id] = desc.name;
-    m_nameToMask[desc.name] = mask;
+    m_components.insert(id, desc);
+    m_nameToID.insert(desc.name, id);
+    m_idToName.insert(id, desc.name);
+    m_nameToMask.insert(desc.name, mask);
 }
 
 const ComponentDesc* TypeRegistry::findComponent(ComponentTypeID id) const {
-    auto it = m_components.find(id);
-    if (it != m_components.end()) {
-        return &it->second;
+    auto* v = m_components.find(id);
+    if (v) {
+        return v;
     }
     return nullptr;
 }
 
 const ComponentDesc* TypeRegistry::findComponent(const SmallString& name) const {
-    auto it = m_nameToID.find(name);
-    if (it != m_nameToID.end()) {
-        return findComponent(it->second);
+    auto* id = m_nameToID.find(name);
+    if (id) {
+        return findComponent(*id);
     }
     return nullptr;
 }
 
 ComponentTypeID TypeRegistry::findComponentID(const SmallString& name) const {
-    auto it = m_nameToID.find(name);
-    if (it != m_nameToID.end()) {
-        return it->second;
+    auto* v = m_nameToID.find(name);
+    if (v) {
+        return *v;
     }
     return INVALID_COMPONENT_TYPE_ID;
 }
 
 u32 TypeRegistry::getComponentMask(const SmallString& name) const {
-    auto it = m_nameToMask.find(name);
-    if (it != m_nameToMask.end()) {
-        return it->second;
+    auto* v = m_nameToMask.find(name);
+    if (v) {
+        return *v;
     }
     return 0;
 }

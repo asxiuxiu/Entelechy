@@ -4,6 +4,12 @@
 
 namespace Entelechy {
 
+World::~World() {
+    for (auto pair : m_componentArrays) {
+        delete pair.second;
+    }
+}
+
 void initCore() {
     printf("[Entelechy::core] initialized\n");
     // Component types are now auto-registered via REFLECT_COMPONENT macros

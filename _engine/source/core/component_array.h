@@ -1,7 +1,9 @@
-﻿#pragma once
+#pragma once
 #include "types.h"
-#include "dynamic_array.h"
+#include "sparse_set.h"
 #include "allocator.h"
+#include <memory>
+#include <utility>
 
 namespace Entelechy {
 
@@ -16,60 +18,146 @@ public:
     [[nodiscard]] virtual const u32* entityIds() const = 0;
 };
 
-template<typename T>
+// SIMD-aligned column of component data.
+// Dense array layout: data[i] corresponds to sparseSet.denseAt(i).
+template <typename T>
+class Column {
+public:
+    Column() : m_data(nullptr), m_count(0), m_capacity(0) {}
+    ~Column() { clear(); }
+
+    Column(const Column&) = delete;
+    Column& operator=(const Column&) = delete;
+
+    Column(Column&& other) noexcept
+        : m_data(other.m_data)
+        , m_count(other.m_count)
+        , m_capacity(other.m_capacity) {
+        other.m_data = nullptr;
+        other.m_count = 0;
+        other.m_capacity = 0;
+    }
+
+    Column& operator=(Column&& other) noexcept {
+        if (this != &other) {
+            clear();
+            m_data = other.m_data;
+            m_count = other.m_count;
+            m_capacity = other.m_capacity;
+            other.m_data = nullptr;
+            other.m_count = 0;
+            other.m_capacity = 0;
+        }
+        return *this;
+    }
+
+    void pushBack(const T& value) {
+        if (m_count >= m_capacity) grow();
+        std::construct_at(&m_data[m_count], value);
+        ++m_count;
+    }
+
+    void pushBack(T&& value) {
+        if (m_count >= m_capacity) grow();
+        std::construct_at(&m_data[m_count], std::move(value));
+        ++m_count;
+    }
+
+    void swapAndPop(u32 denseIndex) {
+        u32 lastIdx = static_cast<u32>(m_count) - 1;
+        if (denseIndex != lastIdx) {
+            m_data[denseIndex] = std::move(m_data[lastIdx]);
+        }
+        std::destroy_at(&m_data[lastIdx]);
+        --m_count;
+    }
+
+    void clear() {
+        for (usize i = m_count; i > 0; --i) {
+            std::destroy_at(&m_data[i - 1]);
+        }
+        if (m_data) {
+            DefaultAllocator::free(m_data);
+            m_data = nullptr;
+        }
+        m_count = 0;
+        m_capacity = 0;
+    }
+
+    [[nodiscard]] T* data() { return m_data; }
+    [[nodiscard]] const T* data() const { return m_data; }
+    [[nodiscard]] usize count() const { return m_count; }
+    [[nodiscard]] usize capacity() const { return m_capacity; }
+
+    T& operator[](usize i) { return m_data[i]; }
+    const T& operator[](usize i) const { return m_data[i]; }
+
+private:
+    void grow() {
+        usize newCap = m_capacity == 0 ? 4 : m_capacity * 2;
+        constexpr usize ALIGN = (alignof(T) > 16) ? alignof(T) : 16;
+        T* newData = static_cast<T*>(DefaultAllocator::alloc(newCap * sizeof(T), ALIGN));
+        for (usize i = 0; i < m_count; ++i) {
+            std::construct_at(&newData[i], std::move(m_data[i]));
+            std::destroy_at(&m_data[i]);
+        }
+        if (m_data) {
+            DefaultAllocator::free(m_data);
+        }
+        m_data = newData;
+        m_capacity = newCap;
+    }
+
+    T* m_data;
+    usize m_count;
+    usize m_capacity;
+};
+
+// ComponentArray backed by SparseSet + Column.
+// TODO(Phase 4.1): evaluate migration to Archetype Chunk storage for better SoA/cache.
+template <typename T>
 class ComponentArray : public IComponentArray {
 public:
     void set(Entity e, const T& value) {
-        if (e.id >= m_entityIndex.size()) {
-            m_entityIndex.resize(e.id + 1, -1);
-        }
-        int32_t idx = m_entityIndex[e.id];
-        if (idx == -1) {
-            idx = static_cast<int32_t>(m_dense.size());
-            m_entityIndex[e.id] = idx;
-            m_dense.pushBack(value);
-            m_denseEntityIds.pushBack(e.id);
+        if (!m_sparseSet.has(e.id)) {
+            m_sparseSet.add(e.id);
+            m_column.pushBack(value);
         } else {
-            m_dense[idx] = value;
+            u32 idx = m_sparseSet.indexOf(e.id);
+            m_column[idx] = value;
         }
     }
 
     void remove(Entity e) override {
-        if (e.id >= m_entityIndex.size() || m_entityIndex[e.id] == -1) return;
-        int32_t idx = m_entityIndex[e.id];
-        int32_t lastIdx = static_cast<int32_t>(m_dense.size()) - 1;
-        // swap-and-pop to keep dense
-        m_dense[idx] = m_dense[lastIdx];
-        m_denseEntityIds[idx] = m_denseEntityIds[lastIdx];
-        m_entityIndex[m_denseEntityIds[lastIdx]] = idx;
-        m_dense.popBack();
-        m_denseEntityIds.popBack();
-        m_entityIndex[e.id] = -1;
+        if (!m_sparseSet.has(e.id)) return;
+        u32 idx = m_sparseSet.indexOf(e.id);
+        m_column.swapAndPop(idx);
+        m_sparseSet.remove(e.id);
     }
 
     bool has(Entity e) const override {
-        return e.id < m_entityIndex.size() && m_entityIndex[e.id] != -1;
+        return m_sparseSet.has(e.id);
     }
 
     [[nodiscard]] T* get(Entity e) {
         if (!has(e)) return nullptr;
-        return &m_dense[m_entityIndex[e.id]];
+        return &m_column[m_sparseSet.indexOf(e.id)];
     }
 
     [[nodiscard]] const T* get(Entity e) const {
         if (!has(e)) return nullptr;
-        return &m_dense[m_entityIndex[e.id]];
+        return &m_column[m_sparseSet.indexOf(e.id)];
     }
 
     [[nodiscard]] usize count() const override {
-        return m_dense.size();
+        return m_sparseSet.count();
     }
 
-    [[nodiscard]] T* data() { return m_dense.data(); }
-    [[nodiscard]] const T* data() const { return m_dense.data(); }
+    [[nodiscard]] T* data() { return m_column.data(); }
+    [[nodiscard]] const T* data() const { return m_column.data(); }
 
     [[nodiscard]] const u32* entityIds() const override {
-        return m_denseEntityIds.data();
+        return m_sparseSet.denseData();
     }
 
     [[nodiscard]] const void* getRaw(Entity e) const override {
@@ -81,9 +169,8 @@ public:
     }
 
 private:
-    DynamicArray<i32> m_entityIndex;    // sparse table: entity.id -> dense index (or -1)
-    DynamicArray<T> m_dense;            // dense component data
-    DynamicArray<u32> m_denseEntityIds; // dense[i] corresponds to which entity.id
+    SparseSet m_sparseSet;
+    Column<T> m_column;
 };
 
 } // namespace Entelechy

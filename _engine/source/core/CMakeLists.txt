@@ -7,6 +7,9 @@ add_library(CoreLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/type_registry.cpp
     ${CMAKE_CURRENT_LIST_DIR}/type_registry.h
     ${CMAKE_CURRENT_LIST_DIR}/component_array.h
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_set.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_set.h
+    ${CMAKE_CURRENT_LIST_DIR}/archetype_chunk.h
     ${CMAKE_CURRENT_LIST_DIR}/string_id.h
     ${CMAKE_CURRENT_LIST_DIR}/small_string.h
     ${CMAKE_CURRENT_LIST_DIR}/string_format.h

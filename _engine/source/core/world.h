@@ -1,17 +1,19 @@
-﻿#pragma once
+#pragma once
 #include "types.h"
 #include "component_array.h"
 #include "type_registry.h"
 #include "dynamic_array.h"
+#include "hash_map.h"
 #include <cstdio>
-#include <unordered_map>
-#include <memory>
 #include <tuple>
 
 namespace Entelechy {
 
 class World {
 public:
+    World() = default;
+    ~World();
+
     [[nodiscard]] Entity spawn() {
         Entity e;
         if (!m_freeEntities.empty()) {
@@ -30,7 +32,7 @@ public:
     void destroy(Entity e) {
         if (!valid(e)) return;
         // remove all components
-        for (auto& pair : m_componentArrays) {
+        for (auto pair : m_componentArrays) {
             pair.second->remove(e);
         }
         m_entityMasks[e.id] = 0;
@@ -102,20 +104,20 @@ public:
     template<typename T>
     [[nodiscard]] ComponentArray<T>* getComponentArray() {
         Entelechy::ComponentTypeID typeID = Entelechy::TypeRegistry::instance().getTypeID<T>();
-        auto it = m_componentArrays.find(typeID);
-        if (it == m_componentArrays.end()) return nullptr;
-        return static_cast<ComponentArray<T>*>(it->second.get());
+        auto* v = m_componentArrays.find(typeID);
+        if (!v) return nullptr;
+        return static_cast<ComponentArray<T>*>(*v);
     }
 
     template<typename T>
     [[nodiscard]] const ComponentArray<T>* getComponentArray() const {
         Entelechy::ComponentTypeID typeID = Entelechy::TypeRegistry::instance().getTypeID<T>();
-        auto it = m_componentArrays.find(typeID);
-        if (it == m_componentArrays.end()) return nullptr;
-        return static_cast<const ComponentArray<T>*>(it->second.get());
+        auto* v = m_componentArrays.find(typeID);
+        if (!v) return nullptr;
+        return static_cast<const ComponentArray<T>*>(*v);
     }
 
-    const std::unordered_map<Entelechy::ComponentTypeID, std::shared_ptr<IComponentArray>>& componentArrays() const {
+    const HashMap<Entelechy::ComponentTypeID, IComponentArray*>& componentArrays() const {
         return m_componentArrays;
     }
 
@@ -123,19 +125,19 @@ private:
     template<typename T>
     ComponentArray<T>* getOrCreateComponentArray() {
         Entelechy::ComponentTypeID typeID = Entelechy::TypeRegistry::instance().getTypeID<T>();
-        auto it = m_componentArrays.find(typeID);
-        if (it != m_componentArrays.end()) {
-            return static_cast<ComponentArray<T>*>(it->second.get());
+        auto* v = m_componentArrays.find(typeID);
+        if (v) {
+            return static_cast<ComponentArray<T>*>(*v);
         }
-        auto array = std::make_shared<ComponentArray<T>>();
-        m_componentArrays[typeID] = array;
-        return array.get();
+        auto* array = new ComponentArray<T>();
+        m_componentArrays.insert(typeID, array);
+        return array;
     }
 
     DynamicArray<u32> m_entityGenerations;
     DynamicArray<u32> m_freeEntities;
     DynamicArray<u32> m_entityMasks;
-    std::unordered_map<Entelechy::ComponentTypeID, std::shared_ptr<IComponentArray>> m_componentArrays;
+    HashMap<Entelechy::ComponentTypeID, IComponentArray*> m_componentArrays;
 };
 
 } // namespace Entelechy

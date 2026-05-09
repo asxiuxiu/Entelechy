@@ -267,12 +267,12 @@ std::string AgentBridge::getComponent(Entity e, const std::string& comp_name) co
     }
 
     const auto& arrays = m_world.componentArrays();
-    auto it = arrays.find(typeID);
-    if (it == arrays.end() || !it->second->has(e)) {
+    auto* array = arrays.find(typeID);
+    if (!array || !(*array)->has(e)) {
         return "{\"error\":\"component not found on entity\"}";
     }
 
-    const void* comp_ptr = it->second->getRaw(e);
+    const void* comp_ptr = (*array)->getRaw(e);
     const auto* desc = TypeRegistry::instance().findComponent(typeID);
     if (!desc) {
         return "{\"error\":\"component descriptor missing\"}";
@@ -315,12 +315,12 @@ std::string AgentBridge::setComponent(Entity e, const std::string& comp_name, co
     }
 
     const auto& arrays = m_world.componentArrays();
-    auto it = arrays.find(typeID);
-    if (it == arrays.end() || !it->second->has(e)) {
+    auto* array = arrays.find(typeID);
+    if (!array || !(*array)->has(e)) {
         return "{\"error\":\"component not found on entity\"}";
     }
 
-    void* comp_ptr = it->second->getRaw(e);
+    void* comp_ptr = (*array)->getRaw(e);
     const auto* desc = TypeRegistry::instance().findComponent(typeID);
     if (!desc) {
         return "{\"error\":\"component descriptor missing\"}";

@@ -20,7 +20,6 @@
   - 平台检测宏（预置为零 + `#if`）：`PLATFORM_WINDOWS/LINUX/MACOS/ANDROID/IOS/UNKNOWN`, `ARCH_64BIT/ARCH_32BIT`
   - 导出符号宏 `ENGINE_API`：静态链接时为空；DLL 模式时根据 `ENGINE_BUILD_DLL` / `ENGINE_USE_DLL` 切换 `dllexport`/`dllimport`
   - 断言三级体系：`CHECK`（Debug-only 内部不变量）、`VERIFY`（始终执行表达式，Debug 中断点）、`ENSURE`/`ENSURE_MSG`（记录错误并继续）
-  - 调试填充工具：`CANARY_ALLOC`/`CANARY_FREE`、`debugFill()`
   - `STATIC_ASSERT` 包装
 - **`CMakeLists.txt`** — 注册为 `FoundationLib`（`INTERFACE` 或 `STATIC` 库，仅头文件）
 - **`AGENTS.md`** — 按项目规范补充模块文档

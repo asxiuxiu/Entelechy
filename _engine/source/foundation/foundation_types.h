@@ -106,41 +106,31 @@ using isize = std::ptrdiff_t;
         #define DEBUG_BREAK() __builtin_trap()
     #endif
 
-    #define CHECK_IMPL(cond, expr_str, file, line) \
+    #define CHECK_IMPL(cond, expr_str, func, file) \
         do { if (!(cond)) { \
-            std::fprintf(stderr, "[CHECK FAILED] %s at %s:%d\n", expr_str, file, line); \
+            std::fprintf(stderr, "[CHECK FAILED] %s in %s at %s\n", expr_str, func, file); \
             DEBUG_BREAK(); \
             std::abort(); \
         } } while(0)
 
     // CHECK: internal invariant, stripped in Release (zero cost)
-    #define CHECK(cond) CHECK_IMPL(cond, #cond, __FILE__, __LINE__)
+    #define CHECK(cond) CHECK_IMPL(cond, #cond, __func__, __FILE__)
 
     // VERIFY: expression always executes, failure handling is Debug-only
-    #define VERIFY(cond) CHECK_IMPL(cond, #cond, __FILE__, __LINE__)
+    #define VERIFY(cond) CHECK_IMPL(cond, #cond, __func__, __FILE__)
 
     // ENSURE: log error and continue (non-fatal)
     #define ENSURE_MSG(cond, fmt, ...) \
         do { if (!(cond)) { \
-            std::fprintf(stderr, "[ENSURE] " fmt " at %s:%d\n" __VA_OPT__(,) __VA_ARGS__, __FILE__, __LINE__); \
+            std::fprintf(stderr, "[ENSURE] " fmt " in %s at %s\n" __VA_OPT__(,) __VA_ARGS__, __func__, __FILE__); \
         } } while(0)
     #define ENSURE(cond) ENSURE_MSG(cond, "%s", #cond)
 #else
     #define CHECK(cond)      ((void)0)
     #define VERIFY(cond)     ((void)(cond)) // expression must execute
-    #define ENSURE(cond)     ((void)0)
-    #define ENSURE_MSG(...)  ((void)0)
+    #define ENSURE(cond)     ((void)(cond)) // expression must execute, non-fatal
+    #define ENSURE_MSG(cond, ...) ((void)(cond)) // expression must execute
 #endif
 
 #define STATIC_ASSERT(cond, msg) static_assert(cond, msg)
 
-// ---------- 5. Debug fill (use-after-free / overrun detection) ----------
-#if defined(_DEBUG) || defined(DEBUG)
-    constexpr u8 CANARY_ALLOC = 0xCD;
-    constexpr u8 CANARY_FREE  = 0xFE;
-    inline void debugFill(void* ptr, usize size, u8 value) {
-        std::memset(ptr, static_cast<int>(value), size);
-    }
-#else
-    inline void debugFill(void*, usize, u8) {}
-#endif

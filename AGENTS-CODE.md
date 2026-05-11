@@ -22,6 +22,31 @@
 - **游戏层**：`namespace game { ... }`（当前为占位，后续具体游戏项目可改用独立代号如 `Xenon`）
 - 不要再用 `Engine`、`Game` 大驼峰形式
 
+### 断言与检查宏（`foundation_types.h`）
+
+项目中提供五层断言/检查宏，**禁止混用 `assert()` 或自行手写 `if (!cond) abort()`**，必须按语义选择下表：
+
+| 宏 | 语义 | Debug 行为 | Release 行为 | 正确用法 |
+|---|---|---|---|---|
+| `CHECK(cond)` | 内部不变量 / 前置条件 | 失败 → 打印 + `abort()` | **完全消除**（`cond` 不执行，零开销） | 纯断言，无副作用。例如 `CHECK(index < m_count)` |
+| `VERIFY(cond)` | 必须执行的表达式 + Debug 断言 | 失败 → 打印 + `abort()` | **执行 `cond`，不检查** | `cond` 有副作用，Release 下仍需执行。例如 `VERIFY(ptr = allocate())` |
+| `ENSURE(cond)` | 非致命错误检查 | 失败 → 打印日志，继续运行 | **执行 `cond`，不检查** | 可恢复的错误场景，记录但不崩溃。例如 `ENSURE(file.isOpen())` |
+| `ENSURE_MSG(cond, fmt, ...)` | 带自定义消息的非致命检查 | 同上 | 同上 | 需要额外上下文时，例如 `ENSURE_MSG(ret >= 0, "bind failed: %d", ret)` |
+| `STATIC_ASSERT(cond, msg)` | 编译期断言 | 编译失败 | 编译失败 | 类型大小、模板约束、常量表达式。例如 `STATIC_ASSERT(sizeof(Vec4) == 16, "Vec4 must be 16 bytes")` |
+
+**⚠️ 选择口诀**：
+- 条件**无副作用** + 严重内部错误 → **`CHECK`**
+- 条件**有副作用**（如赋值、分配）+ 严重错误 → **`VERIFY`**
+- 错误**可恢复**、仅需记录 → **`ENSURE` / `ENSURE_MSG`**
+- 检查**编译期已知**的常量/类型 → **`STATIC_ASSERT`**
+
+**常见陷阱**：
+- ❌ `CHECK(ptr = malloc(size))` — Release 下赋值消失，内存泄漏
+- ✅ `VERIFY(ptr = malloc(size))` — Release 下赋值保留，仅去除断言
+- ❌ `ENSURE(index < m_count)` — 数组越界是致命错误，应使用 `CHECK`
+
+---
+
 ### 命名风格
 
 | 类型 | 风格 | 示例 |

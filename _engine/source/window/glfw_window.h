@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "window.h"
+#include "foundation_types.h"
 
 struct GLFWwindow;
 
@@ -28,12 +29,12 @@ public:
 
     // Static helpers for monitor / DPI queries.
     static void getPrimaryMonitorSize(int& width, int& height);
-    static void getPrimaryMonitorContentScale(float& xscale, float& yscale);
+    static void getPrimaryMonitorContentScale(f32& xscale, f32& yscale);
 
     // Compute a sensible default window size based on the primary monitor.
     // Returns size as a fraction of the monitor (default 75%), clamped to
     // a minimum of 1280x720 and a maximum of 1920x1080.
-    static void getRecommendedWindowSize(int& width, int& height, float fraction = 0.75f);
+    static void getRecommendedWindowSize(int& width, int& height, f32 fraction = 0.75f);
 
 private:
     GLFWwindow* m_window;

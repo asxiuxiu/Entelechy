@@ -15,7 +15,7 @@ public:
     MovementSystem m_movement_system;
 
     void init();
-    void step(float dt);
+    void step(f32 dt);
 
     // Structured tool interfaces (Milestone 0.4)
     std::string queryEntities(const std::string& comp_name) const;

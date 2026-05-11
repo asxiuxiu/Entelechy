@@ -5,18 +5,18 @@
 namespace Entelechy {
 
 Mat4 Mat4::fromRotation(const Quat& q) {
-    float x2 = q.x * 2.0f;
-    float y2 = q.y * 2.0f;
-    float z2 = q.z * 2.0f;
-    float wx = q.w * x2;
-    float wy = q.w * y2;
-    float wz = q.w * z2;
-    float xx = q.x * x2;
-    float xy = q.x * y2;
-    float xz = q.x * z2;
-    float yy = q.y * y2;
-    float yz = q.y * z2;
-    float zz = q.z * z2;
+    f32 x2 = q.x * 2.0f;
+    f32 y2 = q.y * 2.0f;
+    f32 z2 = q.z * 2.0f;
+    f32 wx = q.w * x2;
+    f32 wy = q.w * y2;
+    f32 wz = q.w * z2;
+    f32 xx = q.x * x2;
+    f32 xy = q.x * y2;
+    f32 xz = q.x * z2;
+    f32 yy = q.y * y2;
+    f32 yz = q.y * z2;
+    f32 zz = q.z * z2;
 
     Mat4 r{};
     r.m[0]  = 1.0f - (yy + zz);
@@ -38,24 +38,24 @@ Mat4 Mat4::fromRotation(const Quat& q) {
     return r;
 }
 
-float Mat4::determinant() const {
-    float s0 = m[0]*m[5] - m[1]*m[4];
-    float s1 = m[0]*m[6] - m[2]*m[4];
-    float s2 = m[0]*m[7] - m[3]*m[4];
-    float s3 = m[1]*m[6] - m[2]*m[5];
-    float s4 = m[1]*m[7] - m[3]*m[5];
-    float s5 = m[2]*m[7] - m[3]*m[6];
-    float c5 = m[10]*m[15] - m[11]*m[14];
-    float c4 = m[9]*m[15]  - m[11]*m[13];
-    float c3 = m[9]*m[14]  - m[10]*m[13];
-    float c2 = m[8]*m[15]  - m[11]*m[12];
-    float c1 = m[8]*m[14]  - m[10]*m[12];
-    float c0 = m[8]*m[13]  - m[9]*m[12];
+f32 Mat4::determinant() const {
+    f32 s0 = m[0]*m[5] - m[1]*m[4];
+    f32 s1 = m[0]*m[6] - m[2]*m[4];
+    f32 s2 = m[0]*m[7] - m[3]*m[4];
+    f32 s3 = m[1]*m[6] - m[2]*m[5];
+    f32 s4 = m[1]*m[7] - m[3]*m[5];
+    f32 s5 = m[2]*m[7] - m[3]*m[6];
+    f32 c5 = m[10]*m[15] - m[11]*m[14];
+    f32 c4 = m[9]*m[15]  - m[11]*m[13];
+    f32 c3 = m[9]*m[14]  - m[10]*m[13];
+    f32 c2 = m[8]*m[15]  - m[11]*m[12];
+    f32 c1 = m[8]*m[14]  - m[10]*m[12];
+    f32 c0 = m[8]*m[13]  - m[9]*m[12];
     return s0*c5 - s1*c4 + s2*c3 + s3*c2 - s4*c1 + s5*c0;
 }
 
 Mat4 Mat4::inverse() const {
-    float inv[16];
+    f32 inv[16];
     inv[0]  =  m[5]*m[10]*m[15] - m[5]*m[11]*m[14] - m[9]*m[6]*m[15] + m[9]*m[7]*m[14] + m[13]*m[6]*m[11] - m[13]*m[7]*m[10];
     inv[4]  = -m[4]*m[10]*m[15] + m[4]*m[11]*m[14] + m[8]*m[6]*m[15] - m[8]*m[7]*m[14] - m[12]*m[6]*m[11] + m[12]*m[7]*m[10];
     inv[8]  =  m[4]*m[9]*m[15]  - m[4]*m[11]*m[13] - m[8]*m[5]*m[15] + m[8]*m[7]*m[13] + m[12]*m[5]*m[11] - m[12]*m[7]*m[9];
@@ -73,17 +73,17 @@ Mat4 Mat4::inverse() const {
     inv[11] = -m[0]*m[5]*m[11]  + m[0]*m[7]*m[9]  + m[4]*m[1]*m[11] - m[4]*m[3]*m[9]  - m[8]*m[1]*m[7]  + m[8]*m[3]*m[5];
     inv[15] =  m[0]*m[5]*m[10]  - m[0]*m[6]*m[9]  - m[4]*m[1]*m[10] + m[4]*m[2]*m[9]  + m[8]*m[1]*m[6]  - m[8]*m[2]*m[5];
 
-    float det = m[0]*inv[0] + m[1]*inv[4] + m[2]*inv[8] + m[3]*inv[12];
+    f32 det = m[0]*inv[0] + m[1]*inv[4] + m[2]*inv[8] + m[3]*inv[12];
     if (std::abs(det) < 1e-6f) return Mat4::zero();
 
-    float invDet = 1.0f / det;
+    f32 invDet = 1.0f / det;
     Mat4 out{};
     for (int i = 0; i < 16; ++i) out.m[i] = inv[i] * invDet;
     return out;
 }
 
 // Minimal batch add to validate simd abstraction layer
-void BatchVec4Add(const float* a, const float* b, float* out, usize count) {
+void BatchVec4Add(const f32* a, const f32* b, f32* out, usize count) {
     usize i = 0;
 #if ARCH_X86 || ARCH_ARM
     for (; i + 4 <= count; i += 4) {

@@ -10,7 +10,7 @@ namespace Entelechy {
 class System {
 public:
     virtual ~System() = default;
-    virtual void tick(World& world, FrameArena& arena, float dt) = 0;
+    virtual void tick(World& world, FrameArena& arena, f32 dt) = 0;
 };
 
 class Scheduler {
@@ -19,7 +19,7 @@ public:
         m_systems.pushBack(system);
     }
 
-    void tick(World& world, float dt) {
+    void tick(World& world, f32 dt) {
         m_frameArena.reset();
         for (auto* sys : m_systems) {
             sys->tick(world, m_frameArena, dt);

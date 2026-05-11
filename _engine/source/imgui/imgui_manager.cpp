@@ -38,9 +38,9 @@ bool ImGuiManager::init(GLFWwindow* window) {
 
     // Apply DPI scaling based on the monitor content scale.
     // This ensures readable UI on HiDPI / Retina displays.
-    float xscale = 1.0f, yscale = 1.0f;
+    f32 xscale = 1.0f, yscale = 1.0f;
     glfwGetWindowContentScale(window, &xscale, &yscale);
-    float scale = (xscale > yscale) ? xscale : yscale;
+    f32 scale = (xscale > yscale) ? xscale : yscale;
     if (scale > 1.0f) {
         ImGuiIO& io = ImGui::GetIO();
         io.FontGlobalScale = scale;

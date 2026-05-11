@@ -29,9 +29,9 @@ struct Frustum {
 
         // Normalize planes (only xyz part)
         for (auto& p : f.planes) {
-            float len = std::sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
+            f32 len = std::sqrt(p.x*p.x + p.y*p.y + p.z*p.z);
             if (len > 0.0f) {
-                float invLen = 1.0f / len;
+                f32 invLen = 1.0f / len;
                 p.x *= invLen; p.y *= invLen; p.z *= invLen; p.w *= invLen;
             }
         }
@@ -45,7 +45,7 @@ struct Frustum {
                 p.y >= 0.0f ? box.max.y : box.min.y,
                 p.z >= 0.0f ? box.max.z : box.min.z
             };
-            float dist = p.x * positiveVertex.x + p.y * positiveVertex.y + p.z * positiveVertex.z + p.w;
+            f32 dist = p.x * positiveVertex.x + p.y * positiveVertex.y + p.z * positiveVertex.z + p.w;
             if (dist < 0.0f) return false;
         }
         return true;

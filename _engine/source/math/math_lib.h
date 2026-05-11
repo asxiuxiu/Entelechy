@@ -18,6 +18,6 @@ namespace Entelechy {
 inline constexpr int MATH_LIB_VERSION = 2;
 
 // Batch vector add exposed for testing / benchmarking
-void BatchVec4Add(const float* a, const float* b, float* out, usize count);
+void BatchVec4Add(const f32* a, const f32* b, f32* out, usize count);
 
 } // namespace Entelechy

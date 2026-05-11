@@ -207,16 +207,16 @@ inline bool operator!=(const char* lhs, const SmallString& rhs) {
 namespace std {
     template<>
     struct hash<Entelechy::SmallString> {
-        size_t operator()(const Entelechy::SmallString& str) const noexcept {
+        usize operator()(const Entelechy::SmallString& str) const noexcept {
             // FNV-1a for SmallString
             const char* s = str.c_str();
-            uint64_t h = 0xcbf29ce484222325ULL;
+            u64 h = 0xcbf29ce484222325ULL;
             while (*s) {
                 h ^= static_cast<u64>(*s);
                 h *= 0x100000001b3ULL;
                 ++s;
             }
-            return static_cast<size_t>(h);
+            return static_cast<usize>(h);
         }
     };
 } // namespace std

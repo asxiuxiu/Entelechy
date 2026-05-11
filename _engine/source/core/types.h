@@ -18,31 +18,31 @@ struct Entity {
 };
 
 struct Position {
-    float x = 0.0f;
-    float y = 0.0f;
+    f32 x = 0.0f;
+    f32 y = 0.0f;
 };
 
 REFLECT_COMPONENT(Position,
-    REG_FIELD(Position, x, float),
-    REG_FIELD(Position, y, float)
+    REG_FIELD(Position, x, f32),
+    REG_FIELD(Position, y, f32)
 )
 
 struct Velocity {
-    float vx = 0.0f;
-    float vy = 0.0f;
+    f32 vx = 0.0f;
+    f32 vy = 0.0f;
 };
 
 REFLECT_COMPONENT(Velocity,
-    REG_FIELD(Velocity, vx, float),
-    REG_FIELD(Velocity, vy, float)
+    REG_FIELD(Velocity, vx, f32),
+    REG_FIELD(Velocity, vy, f32)
 )
 
 struct Health {
-    float hp = 100.0f;
+    f32 hp = 100.0f;
 };
 
 REFLECT_COMPONENT(Health,
-    REG_FIELD(Health, hp, float)
+    REG_FIELD(Health, hp, f32)
 )
 
 struct NameTag {
@@ -60,8 +60,8 @@ void registerBuiltinTypes();
 namespace std {
     template<>
     struct hash<Entelechy::Entity> {
-        size_t operator()(const Entelechy::Entity& e) const noexcept {
-            return (static_cast<size_t>(e.id) << 32) | static_cast<size_t>(e.generation);
+        usize operator()(const Entelechy::Entity& e) const noexcept {
+            return (static_cast<usize>(e.id) << 32) | static_cast<usize>(e.generation);
         }
     };
 } // namespace std

@@ -11,7 +11,7 @@ namespace Entelechy {
 
 // Base allocator interface (static dispatch, non-virtual).
 // All custom allocators must provide:
-//   void* alloc(size_t size, size_t align)
+//   void* alloc(usize size, usize align)
 //   void  free(void* ptr)
 struct DefaultAllocator {
     static void* alloc(usize size, usize align = alignof(std::max_align_t)) {

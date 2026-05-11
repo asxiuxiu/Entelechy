@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "render_backend.h"
+#include "foundation_types.h"
 
 namespace Entelechy {
 
@@ -15,7 +16,7 @@ public:
     void beginFrame() override;
     void endFrame() override;
     void setViewport(int x, int y, int width, int height) override;
-    void setClearColor(float r, float g, float b, float a) override;
+    void setClearColor(f32 r, f32 g, f32 b, f32 a) override;
     void clear() override;
     void present() override;
 

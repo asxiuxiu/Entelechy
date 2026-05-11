@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "foundation_types.h"
 
 namespace Entelechy {
 
@@ -20,7 +21,7 @@ void buildDockSpace();
 // Debug panel: FPS, frame time, clear color picker, resolution settings.
 // Parameters are in/out so ImGui sliders edit engine state directly.
 // outRequest is populated when the user clicks a resolution preset.
-void buildDebugPanel(float dt, float fps, float clearColor[4],
+void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4],
                      int windowWidth, int windowHeight,
                      WindowSizeRequest& outRequest);
 
@@ -30,6 +31,6 @@ void buildLogPanel();
 
 // ECS Inspector: two-column layout (Entity list + Component detail).
 // autoRun is an in/out parameter controlling Scheduler tick.
-void buildECSInspector(World& world, Scheduler& scheduler, float dt, bool& autoRun);
+void buildECSInspector(World& world, Scheduler& scheduler, f32 dt, bool& autoRun);
 
 } // namespace Entelechy

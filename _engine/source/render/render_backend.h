@@ -1,10 +1,11 @@
 ﻿#pragma once
+#include "foundation_types.h"
 
 namespace Entelechy {
 
 struct RenderSettings {
     // Eye-care dark green-grey; softer than pure black/white to reduce long-term eye strain
-    float clearColor[4] = {0.15f, 0.17f, 0.13f, 1.0f};
+    f32 clearColor[4] = {0.15f, 0.17f, 0.13f, 1.0f};
     bool vsync = true;
 };
 
@@ -16,7 +17,7 @@ public:
     virtual void beginFrame() = 0;
     virtual void endFrame() = 0;
     virtual void setViewport(int x, int y, int width, int height) = 0;
-    virtual void setClearColor(float r, float g, float b, float a) = 0;
+    virtual void setClearColor(f32 r, f32 g, f32 b, f32 a) = 0;
     virtual void clear() = 0;
     virtual void present() = 0;
 };

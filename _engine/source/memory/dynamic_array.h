@@ -7,7 +7,7 @@ namespace Entelechy {
 
 // Dynamic array with a pluggable allocator.
 // AllocatorT must provide static methods:
-//   void* alloc(size_t size, size_t align)
+//   void* alloc(usize size, usize align)
 //   void  free(void* ptr)
 //
 // Allocation decision guide: see ALLOCATOR_GUIDE.md

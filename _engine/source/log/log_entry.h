@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include <cstdint>
+#include "foundation_types.h"
 #include "log_level.h"
 #include "core/string_id.h"
 
@@ -20,7 +20,7 @@ struct LogEntry {
     StringId    m_category;       // Category hash (e.g. "Render" / "Physics")
     const char* m_category_name;  // Human-readable category name (points to static string)
     const char* m_message;        // Pointer to pre-formatted message buffer
-    double      m_timestamp_sec;  // High-resolution timestamp in seconds (steady_clock basis)
+    f64         m_timestamp_sec;  // High-resolution timestamp in seconds (steady_clock basis)
     const char* m_file;           // Source file path (__FILE__)
     const char* m_function;       // Function name (__FUNCTION__)
 };

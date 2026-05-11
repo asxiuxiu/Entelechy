@@ -46,8 +46,8 @@ static void glfwCursorPosCallback(GLFWwindow* window, double x, double y) {
 
     RawInputEvent event;
     event.type = RawInputEvent::MouseMove;
-    event.mx = static_cast<float>(x);
-    event.my = static_cast<float>(y);
+    event.mx = static_cast<f32>(x);
+    event.my = static_cast<f32>(y);
     InputQueue::instance().push(event);
 }
 
@@ -135,7 +135,7 @@ void GlfwWindow::getPrimaryMonitorSize(int& width, int& height) {
     }
 }
 
-void GlfwWindow::getPrimaryMonitorContentScale(float& xscale, float& yscale) {
+void GlfwWindow::getPrimaryMonitorContentScale(f32& xscale, f32& yscale) {
     xscale = 1.0f;
     yscale = 1.0f;
 
@@ -147,7 +147,7 @@ void GlfwWindow::getPrimaryMonitorContentScale(float& xscale, float& yscale) {
     glfwGetMonitorContentScale(monitor, &xscale, &yscale);
 }
 
-void GlfwWindow::getRecommendedWindowSize(int& width, int& height, float fraction) {
+void GlfwWindow::getRecommendedWindowSize(int& width, int& height, f32 fraction) {
     int monitorW, monitorH;
     getPrimaryMonitorSize(monitorW, monitorH);
 

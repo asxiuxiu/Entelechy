@@ -38,7 +38,7 @@ void drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
     void* fieldPtr = static_cast<u8*>(componentRaw) + field.offset;
 
     if (field.type == "float") {
-        ImGui::DragFloat(field.name.c_str(), static_cast<float*>(fieldPtr), 0.1f);
+        ImGui::DragFloat(field.name.c_str(), static_cast<f32*>(fieldPtr), 0.1f);
     } else if (field.type == "Vec2") {
         ImGui::DragFloat2(field.name.c_str(), &static_cast<Entelechy::Vec2*>(fieldPtr)->x, 0.1f);
     } else if (field.type == "Vec3") {
@@ -74,7 +74,7 @@ void buildDockSpace() {
     );
 }
 
-void buildDebugPanel(float dt, float fps, float clearColor[4],
+void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4],
                      int windowWidth, int windowHeight,
                      WindowSizeRequest& outRequest) {
     // First-use defaults: top-left corner, large enough for all controls.
@@ -216,7 +216,7 @@ void buildLogPanel() {
     ImGui::End();
 }
 
-void buildECSInspector(World& world, Scheduler& scheduler, float dt, bool& autoRun) {
+void buildECSInspector(World& world, Scheduler& scheduler, f32 dt, bool& autoRun) {
     static Entity selected{0xFFFFFFFF, 0};
 
     // ---------- Left panel: ECS World ----------

@@ -23,17 +23,17 @@ namespace Entelechy {
 // ============================================================
 template<LogLevel Level>
 constexpr bool isLogEnabled() {
-    return static_cast<uint8_t>(Level) >= static_cast<uint8_t>(LOG_COMPILE_LEVEL);
+    return static_cast<u8>(Level) >= static_cast<u8>(LOG_COMPILE_LEVEL);
 }
 
 // ============================================================
 // Timestamp helper
 // ============================================================
-inline double getLogTimestampSec() {
+inline f64 getLogTimestampSec() {
     using Clock = std::chrono::steady_clock;
     static const auto s_start = Clock::now();
     auto now = Clock::now();
-    return std::chrono::duration<double>(now - s_start).count();
+    return std::chrono::duration<f64>(now - s_start).count();
 }
 
 // ============================================================

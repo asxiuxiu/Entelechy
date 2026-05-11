@@ -56,7 +56,7 @@ void OpenGLBackend::setViewport(int x, int y, int width, int height) {
     glViewport(x, y, width, height);
 }
 
-void OpenGLBackend::setClearColor(float r, float g, float b, float a) {
+void OpenGLBackend::setClearColor(f32 r, f32 g, f32 b, f32 a) {
     m_settings.clearColor[0] = r;
     m_settings.clearColor[1] = g;
     m_settings.clearColor[2] = b;

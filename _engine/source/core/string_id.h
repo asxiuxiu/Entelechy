@@ -22,7 +22,7 @@ public:
     constexpr bool operator==(const StringId& other) const = default;
 };
 
-consteval StringId operator"" _sid(const char* str, size_t) {
+consteval StringId operator"" _sid(const char* str, usize) {
     return StringId(str);
 }
 
@@ -31,8 +31,8 @@ consteval StringId operator"" _sid(const char* str, size_t) {
 namespace std {
     template<>
     struct hash<Entelechy::StringId> {
-        size_t operator()(const Entelechy::StringId& sid) const noexcept {
-            return static_cast<size_t>(sid.value());
+        usize operator()(const Entelechy::StringId& sid) const noexcept {
+            return static_cast<usize>(sid.value());
         }
     };
 } // namespace std

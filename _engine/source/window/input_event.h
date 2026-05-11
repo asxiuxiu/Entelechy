@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "foundation_types.h"
 
 namespace Entelechy {
 
@@ -16,8 +17,8 @@ struct RawInputEvent {
     Type type = KeyPress;
     int keyCode = 0;
     int mouseButton = 0;
-    float mx = 0.0f;
-    float my = 0.0f;
+    f32 mx = 0.0f;
+    f32 my = 0.0f;
     int width = 0;
     int height = 0;
 };

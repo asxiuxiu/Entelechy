@@ -5,7 +5,7 @@
 
 namespace Entelechy {
 
-void TransformPropagationSystem::tick(World& world, FrameArena& arena, float dt) {
+void TransformPropagationSystem::tick(World& world, FrameArena& arena, f32 dt) {
     (void)arena;
     (void)dt;
     for (auto [e, trans, global] : Query<Transform, GlobalTransform>(world)) {

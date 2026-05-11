@@ -7,7 +7,7 @@
 namespace Entelechy {
 
 struct Mat4 {
-    float m[16]; // column-major: m[col * 4 + row]
+    f32 m[16]; // column-major: m[col * 4 + row]
 
     [[nodiscard]] static Mat4 identity() {
         Mat4 out{};
@@ -19,14 +19,14 @@ struct Mat4 {
         return Mat4{};
     }
 
-    float operator()(int row, int col) const { return m[col * 4 + row]; }
-    float& operator()(int row, int col) { return m[col * 4 + row]; }
+    f32 operator()(int row, int col) const { return m[col * 4 + row]; }
+    f32& operator()(int row, int col) { return m[col * 4 + row]; }
 
     Mat4 operator*(const Mat4& o) const {
         Mat4 r{};
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                float sum = 0.0f;
+                f32 sum = 0.0f;
                 for (int k = 0; k < 4; ++k) {
                     sum += (*this)(i, k) * o(k, j);
                 }
@@ -46,14 +46,14 @@ struct Mat4 {
         return r;
     }
 
-    [[nodiscard]] float determinant() const;
+    [[nodiscard]] f32 determinant() const;
     [[nodiscard]] Mat4 inverse() const;
 
     [[nodiscard]] Vec3 transformPoint(const Vec3& v) const {
-        float x = m[0] * v.x + m[4] * v.y + m[8]  * v.z + m[12];
-        float y = m[1] * v.x + m[5] * v.y + m[9]  * v.z + m[13];
-        float z = m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14];
-        float w = m[3] * v.x + m[7] * v.y + m[11] * v.z + m[15];
+        f32 x = m[0] * v.x + m[4] * v.y + m[8]  * v.z + m[12];
+        f32 y = m[1] * v.x + m[5] * v.y + m[9]  * v.z + m[13];
+        f32 z = m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14];
+        f32 w = m[3] * v.x + m[7] * v.y + m[11] * v.z + m[15];
         Vec3 result = w != 0.0f ? Vec3{x / w, y / w, z / w} : Vec3{x, y, z};
         MATH_CHECK_FINITE_3(result);
         return result;
@@ -89,9 +89,9 @@ struct Mat4 {
         return fromTranslation(t) * fromRotation(r) * fromScale(s);
     }
 
-    [[nodiscard]] static Mat4 perspective(float fovY, float aspect, float nearZ, float farZ) {
+    [[nodiscard]] static Mat4 perspective(f32 fovY, f32 aspect, f32 nearZ, f32 farZ) {
         Mat4 r{};
-        float tanHalfFov = std::tan(fovY * 0.5f);
+        f32 tanHalfFov = std::tan(fovY * 0.5f);
         r.m[0] = 1.0f / (aspect * tanHalfFov);
         r.m[5] = 1.0f / tanHalfFov;
         r.m[10] = farZ / (nearZ - farZ);
@@ -100,7 +100,7 @@ struct Mat4 {
         return r;
     }
 
-    [[nodiscard]] static Mat4 ortho(float left, float right, float bottom, float top, float nearZ, float farZ) {
+    [[nodiscard]] static Mat4 ortho(f32 left, f32 right, f32 bottom, f32 top, f32 nearZ, f32 farZ) {
         Mat4 r = identity();
         r.m[0]  = 2.0f / (right - left);
         r.m[5]  = 2.0f / (top - bottom);

@@ -3,7 +3,7 @@
 
 namespace Entelechy {
 
-void MovementSystem::tick(World& world, FrameArena& arena, float dt) {
+void MovementSystem::tick(World& world, FrameArena& arena, f32 dt) {
     (void)arena;
     for (auto [e, pos, vel] : Query<Position, Velocity>(world)) {
         if (pos && vel) {

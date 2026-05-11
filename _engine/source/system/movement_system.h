@@ -5,7 +5,7 @@ namespace Entelechy {
 
 class MovementSystem : public System {
 public:
-    void tick(World& world, FrameArena& arena, float dt) override;
+    void tick(World& world, FrameArena& arena, f32 dt) override;
 };
 
 } // namespace Entelechy

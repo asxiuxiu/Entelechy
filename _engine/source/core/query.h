@@ -17,7 +17,7 @@ public:
     struct Iterator {
         using iterator_category = std::input_iterator_tag;
         using value_type = std::tuple<Entity, Cs*...>;
-        using difference_type = std::ptrdiff_t;
+        using difference_type = isize;
         using pointer = value_type*;
         using reference = value_type;
 

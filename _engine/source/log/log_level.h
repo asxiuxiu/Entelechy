@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include <cstdint>
+#include "foundation_types.h"
 
 namespace Entelechy {
 
@@ -8,7 +8,7 @@ namespace Entelechy {
 // ============================================================
 // Ordered from low to high severity for numeric comparison filtering.
 // Higher numeric value indicates more severe level.
-enum class LogLevel : uint8_t {
+enum class LogLevel : u8 {
     Debug = 0,   // Fine-grained debug information
     Info = 1,    // General informational messages, enabled by default
     Warning = 2, // Unexpected but recoverable situations

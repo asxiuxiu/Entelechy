@@ -14,7 +14,7 @@ namespace {
         return json.find(pattern) != std::string::npos;
     }
 
-    bool jsonParseFloat(const std::string& json, const std::string& key, float& out) {
+    bool jsonParseFloat(const std::string& json, const std::string& key, f32& out) {
         std::string pattern = "\"" + key + "\"";
         usize pos = json.find(pattern);
         if (pos == std::string::npos) return false;
@@ -27,7 +27,7 @@ namespace {
 
         const char* str = json.c_str() + pos;
         char* end = nullptr;
-        float val = std::strtof(str, &end);
+        f32 val = std::strtof(str, &end);
         if (end == str) return false;
 
         out = val;
@@ -50,7 +50,7 @@ namespace {
         unsigned long val = std::strtoul(str, &end, 10);
         if (end == str) return false;
 
-        out = static_cast<uint32_t>(val);
+        out = static_cast<u32>(val);
         return true;
     }
 
@@ -89,7 +89,7 @@ void AgentBridge::init() {
         true,
         [self](const std::string& json_args) -> std::string {
             std::string comp_name;
-            size_t pos = json_args.find("\"comp_name\"");
+            usize pos = json_args.find("\"comp_name\"");
             if (pos != std::string::npos) {
                 pos = json_args.find(':', pos + 11);
                 if (pos != std::string::npos) {
@@ -113,7 +113,7 @@ void AgentBridge::init() {
             u32 entity_id = 0;
             std::string comp_name;
             jsonParseUint32(json_args, "entity", entity_id);
-            size_t pos = json_args.find("\"comp_name\"");
+            usize pos = json_args.find("\"comp_name\"");
             if (pos != std::string::npos) {
                 pos = json_args.find(':', pos + 11);
                 if (pos != std::string::npos) {
@@ -139,7 +139,7 @@ void AgentBridge::init() {
             std::string comp_name;
             std::string values_json;
             jsonParseUint32(json_args, "entity", entity_id);
-            size_t pos = json_args.find("\"comp_name\"");
+            usize pos = json_args.find("\"comp_name\"");
             if (pos != std::string::npos) {
                 pos = json_args.find(':', pos + 11);
                 if (pos != std::string::npos) {
@@ -157,8 +157,8 @@ void AgentBridge::init() {
                     ++pos;
                     while (pos < json_args.size() && (json_args[pos] == ' ' || json_args[pos] == '\t')) ++pos;
                     if (pos < json_args.size() && json_args[pos] == '{') {
-                        size_t brace = 1;
-                        size_t end = pos + 1;
+                        usize brace = 1;
+                        usize end = pos + 1;
                         while (end < json_args.size() && brace > 0) {
                             if (json_args[end] == '{') ++brace;
                             else if (json_args[end] == '}') --brace;
@@ -179,7 +179,7 @@ void AgentBridge::init() {
         "{\"dt\": float}",
         false,
         [self](const std::string& json_args) -> std::string {
-            float dt = 1.0f;
+            f32 dt = 1.0f;
             jsonParseFloat(json_args, "dt", dt);
             self->step(dt);
             return "{\"ok\":true}";
@@ -210,7 +210,7 @@ void AgentBridge::init() {
     });
 }
 
-void AgentBridge::step(float dt) {
+void AgentBridge::step(f32 dt) {
     m_scheduler.tick(m_world, dt);
 }
 
@@ -285,7 +285,7 @@ std::string AgentBridge::getComponent(Entity e, const std::string& comp_name) co
         first = false;
         json += "\"" + std::string(field.name.c_str()) + "\":";
         if (field.type == "float") {
-            float val = *reinterpret_cast<const float*>(static_cast<const char*>(comp_ptr) + field.offset);
+            f32 val = *reinterpret_cast<const f32*>(static_cast<const char*>(comp_ptr) + field.offset);
             json += std::to_string(val);
         } else if (field.type == "SmallString") {
             const SmallString* str = reinterpret_cast<const SmallString*>(static_cast<const char*>(comp_ptr) + field.offset);
@@ -328,9 +328,9 @@ std::string AgentBridge::setComponent(Entity e, const std::string& comp_name, co
 
     for (const auto& field : desc->fields) {
         if (field.type == "float") {
-            float val = 0.0f;
+            f32 val = 0.0f;
             if (jsonParseFloat(json, field.name.c_str(), val)) {
-                *reinterpret_cast<float*>(static_cast<char*>(comp_ptr) + field.offset) = val;
+                *reinterpret_cast<f32*>(static_cast<char*>(comp_ptr) + field.offset) = val;
             }
         } else if (field.type == "SmallString") {
             std::string val;

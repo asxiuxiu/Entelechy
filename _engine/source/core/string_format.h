@@ -57,12 +57,12 @@ inline void toStringBuf(char* buf, usize n, i8 v) {
 
 // Floating-point
 template<>
-inline void toStringBuf(char* buf, usize n, float v) {
+inline void toStringBuf(char* buf, usize n, f32 v) {
     snprintf(buf, n, "%.3f", static_cast<double>(v));
 }
 
 template<>
-inline void toStringBuf(char* buf, usize n, double v) {
+inline void toStringBuf(char* buf, usize n, f64 v) {
     snprintf(buf, n, "%.3f", v);
 }
 

@@ -1,9 +1,9 @@
 ﻿#pragma once
-#include <vector>
-#include <deque>
 #include <mutex>
 #include <atomic>
 #include <memory>
+#include "base/dynamic_array.h"
+#include "base/fixed_ring_queue.h"
 #include "log_level.h"
 #include "log_entry.h"
 #include "log_category.h"
@@ -52,19 +52,19 @@ public:
     LogLevel getMinLevel() const;
 
     // Ordered from oldest to newest. Should only be accessed from the thread that calls flush().
-    const std::deque<QueuedLogEntry>& history() const { return m_history; }
+    const FixedRingQueue<QueuedLogEntry, MAX_HISTORY>& history() const { return m_history; }
 
 private:
     Logger() : m_min_level(LogLevel::Debug) {}
     ~Logger();
 
-    std::vector<QueuedLogEntry> m_write_queue;
-    std::vector<QueuedLogEntry> m_read_queue;
+    DynamicArray<QueuedLogEntry> m_write_queue;
+    DynamicArray<QueuedLogEntry> m_read_queue;
     std::mutex m_mutex;
 
-    std::deque<QueuedLogEntry> m_history;
+    FixedRingQueue<QueuedLogEntry, MAX_HISTORY> m_history;
 
-    std::vector<std::unique_ptr<LogOutputDevice>> m_devices;
+    DynamicArray<std::unique_ptr<LogOutputDevice>> m_devices;
 
     std::atomic<LogLevel> m_min_level;
 

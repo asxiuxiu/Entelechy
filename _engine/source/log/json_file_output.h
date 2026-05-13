@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "foundation_types.h"
 #include <fstream>
-#include <string>
+
 #include "log_output_device.h"
 #include "queued_log_entry.h"
 
@@ -24,7 +24,7 @@ public:
     void flush() override;
 
 private:
-    std::string m_base_path;
+    SmallString m_base_path;
     u32 m_max_size_mb;
     u32 m_max_files;
     std::ofstream m_file_stream;

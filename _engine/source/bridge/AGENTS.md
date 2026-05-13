@@ -27,5 +27,6 @@ AgentBridge：外部 Agent/工具与引擎 ECS 世界的交互桥梁，提供结
 
 ## 架构决策 / 临时约束
 - Bridge 目前内嵌了 MovementSystem 实例，未来应解耦为纯桥接层
+- JSON 解析与工具回调全部使用 `SmallString`，已消除 `std::string` 依赖
 - JSON 解析使用手写字符串查找（非完整 JSON parser），仅支持简单参数提取
 - `REFLECT_TOOL` 宏支持自动注册工具，避免手动维护注册列表

@@ -32,13 +32,13 @@ bool Logger::init(const char* filePath) {
 
     char timeSuffixBuf[64];
     std::strftime(timeSuffixBuf, sizeof(timeSuffixBuf), "_%Y%m%d_%H%M%S", tm);
-    std::string timeSuffix = timeSuffixBuf;
+    SmallString timeSuffix = timeSuffixBuf;
     char msBuf[8];
     std::snprintf(msBuf, sizeof(msBuf), "_%03d", static_cast<int>(ms.count()));
     timeSuffix += msBuf;
 
     // Build timestamped text path
-    std::string textPath;
+    SmallString textPath;
     const char* dot = std::strrchr(filePath, '.');
     if (dot) {
         textPath.assign(filePath, dot - filePath);
@@ -50,9 +50,9 @@ bool Logger::init(const char* filePath) {
     }
 
     // Derive json path from text path
-    std::string jsonPath;
+    SmallString jsonPath;
     usize pathLen = textPath.size();
-    if (pathLen > 4 && textPath.compare(pathLen - 4, 4, ".log") == 0) {
+    if (pathLen > 4 && textPath.endsWith(".log")) {
         jsonPath = textPath.substr(0, pathLen - 4) + ".jsonl";
     } else {
         jsonPath = textPath + ".jsonl";
@@ -79,7 +79,7 @@ bool Logger::init(const char* filePath) {
 void Logger::addOutputDevice(std::unique_ptr<LogOutputDevice> device) {
     if (device) {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_devices.push_back(std::move(device));
+        m_devices.pushBack(std::move(device));
     }
 }
 
@@ -120,7 +120,7 @@ void Logger::log(const LogEntry& entry) {
     queued.m_function = entry.m_function ? entry.m_function : "unknown";
 
     std::lock_guard<std::mutex> lock(m_mutex);
-    m_write_queue.push_back(std::move(queued));
+    m_write_queue.pushBack(std::move(queued));
 }
 
 // ============================================================
@@ -160,10 +160,7 @@ void Logger::flush() {
 // Ring-buffer history
 // ============================================================
 void Logger::pushToHistory(const QueuedLogEntry& entry) {
-    m_history.push_back(entry);
-    if (m_history.size() > MAX_HISTORY) {
-        m_history.pop_front();
-    }
+    m_history.pushBack(entry);
 }
 
 } // namespace Entelechy

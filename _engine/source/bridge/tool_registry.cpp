@@ -1,21 +1,21 @@
 ﻿#include "tool_registry.h"
 #include "type_registry.h"
 #include <cstdio>
-#include <string>
+#include <cstring>
 
 namespace Entelechy {
 
 namespace {
-    bool jsonExtractString(const std::string& json, const std::string& key, std::string& out) {
-        std::string pattern = "\"" + key + "\"";
-        usize pos = json.find(pattern);
-        if (pos == std::string::npos) return false;
-        pos = json.find(':', pos + pattern.length());
-        if (pos == std::string::npos) return false;
+    bool jsonExtractString(const SmallString& json, const SmallString& key, SmallString& out) {
+        SmallString pattern = SmallString("\"") + key + "\"";
+        usize pos = json.find(pattern.c_str());
+        if (pos == SmallString::npos) return false;
+        pos = json.find(':', pos + pattern.size());
+        if (pos == SmallString::npos) return false;
         ++pos;
-        while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '"')) ++pos;
+        while (pos < json.size() && (json.c_str()[pos] == ' ' || json.c_str()[pos] == '\t' || json.c_str()[pos] == '"')) ++pos;
         usize end = pos;
-        while (end < json.size() && json[end] != '"' && json[end] != ',' && json[end] != '}') ++end;
+        while (end < json.size() && json.c_str()[end] != '"' && json.c_str()[end] != ',' && json.c_str()[end] != '}') ++end;
         out = json.substr(pos, end - pos);
         return true;
     }
@@ -26,7 +26,7 @@ REFLECT_TOOL(listTools,
     "List all registered tools",
     "{}",
     true,
-    [](const std::string&) -> std::string {
+    [](const SmallString&) -> SmallString {
         return Entelechy::ToolRegistry::instance().listTools();
     }
 )
@@ -35,8 +35,8 @@ REFLECT_TOOL(describeTool,
     "Describe a tool by name",
     "{\"name\": \"string\"}",
     true,
-    [](const std::string& json) -> std::string {
-        std::string name;
+    [](const SmallString& json) -> SmallString {
+        SmallString name;
         if (!jsonExtractString(json, "name", name)) {
             return "{\"error\":\"missing name\"}";
         }
@@ -48,7 +48,7 @@ REFLECT_TOOL(listComponents,
     "List all registered component types",
     "{}",
     true,
-    [](const std::string&) -> std::string {
+    [](const SmallString&) -> SmallString {
         return Entelechy::TypeRegistry::instance().listComponents().c_str();
     }
 )
@@ -57,8 +57,8 @@ REFLECT_TOOL(describeComponent,
     "Describe a component type by name",
     "{\"name\": \"string\"}",
     true,
-    [](const std::string& json) -> std::string {
-        std::string name;
+    [](const SmallString& json) -> SmallString {
+        SmallString name;
         if (!jsonExtractString(json, "name", name)) {
             return "{\"error\":\"missing name\"}";
         }
@@ -72,53 +72,50 @@ ToolRegistry& ToolRegistry::instance() {
 }
 
 void ToolRegistry::registerTool(ToolDesc desc) {
-    m_tools[desc.name] = std::move(desc);
+    m_tools.insert(desc.name, std::move(desc));
 }
 
-const ToolDesc* ToolRegistry::findTool(const std::string& name) const {
-    auto it = m_tools.find(name);
-    if (it != m_tools.end()) {
-        return &it->second;
-    }
-    return nullptr;
+const ToolDesc* ToolRegistry::findTool(const SmallString& name) const {
+    auto* v = m_tools.find(name);
+    return v ? v : nullptr;
 }
 
 usize ToolRegistry::toolCount() const {
     return m_tools.size();
 }
 
-std::string ToolRegistry::listTools() const {
-    std::string json = "[\n";
+SmallString ToolRegistry::listTools() const {
+    SmallString json = "[\n";
     bool first = true;
-    for (const auto& pair : m_tools) {
+    for (const auto& kv : m_tools) {
         if (!first) json += ",\n";
         first = false;
         json += "  {\n";
-        json += "    \"name\": \"" + pair.first + "\",\n";
-        json += "    \"description\": \"" + pair.second.description + "\",\n";
-        json += "    \"isReadOnly\": " + std::string(pair.second.isReadOnly ? "true" : "false") + "\n";
+        json += "    \"name\": \"" + kv.first + "\",\n";
+        json += "    \"description\": \"" + kv.second.description + "\",\n";
+        json += "    \"isReadOnly\": " + SmallString(kv.second.isReadOnly ? "true" : "false") + "\n";
         json += "  }";
     }
     json += "\n]";
     return json;
 }
 
-std::string ToolRegistry::describeTool(const std::string& name) const {
+SmallString ToolRegistry::describeTool(const SmallString& name) const {
     const ToolDesc* desc = findTool(name);
     if (!desc) {
         return "{\"error\":\"tool not found\"}";
     }
 
-    std::string json = "{\n";
+    SmallString json = "{\n";
     json += "  \"name\": \"" + desc->name + "\",\n";
     json += "  \"description\": \"" + desc->description + "\",\n";
     json += "  \"inputSchema\": \"" + desc->inputSchema + "\",\n";
-    json += "  \"isReadOnly\": " + std::string(desc->isReadOnly ? "true" : "false") + "\n";
+    json += "  \"isReadOnly\": " + SmallString(desc->isReadOnly ? "true" : "false") + "\n";
     json += "}";
     return json;
 }
 
-std::string ToolRegistry::callTool(const std::string& name, const std::string& json_args) const {
+SmallString ToolRegistry::callTool(const SmallString& name, const SmallString& json_args) const {
     const ToolDesc* desc = findTool(name);
     if (!desc) {
         return "{\"error\":\"tool not found\"}";

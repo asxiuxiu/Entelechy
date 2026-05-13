@@ -40,4 +40,4 @@
 - FileOutput 和 JsonFileOutput 各自独立实现滚动逻辑，未来可提取公共基类
 - 每次 `Logger::init()` 会为文件输出生成带 `_YYYYMMDD_HHMMSS_mmm` 后缀的独立日志文件，避免多次启动混写
 - 文本与 JSON 时间戳均包含毫秒精度（如 `2026-05-06T18:01:55.464`）
-- `LogFileConfig` 与 `JsonFileOutput` 内部使用 `std::string` 存储路径，避免栈指针悬垂
+- `LogFileConfig` 与 `JsonFileOutput` 内部使用 `SmallString` 存储路径，避免栈指针悬垂且消除小字符串堆分配

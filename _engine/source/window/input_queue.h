@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "input_event.h"
-#include <vector>
+#include "base/dynamic_array.h"
+
 
 namespace Entelechy {
 
@@ -10,10 +11,10 @@ public:
 
     void push(const RawInputEvent& event);
     void clear();
-    const std::vector<RawInputEvent>& events() const;
+    const DynamicArray<RawInputEvent>& events() const;
 
 private:
-    std::vector<RawInputEvent> m_events;
+    DynamicArray<RawInputEvent> m_events;
 };
 
 } // namespace Entelechy

@@ -17,6 +17,8 @@ class SmallString {
     usize m_len;
 
 public:
+    static constexpr usize npos = static_cast<usize>(-1);
+
     SmallString() {
         m_inline[0] = '\0';
         m_len = 0;
@@ -35,6 +37,24 @@ public:
             m_heap.m_capacity = m_len + 1;
             m_heap.m_data = new char[m_heap.m_capacity];
             std::memcpy(m_heap.m_data, str, m_len + 1);
+        }
+    }
+
+    SmallString(const char* str, usize len) {
+        if (!str || len == 0) {
+            m_inline[0] = '\0';
+            m_len = 0;
+            return;
+        }
+        m_len = len;
+        if (m_len <= SSO_CAPACITY) {
+            std::memcpy(m_inline, str, m_len);
+            m_inline[m_len] = '\0';
+        } else {
+            m_heap.m_capacity = m_len + 1;
+            m_heap.m_data = new char[m_heap.m_capacity];
+            std::memcpy(m_heap.m_data, str, m_len);
+            m_heap.m_data[m_len] = '\0';
         }
     }
 
@@ -124,10 +144,34 @@ public:
         return *this;
     }
 
+    SmallString& assign(const char* str, usize len) {
+        if (m_len > SSO_CAPACITY) {
+            delete[] m_heap.m_data;
+        }
+        if (!str || len == 0) {
+            m_inline[0] = '\0';
+            m_len = 0;
+            return *this;
+        }
+        m_len = len;
+        if (m_len <= SSO_CAPACITY) {
+            std::memcpy(m_inline, str, m_len);
+            m_inline[m_len] = '\0';
+        } else {
+            m_heap.m_capacity = m_len + 1;
+            m_heap.m_data = new char[m_heap.m_capacity];
+            std::memcpy(m_heap.m_data, str, m_len);
+            m_heap.m_data[m_len] = '\0';
+        }
+        return *this;
+    }
+
     const char* c_str() const {
         return m_len <= SSO_CAPACITY ? m_inline : m_heap.m_data;
     }
+    char operator[](usize i) const { return c_str()[i]; }
     usize length() const { return m_len; }
+    usize size() const { return m_len; }
     bool empty() const { return m_len == 0; }
     bool isInline() const { return m_len <= SSO_CAPACITY; }
     static constexpr usize inlineCapacity() { return SSO_CAPACITY; }
@@ -192,6 +236,58 @@ public:
     bool operator!=(const char* str) const {
         return !(*this == str);
     }
+
+    usize find(const char* str, usize pos = 0) const {
+        if (!str || str[0] == '\0') return 0;
+        usize subLen = std::strlen(str);
+        if (subLen > m_len || pos >= m_len) return npos;
+        for (usize i = pos; i + subLen <= m_len; ++i) {
+            if (std::memcmp(c_str() + i, str, subLen) == 0) {
+                return i;
+            }
+        }
+        return npos;
+    }
+
+    usize find(const SmallString& str, usize pos = 0) const {
+        if (str.empty()) return 0;
+        usize subLen = str.size();
+        if (subLen > m_len || pos >= m_len) return npos;
+        for (usize i = pos; i + subLen <= m_len; ++i) {
+            if (std::memcmp(c_str() + i, str.c_str(), subLen) == 0) {
+                return i;
+            }
+        }
+        return npos;
+    }
+
+    usize find(char ch, usize pos = 0) const {
+        const char* s = c_str();
+        for (usize i = pos; i < m_len; ++i) {
+            if (s[i] == ch) return i;
+        }
+        return npos;
+    }
+
+    SmallString substr(usize pos = 0, usize len = npos) const {
+        if (pos >= m_len) return SmallString();
+        usize actualLen = (len == npos || pos + len > m_len) ? (m_len - pos) : len;
+        return SmallString(c_str() + pos, actualLen);
+    }
+
+    bool startsWith(const char* prefix) const {
+        if (!prefix || prefix[0] == '\0') return true;
+        usize preLen = std::strlen(prefix);
+        if (preLen > m_len) return false;
+        return std::memcmp(c_str(), prefix, preLen) == 0;
+    }
+
+    bool endsWith(const char* suffix) const {
+        if (!suffix || suffix[0] == '\0') return true;
+        usize sufLen = std::strlen(suffix);
+        if (sufLen > m_len) return false;
+        return std::memcmp(c_str() + (m_len - sufLen), suffix, sufLen) == 0;
+    }
 };
 
 inline bool operator==(const char* lhs, const SmallString& rhs) {
@@ -200,6 +296,24 @@ inline bool operator==(const char* lhs, const SmallString& rhs) {
 
 inline bool operator!=(const char* lhs, const SmallString& rhs) {
     return rhs != lhs;
+}
+
+inline SmallString operator+(const SmallString& lhs, const SmallString& rhs) {
+    SmallString result = lhs;
+    result += rhs;
+    return result;
+}
+
+inline SmallString operator+(const SmallString& lhs, const char* rhs) {
+    SmallString result = lhs;
+    result += rhs;
+    return result;
+}
+
+inline SmallString operator+(const char* lhs, const SmallString& rhs) {
+    SmallString result = lhs;
+    result += rhs;
+    return result;
 }
 
 } // namespace Entelechy

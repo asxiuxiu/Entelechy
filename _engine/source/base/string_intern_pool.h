@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "foundation_types.h"
 #include "string_id.h"
-#include <unordered_map>
+#include "hash_map.h"
 #include <mutex>
 #include <cstring>
 
@@ -35,7 +35,7 @@ public:
 
 private:
     mutable std::mutex m_mutex;
-    std::unordered_map<u64, const char*> m_pool;
+    HashMap<u64, const char*> m_pool;
 };
 
 } // namespace Entelechy

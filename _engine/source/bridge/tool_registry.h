@@ -1,17 +1,17 @@
 ﻿#pragma once
 #include "foundation_types.h"
-#include <string>
-#include <unordered_map>
+#include "base/small_string.h"
+#include "base/hash_map.h"
 #include <functional>
 
 namespace Entelechy {
 
 struct ToolDesc {
-    std::string name;
-    std::string description;
-    std::string inputSchema;
+    SmallString name;
+    SmallString description;
+    SmallString inputSchema;
     bool isReadOnly = false;
-    std::function<std::string(const std::string& json_args)> call;
+    std::function<SmallString(const SmallString& json_args)> call;
 };
 
 class ToolRegistry {
@@ -19,15 +19,15 @@ public:
     static ToolRegistry& instance();
 
     void registerTool(ToolDesc desc);
-    const ToolDesc* findTool(const std::string& name) const;
-    std::string listTools() const;
-    std::string describeTool(const std::string& name) const;
-    std::string callTool(const std::string& name, const std::string& json_args) const;
+    const ToolDesc* findTool(const SmallString& name) const;
+    SmallString listTools() const;
+    SmallString describeTool(const SmallString& name) const;
+    SmallString callTool(const SmallString& name, const SmallString& json_args) const;
     usize toolCount() const;
 
 private:
     ToolRegistry() = default;
-    std::unordered_map<std::string, ToolDesc> m_tools;
+    HashMap<SmallString, ToolDesc> m_tools;
 };
 
 // Helper macro for auto-registering a tool to ToolRegistry

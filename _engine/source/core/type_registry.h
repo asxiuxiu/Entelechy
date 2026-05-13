@@ -3,7 +3,7 @@
 #include "small_string.h"
 #include "string_format.h"
 #include "hash_map.h"
-#include <vector>
+#include "dynamic_array.h"
 #include <cstddef>
 
 namespace Entelechy {
@@ -21,7 +21,7 @@ struct FieldDesc {
 struct ComponentDesc {
     SmallString name;
     usize size = 0;
-    std::vector<FieldDesc> fields;
+    DynamicArray<FieldDesc> fields;
 };
 
 class TypeRegistry {

@@ -29,5 +29,6 @@
   - Runtime（主循环消费事件）
 
 ## 架构决策 / 临时约束
+- `InputQueue` 使用 `DynamicArray<RawInputEvent>` 存储事件，已消除 `std::vector` 依赖
 - `IWindow` 目前只有 GLFW 实现，未来可能加入 SDL / Win32 后端
 - `getNativeDisplay()` 是 Vulkan 创建 Surface 的预留 stub

@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "foundation_types.h"
 #include <fstream>
-#include <string>
+
 #include "log_output_device.h"
 #include "queued_log_entry.h"
 
@@ -11,7 +11,7 @@ namespace Entelechy {
 // File output configuration
 // ============================================================
 struct LogFileConfig {
-    std::string m_base_path = "logs/engine.log";
+    SmallString m_base_path = "logs/engine.log";
     u32 m_max_size_mb = 10;
     u32 m_max_files = 5;
 };

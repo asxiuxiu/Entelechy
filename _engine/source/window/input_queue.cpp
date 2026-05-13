@@ -8,14 +8,14 @@ InputQueue& InputQueue::instance() {
 }
 
 void InputQueue::push(const RawInputEvent& event) {
-    m_events.push_back(event);
+    m_events.pushBack(event);
 }
 
 void InputQueue::clear() {
     m_events.clear();
 }
 
-const std::vector<RawInputEvent>& InputQueue::events() const {
+const DynamicArray<RawInputEvent>& InputQueue::events() const {
     return m_events;
 }
 

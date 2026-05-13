@@ -3,8 +3,7 @@
 #include "scheduler.h"
 #include "movement_system.h"
 #include "tool_registry.h"
-#include <string>
-#include <vector>
+#include "base/small_string.h"
 
 namespace Entelechy {
 
@@ -18,16 +17,16 @@ public:
     void step(f32 dt);
 
     // Structured tool interfaces (Milestone 0.4)
-    std::string queryEntities(const std::string& comp_name) const;
-    std::string getComponent(Entity e, const std::string& comp_name) const;
-    std::string setComponent(Entity e, const std::string& comp_name, const std::string& json);
+    SmallString queryEntities(const SmallString& comp_name) const;
+    SmallString getComponent(Entity e, const SmallString& comp_name) const;
+    SmallString setComponent(Entity e, const SmallString& comp_name, const SmallString& json);
 
     // New AI-friendly tools
-    std::string queryEntitiesByMask(u32 mask) const;
-    std::string getWorldSummary() const;
+    SmallString queryEntitiesByMask(u32 mask) const;
+    SmallString getWorldSummary() const;
 
     // ToolRegistry integration
-    std::string callTool(const std::string& name, const std::string& json_args) const;
+    SmallString callTool(const SmallString& name, const SmallString& json_args) const;
 };
 
 } // namespace Entelechy

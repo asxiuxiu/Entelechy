@@ -15,6 +15,7 @@ add_library(BaseLib STATIC
 
 target_include_directories(BaseLib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/../memory
 )
 
 target_compile_features(BaseLib PUBLIC cxx_std_20)

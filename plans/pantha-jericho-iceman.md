@@ -63,7 +63,7 @@
 ### 5. 编码与文档规范
 - 所有新建/修改的 `.h/.cpp` 文件保持 **UTF-8 with BOM**
 - 注释保持 **英文**
-- 完成修改后，**Debug 构建验证**（`scripts/build/build.bat debug`）
+- 完成修改后，**Debug 构建验证**（`python scripts/build/build.py --debug --build`）
 - 同步更新根 `AGENTS.md` 目录结构说明
 - 同步更新 `core/AGENTS.md`、`memory/AGENTS.md`、`math/AGENTS.md` 中的类型/文件描述
 
@@ -98,7 +98,7 @@
    - 相关子模块 `AGENTS.md`
 
 8. **构建验证**
-   - `scripts/build/build.bat debug`
+   - `python scripts/build/build.py --debug --build`
    - 若编译失败，按错误文件回修
 
 ## 风险评估

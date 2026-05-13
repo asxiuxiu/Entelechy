@@ -14,9 +14,9 @@
 
 **本项目同时支持 Windows 与 macOS/Linux 开发**。
 
-- **Windows**：使用 `scripts/build/build.bat`，编译器预设为 MSVC（或 MinGW）
-- **macOS / Linux**：使用 `scripts/build/build.sh`，编译器预设为 Clang / GCC
-- Agent 在给出命令时应根据当前平台选择对应脚本
+- **所有平台**：统一使用 `python scripts/build/build.py`（Windows）或 `python3 scripts/build/build.py`（macOS / Linux）
+- **编译器预设**：Windows 为 MSVC（或 MinGW），macOS / Linux 为 Clang / GCC
+- **Agent 在给出命令时**：统一使用 Python 入口，不再区分平台脚本
 
 ## 目录结构
 
@@ -40,13 +40,9 @@ Entelechy/
 ├── TODO.md                 ← 技术债务
 ├── scripts/                ← 构建与工具脚本
 │   ├── build/              ← 构建系统
-│   │   ├── build.py        ← 跨平台主构建入口（推荐）
-│   │   ├── build.bat       ← Windows 包装（调用 build.py）
-│   │   └── build.sh        ← macOS / Linux 包装（调用 build.py）
+│   │   └── build.py        ← 跨平台主构建入口（推荐）
 │   └── tools/              ← 开发工具
-│       ├── clean.py        ← 跨平台清理脚本
-│       ├── clean.bat       ← Windows 清理包装
-│       └── clean.sh        ← macOS / Linux 清理包装
+│       └── clean.py        ← 跨平台清理脚本
 ├── conanfile.py            ← Conan 依赖管理
 ├── configs/                ← 构建配置（JSON）
 │   ├── full_build.json

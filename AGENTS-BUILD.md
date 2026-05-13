@@ -15,28 +15,16 @@
 **跨平台（推荐）**
 ```bash
 # 完整构建（引擎 + 游戏运行时）
-python scripts/build.py
+python scripts/build/build.py
 
 # 仅构建引擎核心
-python scripts/build.py --config configs/engine_only.json
+python scripts/build/build.py --config configs/engine_only.json
 
 # Debug 构建（Agent 改动后的默认测试配置）
-python scripts/build.py --debug
+python scripts/build/build.py --debug
 
 # Release 构建
-python scripts/build.py --release
-```
-
-**Windows**
-```batch
-scripts/build/build.bat
-scripts/build/build.bat --config configs/engine_only.json
-```
-
-**macOS / Linux**
-```bash
-./scripts/build/build.sh
-./scripts/build/build.sh --config configs/engine_only.json
+python scripts/build/build.py --release
 ```
 
 构建产物：
@@ -132,7 +120,7 @@ elif 'math' in m['name'].lower():
 
 ### ❌ 不要直接改 `build/sourcetree/`
 
-`sourcetree/` 是生成目录，每次运行 `scripts/build/build.bat` 都会被覆盖。所有持久化修改应该发生在：
+`sourcetree/` 是生成目录，每次运行构建脚本都会被覆盖。所有持久化修改应该发生在：
 - `_engine/source/...`
 - `_game/source/...`
 - `launch/templates/...`
@@ -159,4 +147,4 @@ add_library(MathLib STATIC ${CMAKE_CURRENT_LIST_DIR}/math.cpp)
 - `scripts/build/build.py` 已启用 `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`
 - `.vscode/c_cpp_properties.json` 已配置 `compileCommands` 指向 `${workspaceFolder}/build/compile_commands.json`
 
-**以后引入任何 Conan 新包时**，只需重新运行 `scripts/build/build.py`（或 `scripts/build/build.sh` / `scripts/build/build.bat`），`compile_commands.json` 会自动更新，IntelliSense 即刻识别新包头文件。
+**以后引入任何 Conan 新包时**，只需重新运行 `python scripts/build/build.py`（或对应平台的包装脚本），`compile_commands.json` 会自动更新，IntelliSense 即刻识别新包头文件。

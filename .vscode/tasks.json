@@ -8,16 +8,16 @@
             "label": "Build: Engine Only (Debug)",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/scripts/build/build.bat",
-                "args": ["--config", "configs/engine_only.json", "--debug", "--build"]
+                "command": "python",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--debug", "--build"]
             },
             "linux": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/engine_only.json", "--debug", "--build"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--debug", "--build"]
             },
             "osx": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/engine_only.json", "--debug", "--build"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--debug", "--build"]
             },
             "group": "build",
             "problemMatcher": ["$msCompile"],
@@ -27,16 +27,16 @@
             "label": "Build: Engine Only (Release)",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/scripts/build/build.bat",
-                "args": ["--config", "configs/engine_only.json", "--release", "--build"]
+                "command": "python",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--release", "--build"]
             },
             "linux": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/engine_only.json", "--release", "--build"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--release", "--build"]
             },
             "osx": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/engine_only.json", "--release", "--build"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--release", "--build"]
             },
             "group": "build",
             "problemMatcher": ["$msCompile"],
@@ -46,16 +46,16 @@
             "label": "Build: Full (Debug)",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/scripts/build/build.bat",
-                "args": ["--config", "configs/full_build.json", "--debug", "--build"]
+                "command": "python",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--debug", "--build"]
             },
             "linux": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/full_build.json", "--debug", "--build"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--debug", "--build"]
             },
             "osx": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/full_build.json", "--debug", "--build"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--debug", "--build"]
             },
             "group": "build",
             "problemMatcher": ["$msCompile"],
@@ -65,16 +65,16 @@
             "label": "Build: Full (Release)",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/scripts/build/build.bat",
-                "args": ["--config", "configs/full_build.json", "--release", "--build"]
+                "command": "python",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--release", "--build"]
             },
             "linux": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/full_build.json", "--release", "--build"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--release", "--build"]
             },
             "osx": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/full_build.json", "--release", "--build"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--release", "--build"]
             },
             "group": "build",
             "problemMatcher": ["$msCompile"],
@@ -125,16 +125,16 @@
             "label": "Generate: Engine Only (Debug)",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/scripts/build/build.bat",
-                "args": ["--config", "configs/engine_only.json", "--debug"]
+                "command": "python",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--debug"]
             },
             "linux": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/engine_only.json", "--debug"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--debug"]
             },
             "osx": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/engine_only.json", "--debug"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--debug"]
             },
             "group": "build",
             "problemMatcher": [],
@@ -144,16 +144,16 @@
             "label": "Generate: Engine Only (Release)",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/scripts/build/build.bat",
-                "args": ["--config", "configs/engine_only.json", "--release"]
+                "command": "python",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--release"]
             },
             "linux": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/engine_only.json", "--release"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--release"]
             },
             "osx": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/engine_only.json", "--release"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/engine_only.json", "--release"]
             },
             "group": "build",
             "problemMatcher": [],
@@ -163,16 +163,16 @@
             "label": "Generate: Full (Debug)",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/scripts/build/build.bat",
-                "args": ["--config", "configs/full_build.json", "--debug"]
+                "command": "python",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--debug"]
             },
             "linux": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/full_build.json", "--debug"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--debug"]
             },
             "osx": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/full_build.json", "--debug"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--debug"]
             },
             "group": "build",
             "problemMatcher": [],
@@ -182,16 +182,16 @@
             "label": "Generate: Full (Release)",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/scripts/build/build.bat",
-                "args": ["--config", "configs/full_build.json", "--release"]
+                "command": "python",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--release"]
             },
             "linux": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/full_build.json", "--release"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--release"]
             },
             "osx": {
-                "command": "${workspaceFolder}/scripts/build/build.sh",
-                "args": ["--config", "configs/full_build.json", "--release"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/build/build.py", "--config", "configs/full_build.json", "--release"]
             },
             "group": "build",
             "problemMatcher": [],
@@ -205,13 +205,16 @@
             "label": "Clean: Remove Build Directory",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/scripts/tools/clean.bat"
+                "command": "python",
+                "args": ["${workspaceFolder}/scripts/tools/clean.py"]
             },
             "linux": {
-                "command": "${workspaceFolder}/scripts/tools/clean.sh"
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/tools/clean.py"]
             },
             "osx": {
-                "command": "${workspaceFolder}/scripts/tools/clean.sh"
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/tools/clean.py"]
             },
             "group": "build",
             "problemMatcher": [],
@@ -221,16 +224,16 @@
             "label": "Clean: Deep Clean (Include .conan/)",
             "type": "shell",
             "windows": {
-                "command": "${workspaceFolder}/scripts/tools/clean.bat",
-                "args": ["--deep"]
+                "command": "python",
+                "args": ["${workspaceFolder}/scripts/tools/clean.py", "--deep"]
             },
             "linux": {
-                "command": "${workspaceFolder}/scripts/tools/clean.sh",
-                "args": ["--deep"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/tools/clean.py", "--deep"]
             },
             "osx": {
-                "command": "${workspaceFolder}/scripts/tools/clean.sh",
-                "args": ["--deep"]
+                "command": "python3",
+                "args": ["${workspaceFolder}/scripts/tools/clean.py", "--deep"]
             },
             "group": "build",
             "problemMatcher": [],

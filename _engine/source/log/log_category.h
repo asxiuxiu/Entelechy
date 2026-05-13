@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <cstdint>
-#include "core/string_id.h"
+#include "base/string_id.h"
 
 namespace Entelechy {
 

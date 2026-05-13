@@ -63,9 +63,6 @@ def generate_main_cpp(sourcetree_dir, solution_name, enabled_modules):
             if 'core' in module_name.lower():
                 forward_decls.append("namespace Entelechy { void initCore(); }")
                 init_calls.append("    Entelechy::initCore();")
-            elif 'system' in module_name.lower():
-                forward_decls.append("namespace Entelechy { void initSystem(); }")
-                init_calls.append("    Entelechy::initSystem();")
             elif 'bridge' in module_name.lower():
                 forward_decls.append("namespace Entelechy { void initBridge(); }")
                 init_calls.append("    Entelechy::initBridge();")
@@ -185,8 +182,8 @@ def generate_sourcetree(config_path, output_dir, source_root):
     for m in enabled_modules:
         if 'core' in m['name'].lower():
             link_libs.append('CoreLib')
-        elif 'system' in m['name'].lower():
-            link_libs.append('SystemLib')
+        elif 'motor' in m['name'].lower():
+            link_libs.append('MotorLib')
         elif 'bridge' in m['name'].lower():
             link_libs.append('BridgeLib')
         elif 'math' in m['name'].lower():

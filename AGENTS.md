@@ -60,9 +60,9 @@ Entelechy/
 ├── _engine/                ← 引擎核心（模拟独立仓库）
 │   ├── cmake_projects.json
 │   └── source/
-│       ├── foundation/     ← 基础类型与平台抽象（FoundationLib） [AGENTS.md](./_engine/source/foundation/AGENTS.md)
+│       ├── base/           ← 引擎标准库：类型、字符串、容器（BaseLib） [AGENTS.md](./_engine/source/base/AGENTS.md)
 │       ├── core/           ← ECS 数据层（CoreLib） [AGENTS.md](./_engine/source/core/AGENTS.md)
-│       ├── system/         ← System / Scheduler（SystemLib） [AGENTS.md](./_engine/source/system/AGENTS.md)
+│       ├── motor/          ← 运动系统：MovementSystem（MotorLib） [AGENTS.md](./_engine/source/motor/AGENTS.md)
 │       ├── bridge/         ← AgentBridge（BridgeLib） [AGENTS.md](./_engine/source/bridge/AGENTS.md)
 │       ├── math/           ← 数学库（MathLib） [AGENTS.md](./_engine/source/math/AGENTS.md)
 │       ├── memory/         ← 内存管理（MemoryLib） [AGENTS.md](./_engine/source/memory/AGENTS.md)

@@ -1,8 +1,8 @@
 ﻿#pragma once
 #include <chrono>
 #include "log_level.h"
-#include "core/string_id.h"
-#include "core/small_string.h"
+#include "base/string_id.h"
+#include "base/small_string.h"
 
 namespace Entelechy {
 

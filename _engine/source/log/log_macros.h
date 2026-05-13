@@ -5,7 +5,7 @@
 #include "log_entry.h"
 #include "log_category.h"
 #include "logger.h"
-#include "core/string_format.h"
+#include "base/string_format.h"
 
 namespace Entelechy {
 

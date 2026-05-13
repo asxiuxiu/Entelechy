@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "foundation_types.h"
 #include "log_level.h"
-#include "core/string_id.h"
+#include "base/string_id.h"
 
 namespace Entelechy {
 

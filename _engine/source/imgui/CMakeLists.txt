@@ -40,5 +40,4 @@ target_link_libraries(ImGuiLib PUBLIC
     WindowLib
     LogLib
     CoreLib
-    SystemLib
 )

@@ -15,13 +15,15 @@ add_library(MathLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/ray.h
     ${CMAKE_CURRENT_LIST_DIR}/frustum.h
     ${CMAKE_CURRENT_LIST_DIR}/transform_component.h
+    ${CMAKE_CURRENT_LIST_DIR}/transform_propagation_system.h
+    ${CMAKE_CURRENT_LIST_DIR}/transform_propagation_system.cpp
 )
 
 target_include_directories(MathLib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
-target_link_libraries(MathLib PUBLIC FoundationLib)
+target_link_libraries(MathLib PUBLIC BaseLib CoreLib)
 
 target_compile_features(MathLib PUBLIC cxx_std_20)
 

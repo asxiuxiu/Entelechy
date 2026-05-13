@@ -1,7 +1,7 @@
 ﻿#include "agent_bridge.h"
 #include "type_registry.h"
 #include "log/log_macros.h"
-#include "core/string_intern_pool.h"
+#include "base/string_intern_pool.h"
 #include <cstdio>
 #include <string>
 #include <cstring>

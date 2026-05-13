@@ -1,10 +1,10 @@
-﻿{
+{
     "name": "EntelechyEngine",
     "root_path": "_engine",
     "modules": [
         {
-            "name": "foundation",
-            "path": "source/foundation",
+            "name": "base",
+            "path": "source/base",
             "enabled": true
         },
         {
@@ -13,8 +13,8 @@
             "enabled": true
         },
         {
-            "name": "system",
-            "path": "source/system",
+            "name": "motor",
+            "path": "source/motor",
             "enabled": true
         },
         {

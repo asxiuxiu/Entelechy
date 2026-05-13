@@ -6,7 +6,7 @@
 #include "scheduler.h"
 #include "type_registry.h"
 #include "math/vec.h"
-#include "core/string_intern_pool.h"
+#include "base/string_intern_pool.h"
 #include <ctime>
 #include <chrono>
 

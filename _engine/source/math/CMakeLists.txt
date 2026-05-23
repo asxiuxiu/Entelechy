@@ -17,6 +17,7 @@ add_library(MathLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/transform_component.h
     ${CMAKE_CURRENT_LIST_DIR}/transform_propagation_system.h
     ${CMAKE_CURRENT_LIST_DIR}/transform_propagation_system.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/hierarchy.h
 )
 
 target_include_directories(MathLib PUBLIC

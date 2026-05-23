@@ -51,6 +51,21 @@
             "name": "imgui",
             "path": "source/imgui",
             "enabled": true
+        },
+        {
+            "name": "vfs",
+            "path": "source/vfs",
+            "enabled": true
+        },
+        {
+            "name": "thread_pool",
+            "path": "source/thread_pool",
+            "enabled": true
+        },
+        {
+            "name": "test_batch0",
+            "path": "source/test_batch0",
+            "enabled": true
         }
     ]
 }

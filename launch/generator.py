@@ -198,6 +198,10 @@ def generate_sourcetree(config_path, output_dir, source_root):
             link_libs.append('RenderLib')
         elif 'imgui' in m['name'].lower():
             link_libs.append('ImGuiLib')
+        elif 'vfs' in m['name'].lower():
+            link_libs.append('VFSLib')
+        elif 'thread_pool' in m['name'].lower():
+            link_libs.append('ThreadPoolLib')
         elif 'runtime' in m['name'].lower():
             link_libs.append('RuntimeLib')
 

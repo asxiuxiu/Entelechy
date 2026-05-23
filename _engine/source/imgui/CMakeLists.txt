@@ -21,6 +21,7 @@ add_library(ImGuiLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/imgui_init.cpp
     ${CMAKE_CURRENT_LIST_DIR}/imgui_manager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/imgui_panels.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/imgui_atom_registry.cpp
     ${IMGUI_BACKENDS_DIR}/imgui_impl_glfw.cpp
     ${IMGUI_BACKENDS_DIR}/imgui_impl_opengl3.cpp
 )

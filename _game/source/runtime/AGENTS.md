@@ -9,12 +9,14 @@
 | 文件 | 职责 |
 |------|------|
 | `game_runtime.h` | 运行时初始化函数声明 `initRuntime()` |
-| `game_runtime.cpp` | 运行时初始化实现；目前为桩，未来会扩展为主循环接管逻辑 |
+| `game_runtime.cpp` | 运行时初始化实现；目前为桩 |
+| `game_plugin.h/.cpp` | `GamePlugin`：游戏层 Plugin，注册演示系统（Movement/Rotation/Wobble/ColorChange/TransformPropagation/EventCleanup）并生成演示立方体层级 |
 
 ## 重要入口
 - 改**游戏层初始化/关闭逻辑** → 动 `game_runtime.cpp`
-- 注意：实际主循环在 `launch/templates/main.cpp`（构建系统生成），不在 RuntimeLib
-- 新增**游戏层特定系统或逻辑** → 在 `game_runtime.cpp` 中调用，或新增文件到本模块
+- 改**游戏层 Plugin 注册** → 动 `game_plugin.h/.cpp`
+- 注意：实际主循环在 `launch/templates/main.cpp`（构建系统生成），不在 RuntimeLib；但主循环已通过 `App` 委托 `app.update(dt)`
+- 新增**游戏层特定系统或逻辑** → 新建 `IPlugin` 子类并在 `main.cpp` 中 `app.addPlugin()`
 
 ## 依赖关系
 - 向上依赖：

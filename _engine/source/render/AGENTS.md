@@ -10,10 +10,13 @@
 | `opengl_backend.cpp` | OpenGL 初始化、视口管理、清除与呈现 |
 | `opengl_backend.h` | `OpenGLBackend` 类声明 |
 | `render_backend.h` | `IRenderBackend` 接口 + `RenderSettings` |
+| `simple_cube_renderer.cpp` | 最小可行立方体渲染器：硬编码索引立方体网格 + MVP 着色器（批次 B 验证用） |
+| `simple_cube_renderer.h` | `SimpleCubeRenderer` 类声明 |
 
 ## 重要入口
 - 改**渲染后端接口** → 动 `render_backend.h`
 - 改**OpenGL 具体实现**（视口、清除色、VSync） → 动 `opengl_backend.cpp`
+- 改**最小立方体渲染** → 动 `simple_cube_renderer.cpp`
 
 ## 依赖关系
 - 向上依赖：

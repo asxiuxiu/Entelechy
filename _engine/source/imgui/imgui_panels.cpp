@@ -6,9 +6,14 @@
 #include "scheduler.h"
 #include "type_registry.h"
 #include "math/vec.h"
+#include "math/quat.h"
+#include "math/mat4.h"
+#include "math/transform_component.h"
+#include "core/atom_registry.h"
 #include "base/string_intern_pool.h"
 #include <ctime>
 #include <chrono>
+#include <cstdio>
 
 namespace Entelechy {
 
@@ -34,31 +39,60 @@ const char* logLevelToShortString(LogLevel level) {
     return "?";
 }
 
-void drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
+bool drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
     void* fieldPtr = static_cast<u8*>(componentRaw) + field.offset;
+    bool changed = false;
 
-    if (field.type == "float") {
-        ImGui::DragFloat(field.name.c_str(), static_cast<f32*>(fieldPtr), 0.1f);
-    } else if (field.type == "Vec2") {
-        ImGui::DragFloat2(field.name.c_str(), &static_cast<Entelechy::Vec2*>(fieldPtr)->x, 0.1f);
-    } else if (field.type == "Vec3") {
-        ImGui::DragFloat3(field.name.c_str(), &static_cast<Entelechy::Vec3*>(fieldPtr)->x, 0.1f);
-    } else if (field.type == "SmallString") {
-        auto* str = static_cast<Entelechy::SmallString*>(fieldPtr);
-        ImGui::Text("%s: %s", field.name.c_str(), str->c_str());
-    } else if (field.type == "StringId") {
-        auto* id = static_cast<Entelechy::StringId*>(fieldPtr);
-        const char* resolved = StringInternPool::instance().resolve(*id);
-        ImGui::Text("%s: %s", field.name.c_str(), resolved ? resolved : "<unresolved>");
-    } else if (field.type == "int" || field.type == "int32_t") {
-        ImGui::DragInt(field.name.c_str(), static_cast<int*>(fieldPtr));
-    } else if (field.type == "uint32_t") {
-        ImGui::DragScalar(field.name.c_str(), ImGuiDataType_U32, fieldPtr);
-    } else if (field.type == "bool") {
-        ImGui::Checkbox(field.name.c_str(), static_cast<bool*>(fieldPtr));
-    } else {
-        ImGui::TextDisabled("%s: (%s)", field.name.c_str(), field.type.c_str());
+    // 1. Try AtomRegistry for true atoms (f32, bool, i32, u32, StringId, SmallString)
+    if (Entelechy::AtomRegistry::instance().tryDraw(field.type, field.name.c_str(), fieldPtr)) {
+        changed = true;
+        return changed;
     }
+
+    // 2. Special-case Mat4 for better UX (4 rows instead of 16 raw floats)
+    if (field.type == "Mat4") {
+        if (ImGui::TreeNode(field.name.c_str())) {
+            auto* mat = static_cast<Entelechy::Mat4*>(fieldPtr);
+            for (int row = 0; row < 4; ++row) {
+                float rowVals[4];
+                for (int col = 0; col < 4; ++col) rowVals[col] = (*mat)(row, col);
+                char rowLabel[8];
+                snprintf(rowLabel, sizeof(rowLabel), "[%d]", row);
+                if (ImGui::DragFloat4(rowLabel, rowVals, 0.01f)) changed = true;
+                for (int col = 0; col < 4; ++col) (*mat)(row, col) = rowVals[col];
+            }
+            ImGui::TreePop();
+        }
+        return changed;
+    }
+
+    // 3. Try TypeRegistry composite lookup (Vec3, Quat, Vec2, Vec4, Entity, Color, ...)
+    const auto* typeDesc = Entelechy::TypeRegistry::instance().findType(field.type);
+    if (typeDesc && typeDesc->kind == Entelechy::TypeKind::Composite && !typeDesc->fields.empty()) {
+        if (ImGui::TreeNode(field.name.c_str())) {
+            for (const auto& subField : typeDesc->fields) {
+                if (drawField(subField, fieldPtr)) changed = true;
+            }
+            ImGui::TreePop();
+        }
+        return changed;
+    }
+
+    // 4. Fallback: legacy ComponentDesc recursive lookup
+    const auto* compDesc = Entelechy::TypeRegistry::instance().findComponent(field.type);
+    if (compDesc && !compDesc->fields.empty()) {
+        if (ImGui::TreeNode(field.name.c_str())) {
+            for (const auto& subField : compDesc->fields) {
+                if (drawField(subField, fieldPtr)) changed = true;
+            }
+            ImGui::TreePop();
+        }
+        return changed;
+    }
+
+    // 5. Unknown type
+    ImGui::TextDisabled("%s: (%s)", field.name.c_str(), field.type.c_str());
+    return changed;
 }
 
 } // anonymous namespace
@@ -294,10 +328,18 @@ void buildECSInspector(World& world, Scheduler& scheduler, f32 dt, bool& autoRun
             if (!raw) continue;
 
             if (ImGui::TreeNodeEx(desc->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                bool componentChanged = false;
                 for (const auto& field : desc->fields) {
-                    drawField(field, raw);
+                    if (drawField(field, raw)) componentChanged = true;
                 }
                 ImGui::TreePop();
+                // If the Transform component was edited, mark it dirty so the
+                // TransformPropagationSystem recomputes the world matrix.
+                if (componentChanged && desc->name == "Transform") {
+                    if (auto* trans = world.getComponent<Entelechy::Transform>(selected)) {
+                        trans->dirty = 1;
+                    }
+                }
             }
         }
     } else {

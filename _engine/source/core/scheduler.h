@@ -3,7 +3,8 @@
 #include "command_buffer.h"
 #include "dynamic_array.h"
 #include "frame_arena.h"
-#include <memory>
+#include "phase.h"
+#include "system_desc.h"
 
 namespace Entelechy {
 
@@ -15,30 +16,45 @@ public:
 
 class Scheduler {
 public:
-    void registerSystem(System* system) {
-        m_systems.pushBack(system);
-    }
+    // Legacy API: default Update phase, no dependencies.
+    void registerSystem(System* system);
 
-    void tick(World& world, f32 dt) {
-        m_frameArena.reset();
-        for (auto* sys : m_systems) {
-            sys->tick(world, m_frameArena, dt);
-        }
-        m_commandBuffer.apply(world);
-    }
+    // New API: full descriptor with phase, reads, writes, before, after.
+    void registerSystem(const SystemDesc& desc);
 
-    FrameArena& frameArena() {
-        return m_frameArena;
-    }
+    // Build dependency graph, topological sort, and ambiguity detection.
+    // Must be called after all systems are registered and before first tick.
+    void build();
 
-    CommandBuffer& commandBuffer() {
-        return m_commandBuffer;
-    }
+    // Tick with fixed timestep. raw_dt is accumulated; fixed steps are executed.
+    void tick(World& world, f32 raw_dt);
+
+    // Tick exactly once with the given dt (for Inspector "Tick Once" button).
+    void tickOnce(World& world, f32 dt);
+
+    FrameArena& frameArena();
+    CommandBuffer& commandBuffer();
+
+    [[nodiscard]] u64 currentFrame() const { return m_currentFrame; }
 
 private:
-    DynamicArray<System*> m_systems;
+    static constexpr f32 FIXED_DT = 1.0f / 60.0f;
+
+    void tickFixed(World& world, f32 dt);
+    void detectAmbiguities();
+
+    struct PhaseGroup {
+        u8 phaseIndex = 0;
+        DynamicArray<SystemDesc*> systems;
+    };
+
+    DynamicArray<SystemDesc> m_systems;
+    DynamicArray<PhaseGroup> m_phaseGroups;
     CommandBuffer m_commandBuffer;
     FrameArena m_frameArena{1024 * 1024}; // 1 MiB per frame
+    f32 m_accumulator = 0.0f;
+    u64 m_currentFrame = 0;
+    bool m_built = false;
 };
 
 } // namespace Entelechy

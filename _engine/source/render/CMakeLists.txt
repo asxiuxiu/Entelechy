@@ -4,6 +4,7 @@ find_package(glad REQUIRED)
 
 add_library(RenderLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/opengl_backend.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/simple_cube_renderer.cpp
 )
 
 target_include_directories(RenderLib PUBLIC

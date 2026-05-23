@@ -7,15 +7,22 @@
 
 namespace Entelechy {
 
+struct ComponentHooks {
+    void(*onRemove)(Entity e, void* component) = nullptr;
+    void(*onDrop)(void* component) = nullptr;
+};
+
 class IComponentArray {
 public:
     virtual ~IComponentArray() = default;
     virtual void remove(Entity e) = 0;
+    virtual void setRaw(Entity e, const void* data) = 0;
     [[nodiscard]] virtual bool has(Entity e) const = 0;
     [[nodiscard]] virtual usize count() const = 0;
     [[nodiscard]] virtual const void* getRaw(Entity e) const = 0;
     [[nodiscard]] virtual void* getRaw(Entity e) = 0;
     [[nodiscard]] virtual const u32* entityIds() const = 0;
+    [[nodiscard]] virtual ComponentHooks* getHooks() { return nullptr; }
 };
 
 // SIMD-aligned column of component data.
@@ -128,8 +135,16 @@ public:
         }
     }
 
+    void setRaw(Entity e, const void* data) override {
+        set(e, *static_cast<const T*>(data));
+    }
+
     void remove(Entity e) override {
         if (!m_sparseSet.has(e.id)) return;
+        if (m_hooks && m_hooks->onRemove) {
+            u32 idx = m_sparseSet.indexOf(e.id);
+            m_hooks->onRemove(e, &m_column[idx]);
+        }
         u32 idx = m_sparseSet.indexOf(e.id);
         m_column.swapAndPop(idx);
         m_sparseSet.remove(e.id);
@@ -168,9 +183,13 @@ public:
         return get(e);
     }
 
+    [[nodiscard]] ComponentHooks* getHooks() override { return m_hooks; }
+    void setHooks(ComponentHooks* hooks) { m_hooks = hooks; }
+
 private:
     SparseSet m_sparseSet;
     Column<T> m_column;
+    ComponentHooks* m_hooks = nullptr;
 };
 
 } // namespace Entelechy

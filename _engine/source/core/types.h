@@ -1,21 +1,13 @@
-﻿#pragma once
+#pragma once
 #include "foundation_types.h"
 #include <functional>
 #include <compare>
+#include "entity_registry.h"
 #include "type_registry.h"
 #include "small_string.h"
 #include "string_id.h"
 
 namespace Entelechy {
-
-struct Entity {
-    u32 id{0xFFFFFFFF};
-    u32 generation{0};
-
-    [[nodiscard]] bool valid() const { return id != 0xFFFFFFFF; }
-    constexpr auto operator<=>(const Entity& other) const = default;
-    constexpr bool operator==(const Entity& other) const = default;
-};
 
 struct Position {
     f32 x = 0.0f;
@@ -51,6 +43,35 @@ struct NameTag {
 
 REFLECT_COMPONENT(NameTag,
     REG_FIELD(NameTag, name, StringId)
+)
+
+// ------------------------------------------------------------------
+// Hierarchy relationship components (batch A foundation for batch B)
+// ------------------------------------------------------------------
+struct ChildOf {
+    Entity parent;
+};
+
+REFLECT_COMPONENT(ChildOf,
+    REG_FIELD(ChildOf, parent, Entity)
+)
+
+struct Children {
+    DynamicArray<Entity> entities;
+};
+
+REFLECT_COMPONENT(Children)
+
+struct Color {
+    f32 r = 1.0f;
+    f32 g = 1.0f;
+    f32 b = 1.0f;
+};
+
+REFLECT_COMPONENT(Color,
+    REG_FIELD(Color, r, f32),
+    REG_FIELD(Color, g, f32),
+    REG_FIELD(Color, b, f32)
 )
 
 void registerBuiltinTypes();

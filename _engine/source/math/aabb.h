@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "vec.h"
 #include <algorithm>
+#include "type_registry.h"
 
 namespace Entelechy {
 
@@ -37,5 +38,7 @@ struct AABB {
             && point.z >= min.z && point.z <= max.z;
     }
 };
+
+REFLECT_COMPONENT(AABB)
 
 } // namespace Entelechy

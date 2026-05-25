@@ -136,3 +136,24 @@ git add --renormalize .
 
 > 开发者在 Windows 下使用 VS Code 时，建议设置 `"files.eol": "\n"`，以确保新创建的源码文件默认使用 LF。
 
+---
+
+## 技术债务记录规范（`TODO.md`）
+
+- **必须按模块归类**（一级标题），如 `## ECS / Core Runtime`、`## Render / RHI`。
+- **单条格式**（不可拆成多行主条目）：
+  ```
+  - [ ] 模块/子系统 | 文件/位置：具体问题，改进方向
+  ```
+- **三要素缺一不可**：
+  1. **位置**：涉及的源文件路径或代码位置（如 `render/queue/BinnedRenderPhase.h`）。
+  2. **问题**：具体缺陷或技术债务，禁止空泛描述（如"需要优化"）。
+  3. **方向**：未来改进的明确思路或目标状态。
+- **禁止项**：
+  - ❌ 使用 `Phase X`、`Checkpoint Y`、`Milestone Z` 等计划节点作为前缀。
+  - ❌ 不写文件位置或只写模块名（如"Render 需要重构"）。
+  - ❌ 只有问题没有方向（如"BinnedRenderPhase 性能差"）。
+- **示例**：
+  - ❌ `Render Checkpoint 2+ | BinnedRenderPhase 退化为线性查找`
+  - ❌ `Render / RHI | BinnedRenderPhase 性能差`
+  - ✅ `Render / RHI | BinnedRenderPhase（render/queue/BinnedRenderPhase.h）使用 DynamicArray 线性分箱替代 HashMap，大规模场景下退化为 O(n)，需恢复 HashMap 或引入独立 Resource 系统`

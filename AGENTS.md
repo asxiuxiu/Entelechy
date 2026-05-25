@@ -66,6 +66,10 @@ Entelechy/
 │       ├── window/         ← 窗口系统（WindowLib） [AGENTS.md](./_engine/source/window/AGENTS.md)
 │       ├── log/            ← 日志系统（LogLib） [AGENTS.md](./_engine/source/log/AGENTS.md)
 │       ├── render/         ← 图形后端（RenderLib） [AGENTS.md](./_engine/source/render/AGENTS.md)
+│       ├── vfs/            ← 虚拟文件系统（VFSLib） [AGENTS.md](./_engine/source/vfs/AGENTS.md)
+│       ├── thread_pool/    ← 工作窃取线程池（ThreadPoolLib） [AGENTS.md](./_engine/source/thread_pool/AGENTS.md)
+│       ├── test/           ← 轻量级测试框架（TestFrameworkLib） [AGENTS.md](./_engine/source/test/AGENTS.md)
+│       ├── test_runner/    ← 统一测试入口（EntelechyTests） [AGENTS.md](./_engine/source/test_runner/AGENTS.md)
 │       └── imgui/          ← ImGui 调试 UI（ImGuiLib） [AGENTS.md](./_engine/source/imgui/AGENTS.md)
 └── _game/                  ← 游戏逻辑（模拟独立仓库）
     ├── cmake_projects.json

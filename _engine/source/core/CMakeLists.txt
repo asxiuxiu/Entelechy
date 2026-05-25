@@ -42,3 +42,7 @@ target_include_directories(CoreLib PUBLIC
 target_link_libraries(CoreLib PUBLIC MemoryLib)
 
 target_compile_features(CoreLib PUBLIC cxx_std_20)
+
+if(NOT SHIPPING_BUILD AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/tests")
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_BINARY_DIR}/tests)
+endif()

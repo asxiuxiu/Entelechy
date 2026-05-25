@@ -24,6 +24,7 @@
 | `transform_propagation_system.h/.cpp` | 引擎内置 System：按层级深度拓扑排序，从根到叶传播本地 `Transform` 到 `GlobalTransform.matrix` |
 | `math_lib.h` | 数学库聚合头文件（引入所有子头文件），版本号 |
 | `math_lib.cpp` | 复杂数学运算实现（`Mat4::fromRotation`、`inverse`、`determinant`）及 SIMD 批量测试函数 |
+| `tests/` | 单元测试：向量、矩阵、四元数、几何（AABB/Ray/Frustum）、工具（Random/Align/Half/SIMD） |
 
 ## 重要入口
 - 改**向量/矩阵运算** → 动 `vec.h` / `mat4.h`

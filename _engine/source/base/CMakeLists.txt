@@ -20,3 +20,7 @@ target_include_directories(BaseLib PUBLIC
 )
 
 target_compile_features(BaseLib PUBLIC cxx_std_20)
+
+if(NOT SHIPPING_BUILD AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/tests")
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_BINARY_DIR}/tests)
+endif()

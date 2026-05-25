@@ -13,6 +13,7 @@
 | `debug_allocator_wrapper.h/.cpp` | Debug/Development 构建自动启用的调试装饰器（Canary / Poison / Stats）；Release 完全剥离 |
 | `frame_arena.h/.cpp` | `FrameArena` 帧分配器：嵌套回滚、任意对齐、溢出回退、双缓冲预留接口、分配统计 |
 | `object_pool.h` | `ObjectPool<T>` 动态对象池：动态分块（1024 slots/block）、分代索引 `PoolHandle`、分配统计 |
+| `tests/` | 单元测试：DefaultAllocator、FrameArena（含 MemMark/Ring）、ObjectPool、PoolHandle |
 | `ALLOCATOR_GUIDE.md` | 分配器选择决策图与快速对照表 |
 
 ## 重要入口
@@ -20,6 +21,7 @@
 - 改**全局分配器与调试包装** → 动 `allocator.h`、`debug_allocator_wrapper.h/.cpp`
 - 改**帧分配器策略**（容量、对齐方式、溢出处理、嵌套作用域、统计） → 动 `frame_arena.h/.cpp`
 - 改**对象池实现**（动态扩容、分代句柄、统计） → 动 `object_pool.h`
+  - `Block`/`Slot` 定义顺序：须避免前向引用（`Slot` 必须在 `Block` 之前定义）
 - 改**分配器统计与诊断面板数据** → 动 `iallocator.h` + 各分配器 `getStats()`
 - 改**分配器选择文档** → 动 `ALLOCATOR_GUIDE.md`
 

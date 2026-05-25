@@ -30,3 +30,8 @@
 
 - 禁止向本模块添加上层模块依赖
 - 容器保持仅头文件（header-only）或最小 `.cpp` 配套
+
+## 测试
+
+- 模块测试位于 `tests/` 目录（`test_small_string.cpp` 等）
+- 测试库名为 `BaseTests`（OBJECT 库），由 [TestRunner](../test_runner/AGENTS.md) 自动收集链接

@@ -28,6 +28,10 @@ target_link_libraries(MathLib PUBLIC BaseLib CoreLib)
 
 target_compile_features(MathLib PUBLIC cxx_std_20)
 
+if(NOT SHIPPING_BUILD AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/tests")
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_BINARY_DIR}/tests)
+endif()
+
 # Float determinism: avoid aggressive fast-math that breaks cross-platform consistency
 if (MSVC)
     target_compile_options(MathLib PRIVATE /fp:precise)

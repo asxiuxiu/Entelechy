@@ -202,6 +202,8 @@ def generate_sourcetree(config_path, output_dir, source_root):
             link_libs.append('VFSLib')
         elif 'thread_pool' in m['name'].lower():
             link_libs.append('ThreadPoolLib')
+        elif 'test' == m['name'].lower():
+            link_libs.append('TestFrameworkLib')
         elif 'runtime' in m['name'].lower():
             link_libs.append('RuntimeLib')
 

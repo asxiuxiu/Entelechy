@@ -27,6 +27,21 @@ static bool ensureDirExists(const char* path) {
 
     if (buf[0] == '\0') return true;
 
+    // Recursively create parent directories (e.g. a/b/c when a or a/b don't exist).
+    for (char* p = buf; *p; ++p) {
+        if (*p == '/' || *p == '\\') {
+            char save = *p;
+            *p = '\0';
+#if PLATFORM_WINDOWS
+            _mkdir(buf);
+#else
+            mkdir(buf, 0755);
+#endif
+            *p = save;
+        }
+    }
+
+    // Create the final directory itself.
 #if PLATFORM_WINDOWS
     _mkdir(buf);
 #else

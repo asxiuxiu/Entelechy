@@ -51,10 +51,6 @@ public:
     [[nodiscard]] usize capacity() const { return m_blocks.size() * SLOTS_PER_BLOCK; }
 
 private:
-    struct Block {
-        Slot* slots;
-    };
-
     struct Slot {
         union {
             T object;
@@ -67,6 +63,10 @@ private:
 
         Slot() {}
         ~Slot() {}
+    };
+
+    struct Block {
+        Slot* slots;
     };
 
     void addBlock();

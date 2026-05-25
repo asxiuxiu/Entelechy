@@ -63,8 +63,13 @@
             "enabled": true
         },
         {
-            "name": "test_batch0",
-            "path": "source/test_batch0",
+            "name": "test",
+            "path": "source/test",
+            "enabled": true
+        },
+        {
+            "name": "test_runner",
+            "path": "source/test_runner",
             "enabled": true
         }
     ]

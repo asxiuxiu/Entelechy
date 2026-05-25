@@ -15,3 +15,7 @@ target_include_directories(VFSLib PUBLIC
 target_link_libraries(VFSLib PUBLIC BaseLib)
 
 target_compile_features(VFSLib PUBLIC cxx_std_20)
+
+if(NOT SHIPPING_BUILD AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/tests")
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_BINARY_DIR}/tests)
+endif()

@@ -14,6 +14,42 @@
 
 ---
 
+## Asset / 资源管理
+> 2026-05-25：已完成 Phase 5 简化路径（Handle Table + 单后台线程异步加载 + 手动 unload）。以下差额在后续阶段补齐。
+
+- [ ] **Asset Phase 6+** | 升级加载基础设施：线程池 + 无锁 MPSC Channel。
+  - 原因：当前 `AssetServer` 使用单 `std::thread` + `std::mutex` 双队列，并发加载 > 5 个时成为瓶颈。
+  - 方案：接入现有 `ThreadPool`（工作窃取），替换 `std::mutex` 为 lock-free MPSC ring buffer（如自研 `ConcurrentQueue`）。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/资源管理.md` 问题 3 分支 C。
+- [ ] **Asset Phase 6+** | 实现 `LoadingGraph` 依赖 DAG + 拓扑后处理。
+  - 原因：当前资源无自动依赖解析（如 Material 引用的 Texture 需手动保证加载顺序）。
+  - 方案：`AssetServer` 维护 `LoadingGraph`（节点 = 资源，边 = 依赖），反向传播完成事件；依赖全部就绪后触发 `postprocess` 解析内部 `Handle<T>` 引用。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/资源管理.md` 问题 4 分支 C。
+- [ ] **Asset Phase 6+** | 自动引用计数批量回收（替代手动 `unload()`）。
+  - 原因：当前 `unload()` 是显式的，易遗漏；大规模 ECS 场景需自动生命周期管理。
+  - 方案：ECS System `RefCountUpdateSystem` 每帧批量扫描所有持有 `Handle<T>` 的组件，更新平行引用计数表；零引用槽位在帧边界 `flush_pending_frees()` 统一回收，保证渲染安全。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/资源管理.md` 问题 2 分支 B。
+- [ ] **Asset Phase 6+** | 文件系统 Watch + 自动热重载。
+  - 原因：当前热重载只能手动 `reload()` 触发，开发期效率低。
+  - 方案：引入 `FileWatcher`（跨平台抽象：Windows `ReadDirectoryChangesW` / Linux `inotify`），文件变更时推入脏 Handle 队列；帧边界 `HotReloadSystem` 统一异步重新加载并原地替换数据（Handle 不变，引用不断裂）。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/资源管理.md` 问题 6。
+- [ ] **Asset Phase 8+** | Cook 管线：源资产与运行时资产分离。
+  - 原因：当前引擎直接加载原始格式（PNG/FBX），运行时解码慢、内存峰值高、无法利用 GPU 压缩格式。
+  - 方案：建立 `AssetImporter` + `ResourceCooker` 工具链；源资产（`SourceAssets/`）经导入/压缩/平台适配后输出运行时资产（`CookOutput/`）；引擎只加载 Cook 后的二进制格式。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/资源管理.md` 问题 7。
+- [ ] **Asset Phase 6+** | 路径去重缓存。
+  - 原因：同一路径多次 `loadAsync()` 会创建多个 Handle，造成内存重复和引用计数分散。
+  - 方案：`AssetServer` 维护 `HashMap<Path, ErasedHandle> m_pathToHandle`，加载前先查缓存；已加载直接返回已有 Handle 并 `incrementRef()`。
+- [ ] **Asset 远期** | 支持不可默认构造的资源类型。
+  - 原因：当前 `HandleTableSlot<T>` 使用 `DynamicArray`，resize 时默认构造元素，要求 T 必须可默认构造。
+  - 方案：重构为手动内存管理（`alignas(T) char buffer[sizeof(T)]` + placement new），类似 `std::optional` 或 `Column<T>` 的底层实现。
+- [ ] **Asset 远期** | AI 可观测性：资源状态 MCP 查询接口。
+  - 原因：AI Agent 需要自描述地了解「当前加载了哪些资源、各占多少内存、引用关系如何」。
+  - 方案：通过反射系统注册资源类型 Schema；`AssetServer` 暴露 `query_asset(handle)` / `dump_ref_graph()` 等 MCP 工具。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/资源管理.md` 问题 8。
+
+---
+
 ## Render / RHI
 - [ ] **RHI Phase 1 → Phase 2** | ECS 集成：将 `GLRHIDevice` 包装为 ECS `Resource`。
   - 目标：让 `MeshRenderSystem` 通过 `IRHICommandList` 录制命令，替代直接 GL 裸调用。

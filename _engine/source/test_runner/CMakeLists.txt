@@ -12,6 +12,7 @@ set(POSSIBLE_TEST_TARGETS
     RenderTests
     ImGuiTests
     VFSTests
+    AssetTests
     ThreadPoolTests
     RuntimeTests
 )
@@ -45,6 +46,7 @@ set(ENTELECHY_TEST_LIBS
     RenderLib
     ImGuiLib
     VFSLib
+    AssetLib
     ThreadPoolLib
 )
 

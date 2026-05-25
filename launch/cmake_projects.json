@@ -58,6 +58,11 @@
             "enabled": true
         },
         {
+            "name": "asset",
+            "path": "source/asset",
+            "enabled": true
+        },
+        {
             "name": "thread_pool",
             "path": "source/thread_pool",
             "enabled": true

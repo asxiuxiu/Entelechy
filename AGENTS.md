@@ -67,6 +67,7 @@ Entelechy/
 │       ├── log/            ← 日志系统（LogLib） [AGENTS.md](./_engine/source/log/AGENTS.md)
 │       ├── render/         ← 图形后端（RenderLib） [AGENTS.md](./_engine/source/render/AGENTS.md)
 │       ├── vfs/            ← 虚拟文件系统（VFSLib） [AGENTS.md](./_engine/source/vfs/AGENTS.md)
+│       ├── asset/          ← 资源管理：Handle Table、异步加载、引用计数（AssetLib） [AGENTS.md](./_engine/source/asset/AGENTS.md)
 │       ├── thread_pool/    ← 工作窃取线程池（ThreadPoolLib） [AGENTS.md](./_engine/source/thread_pool/AGENTS.md)
 │       ├── test/           ← 轻量级测试框架（TestFrameworkLib） [AGENTS.md](./_engine/source/test/AGENTS.md)
 │       ├── test_runner/    ← 统一测试入口（EntelechyTests） [AGENTS.md](./_engine/source/test_runner/AGENTS.md)

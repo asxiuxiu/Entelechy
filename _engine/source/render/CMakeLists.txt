@@ -8,6 +8,14 @@ add_library(RenderLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/gl_rhi_device.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shader_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/material.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/render_world/RenderWorld.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/render_world/ExtractSchedule.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/extract/ExtractRenderablesSystem.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/extract/ExtractCameraSystem.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/culling/FrustumCullSystem.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/queue/BinnedRenderPhase.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/queue/SortedRenderPhase.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/queue/QueueDrawsSystem.cpp
 )
 
 target_include_directories(RenderLib PUBLIC

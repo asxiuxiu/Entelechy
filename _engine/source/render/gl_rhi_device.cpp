@@ -134,8 +134,8 @@ void GLBuffer::onDestroy() {
 // ==================================================================
 // GLTexture
 // ==================================================================
-GLTexture::GLTexture(const TextureDesc& desc, GLuint texture)
-    : m_desc(desc), m_texture(texture) {
+GLTexture::GLTexture(const TextureDesc& desc, GLuint texture, GLenum target)
+    : m_desc(desc), m_texture(texture), m_target(target) {
 }
 
 GLTexture::~GLTexture() {
@@ -423,6 +423,7 @@ RHITextureRef GLRHIDevice::createTexture(const TextureDesc& desc, const void* in
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
         glBindTexture(GL_TEXTURE_2D, 0);
+        return RHITextureRef(new GLTexture(desc, tex, GL_TEXTURE_2D));
     } else {
         // 3D texture (simplified path)
         glBindTexture(GL_TEXTURE_3D, tex);
@@ -431,9 +432,8 @@ RHITextureRef GLRHIDevice::createTexture(const TextureDesc& desc, const void* in
                      static_cast<GLsizei>(desc.depth),
                      0, info.format, info.type, initialData);
         glBindTexture(GL_TEXTURE_3D, 0);
+        return RHITextureRef(new GLTexture(desc, tex, GL_TEXTURE_3D));
     }
-
-    return RHITextureRef(new GLTexture(desc, tex));
 }
 
 RHIShaderRef GLRHIDevice::createShader(ShaderStage stage, const void* bytecode, size_t size) {
@@ -539,6 +539,53 @@ void PSOManager::clear() {
 
 usize PSOManager::getCacheSize() const {
     return m_cache.size();
+}
+
+// ==================================================================
+// GLCommandList — Uniform and texture binding (Phase 1)
+// ==================================================================
+
+void GLCommandList::setUniformFloat(const char* name, f32 value) {
+    if (!m_boundProgram || !name) return;
+    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (loc >= 0) glUniform1f(loc, value);
+}
+
+void GLCommandList::setUniformInt(const char* name, i32 value) {
+    if (!m_boundProgram || !name) return;
+    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (loc >= 0) glUniform1i(loc, value);
+}
+
+void GLCommandList::setUniformVec2(const char* name, const f32* value) {
+    if (!m_boundProgram || !name || !value) return;
+    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (loc >= 0) glUniform2fv(loc, 1, value);
+}
+
+void GLCommandList::setUniformVec3(const char* name, const f32* value) {
+    if (!m_boundProgram || !name || !value) return;
+    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (loc >= 0) glUniform3fv(loc, 1, value);
+}
+
+void GLCommandList::setUniformVec4(const char* name, const f32* value) {
+    if (!m_boundProgram || !name || !value) return;
+    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (loc >= 0) glUniform4fv(loc, 1, value);
+}
+
+void GLCommandList::setUniformMat4(const char* name, const f32* value, bool transpose) {
+    if (!m_boundProgram || !name || !value) return;
+    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (loc >= 0) glUniformMatrix4fv(loc, 1, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
+void GLCommandList::bindTexture(u32 slot, RHITexture* texture) {
+    if (!texture) return;
+    auto* glTex = static_cast<GLTexture*>(texture);
+    glActiveTexture(GL_TEXTURE0 + slot);
+    glBindTexture(glTex->getTarget(), glTex->getTexture());
 }
 
 } // namespace Entelechy

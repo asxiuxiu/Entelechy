@@ -6,6 +6,8 @@ add_library(RenderLib STATIC
     ${CMAKE_CURRENT_LIST_DIR}/opengl_backend.cpp
     ${CMAKE_CURRENT_LIST_DIR}/simple_cube_renderer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gl_rhi_device.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shader_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/material.cpp
 )
 
 target_include_directories(RenderLib PUBLIC

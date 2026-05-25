@@ -32,11 +32,12 @@ private:
 
 class GLTexture : public RHITexture {
 public:
-    explicit GLTexture(const TextureDesc& desc, GLuint texture);
+    GLTexture(const TextureDesc& desc, GLuint texture, GLenum target);
     ~GLTexture() override;
 
     const TextureDesc& getDesc() const override { return m_desc; }
     GLuint getTexture() const { return m_texture; }
+    GLenum getTarget() const { return m_target; }
 
 protected:
     void onDestroy() override;
@@ -44,6 +45,7 @@ protected:
 private:
     TextureDesc m_desc;
     GLuint m_texture = 0;
+    GLenum m_target = GL_TEXTURE_2D;
 };
 
 class GLShader : public RHIShader {
@@ -104,6 +106,15 @@ public:
 
     void resourceBarrier(const BarrierDesc* barriers, u32 count) override;
     void clearRenderTarget(u32 attachmentIndex, const f32 color[4]) override;
+
+    // Uniform and texture binding (Phase 1 immediate GL)
+    void setUniformFloat(const char* name, f32 value) override;
+    void setUniformInt(const char* name, i32 value) override;
+    void setUniformVec2(const char* name, const f32* value) override;
+    void setUniformVec3(const char* name, const f32* value) override;
+    void setUniformVec4(const char* name, const f32* value) override;
+    void setUniformMat4(const char* name, const f32* value, bool transpose = false) override;
+    void bindTexture(u32 slot, RHITexture* texture) override;
 
 private:
     bool m_insideRenderPass = false;

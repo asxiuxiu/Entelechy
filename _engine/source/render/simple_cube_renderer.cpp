@@ -1,5 +1,5 @@
 ﻿#include "simple_cube_renderer.h"
-#include <glad/glad.h>
+#include "gl_rhi_device.h"
 #include "log/log_macros.h"
 #include <cstring>
 
@@ -34,7 +34,7 @@ static const f32 s_cubeVertices[8 * 3] = {
 };
 
 // Indices for 12 triangles (6 faces * 2)
-static const unsigned int s_cubeIndices[36] = {
+static const u32 s_cubeIndices[36] = {
     // front
     4, 5, 6, 4, 6, 7,
     // back
@@ -55,109 +55,107 @@ SimpleCubeRenderer::~SimpleCubeRenderer() {
     if (m_initialized) shutdown();
 }
 
-bool SimpleCubeRenderer::compileShader(const char* vertexSrc, const char* fragmentSrc) {
-    GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vs, 1, &vertexSrc, nullptr);
-    glCompileShader(vs);
+bool SimpleCubeRenderer::createMesh() {
+    VertexAttributeDesc attr{};
+    attr.location = 0;
+    attr.components = 3;
+    attr.normalized = false;
+    attr.offset = 0;
 
-    GLint success = 0;
-    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        char log[512];
-        glGetShaderInfoLog(vs, sizeof(log), nullptr, log);
-        LOG_ERROR(LogCategories::kEngine, "Vertex shader compile error: %s", log);
-        glDeleteShader(vs);
+    BufferDesc vbDesc{};
+    vbDesc.size = sizeof(s_cubeVertices);
+    vbDesc.usage = BufferUsage::Vertex;
+    vbDesc.vertexStride = 3 * sizeof(f32);
+    vbDesc.vertexAttributes = &attr;
+    vbDesc.vertexAttributeCount = 1;
+
+    m_vertexBuffer = m_device->createBuffer(vbDesc, s_cubeVertices);
+    if (!m_vertexBuffer) {
+        LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to create vertex buffer");
         return false;
     }
 
-    GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fs, 1, &fragmentSrc, nullptr);
-    glCompileShader(fs);
+    BufferDesc ibDesc{};
+    ibDesc.size = sizeof(s_cubeIndices);
+    ibDesc.usage = BufferUsage::Index;
 
-    glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        char log[512];
-        glGetShaderInfoLog(fs, sizeof(log), nullptr, log);
-        LOG_ERROR(LogCategories::kEngine, "Fragment shader compile error: %s", log);
-        glDeleteShader(vs);
-        glDeleteShader(fs);
+    m_indexBuffer = m_device->createBuffer(ibDesc, s_cubeIndices);
+    if (!m_indexBuffer) {
+        LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to create index buffer");
         return false;
     }
 
-    m_shaderProgram = glCreateProgram();
-    glAttachShader(m_shaderProgram, vs);
-    glAttachShader(m_shaderProgram, fs);
-    glLinkProgram(m_shaderProgram);
-
-    glGetProgramiv(m_shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        char log[512];
-        glGetProgramInfoLog(m_shaderProgram, sizeof(log), nullptr, log);
-        LOG_ERROR(LogCategories::kEngine, "Shader link error: %s", log);
-        glDeleteProgram(m_shaderProgram);
-        glDeleteShader(vs);
-        glDeleteShader(fs);
-        m_shaderProgram = 0;
-        return false;
-    }
-
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-
-    m_mvpLoc = glGetUniformLocation(m_shaderProgram, "uMVP");
-    m_colorLoc = glGetUniformLocation(m_shaderProgram, "uColor");
     return true;
 }
 
 bool SimpleCubeRenderer::init() {
     if (m_initialized) return true;
 
-    if (!compileShader(s_vertexShader, s_fragmentShader)) {
+    m_device = std::make_unique<GLRHIDevice>();
+    if (!m_device->initialize()) {
+        LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to initialize GLRHIDevice");
         return false;
     }
 
-    glGenVertexArrays(1, &m_vao);
-    glGenBuffers(1, &m_vbo);
-    glGenBuffers(1, &m_ebo);
+    m_shaderCache = std::make_unique<ShaderCache>();
 
-    glBindVertexArray(m_vao);
+    // Parameter layout: matches shader uniforms
+    MaterialParamDesc params[] = {
+        {"uMVP",  MaterialParamType::Mat4},
+        {"uColor", MaterialParamType::Vec3},
+    };
 
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(s_cubeVertices), s_cubeVertices, GL_STATIC_DRAW);
+    PipelineStateDesc pipelineDesc{};
+    pipelineDesc.topology = PrimitiveTopology::Triangles;
+    pipelineDesc.rasterizerState.cullMode = CullMode::Back;
+    pipelineDesc.depthStencilState.depthTest = true;
+    pipelineDesc.depthStencilState.depthWrite = true;
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(s_cubeIndices), s_cubeIndices, GL_STATIC_DRAW);
+    if (!m_material.init(m_device.get(), m_shaderCache.get(),
+                         s_vertexShader, s_fragmentShader,
+                         params, 2, pipelineDesc)) {
+        LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to init material");
+        return false;
+    }
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glBindVertexArray(0);
+    if (!createMesh()) {
+        m_material.shutdown();
+        return false;
+    }
 
     m_initialized = true;
-    LOG_INFO(LogCategories::kEngine, "SimpleCubeRenderer initialized");
+    LOG_INFO(LogCategories::kEngine, "SimpleCubeRenderer initialized (RHI + Material)");
     return true;
 }
 
 void SimpleCubeRenderer::shutdown() {
     if (!m_initialized) return;
-    glDeleteVertexArrays(1, &m_vao);
-    glDeleteBuffers(1, &m_vbo);
-    glDeleteBuffers(1, &m_ebo);
-    glDeleteProgram(m_shaderProgram);
-    m_vao = m_vbo = m_ebo = m_shaderProgram = 0;
+
+    m_material.shutdown();
+    m_indexBuffer.reset();
+    m_vertexBuffer.reset();
+    m_shaderCache.reset();
+    if (m_device) {
+        m_device->shutdown();
+        m_device.reset();
+    }
     m_initialized = false;
 }
 
 void SimpleCubeRenderer::drawCube(const Mat4& mvp, const Vec3& color) {
     if (!m_initialized) return;
 
-    glUseProgram(m_shaderProgram);
-    glUniformMatrix4fv(m_mvpLoc, 1, GL_FALSE, mvp.m);
-    glUniform3f(m_colorLoc, color.x, color.y, color.z);
+    auto* cmdList = m_device->createCommandList();
 
-    glBindVertexArray(m_vao);
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
-    glBindVertexArray(0);
+    m_material.setMat4("uMVP", mvp);
+    m_material.setVec3("uColor", color);
+    m_material.bind(cmdList);
+
+    cmdList->bindVertexBuffer(m_vertexBuffer.get(), 0, 0);
+    cmdList->bindIndexBuffer(m_indexBuffer.get(), 0);
+    cmdList->drawIndexed(36, 0, 0);
+
+    m_device->submit(cmdList);
 }
 
 void SimpleCubeRenderer::drawCube(const Mat4& world, const Mat4& view, const Mat4& proj, const Vec3& color) {

@@ -75,6 +75,39 @@
   - 方案：每帧 Extract 阶段单向只读复制可渲染数据到 Render World，Render World 内 System 生成命令，最终 `PresentSystem` 输出。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/RHI抽象层.md` 问题 6
 
+## Material / Shader（2026-05-25 已完成 Phase 1 简化路径）
+> 当前实现：同步编译 + CPU uniform 块 + `glUniform*` 即时上传 + 无模板分层。
+> 以下为与工业级方案的差额，后续按阶段补齐。
+
+- [ ] **Material Phase 2** | 引入模板-实例三层：`ShaderTemplate` → `MaterialAsset` → `MaterialInstance`。
+  - 原因：当前 `Material` 直接硬编码 VS/FS，无变体管理；美术资产与 GPU 状态未解耦。
+  - 方案：`ShaderTemplate` 定义 `Category/Keyword` 变体规则；`MaterialAsset` 存储参数、PassHint、RenderState；`MaterialInstance` 运行时维护 `TechniqueCache[permutation_id]`。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 1 分支 B。
+- [ ] **Material Phase 2** | 异步 Technique 编译 + Fallback 机制。
+  - 原因：当前 `Material::init()` 同步编译，加载新材质时阻塞渲染线程。
+  - 方案：`TechniqueState` 状态机（Invalid → Pending → Valid）；缓存未命中时返回预编译 Fallback（如粉色棋盘格），后台线程编译完成后自动切换。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 4 分支 B。
+- [ ] **Material Phase 2** | BindGroup 池 + GPU UBO 参数上传。
+  - 原因：当前每 draw call 遍历参数调用 `glUniform*`，CPU 开销大且无法合批。
+  - 方案：每种材质类型定义 `BindGroupLayout`；`MaterialBindGroupAllocator` 按类型分池；CPU uniform 块一次性写入 GPU UBO，`bind()` 只切换 UBO offset 或 PushConstants。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 3 分支 C。
+- [ ] **Material Phase 3** | ECS 原生集成：`MaterialHandle` Component + 渲染管线分阶段。
+  - 原因：当前 `Material` 是纯 C++ 对象，未接入 ECS；渲染系统无法批量处理同材质实体。
+  - 方案：ECS 组件 `MaterialHandle { AssetId material; }`；渲染架构分 Extract → Prepare → Queue → Render；`PrepareMaterialSystem` 按类型批量创建 `BindGroup`，`QueueOpaqueDraws` 按（材质类型, 管线 key）分组排序。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 5 分支 B。
+- [ ] **Material Phase 3** | Shader Keyword / 变体系统。
+  - 原因：当前一材质一 PSO，无法表达「有法线/无法线」「有骨骼/无骨骼」等组合变体。
+  - 方案：`ShaderTemplate` 维护 `Array<ShaderCategory>`；`MaterialInstance::getTechnique(keywords)` 生成 `permutation_id` 并查找/触发编译；严格限制维度（≤5 个二值开关）防止组合爆炸。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 2 分支 C。
+- [ ] **Material Phase 3** | 多 Pass 支持（Deferred / Forward / UI / Shadow）。
+  - 原因：当前 Material 只绑定单个 PSO，无 PassHint 概念。
+  - 方案：`MaterialAsset` 增加 `PassHint`（Deferred/Forward/Translucent/UI）；渲染系统按 Pass 分批提取对应 Technique；同一材质在不同 Pass 使用不同 shader 组合。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 工业级设计清单。
+- [ ] **Material 远期** | 可视化节点图材质编辑器。
+  - 原因：当前材质只能通过 C++ 代码定义，美术无法直观调整。
+  - 方案：运行时解析节点图定义 → 生成 GLSL/HLSL 源码 → 通过 `ShaderCache` 编译；编辑器通过 MCP/反射接口让 AI 也能操作节点参数。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 1 分支 C。
+
 ---
 
 ## AI / Agent 基建

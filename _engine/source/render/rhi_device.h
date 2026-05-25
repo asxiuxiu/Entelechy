@@ -85,6 +85,18 @@ public:
 
     // Clear render target attachment (convenience)
     virtual void clearRenderTarget(u32 attachmentIndex, const f32 color[4]) = 0;
+
+    // Phase 1 note: OpenGL-style immediate uniform setting.
+    // Future backends (Vulkan/D3D12) implement these via push constants
+    // or dynamic UBO offsets. This interface is intentionally minimal
+    // and will be revisited when the bindless architecture is ready.
+    virtual void setUniformFloat(const char* name, f32 value) = 0;
+    virtual void setUniformInt(const char* name, i32 value) = 0;
+    virtual void setUniformVec2(const char* name, const f32* value) = 0;
+    virtual void setUniformVec3(const char* name, const f32* value) = 0;
+    virtual void setUniformVec4(const char* name, const f32* value) = 0;
+    virtual void setUniformMat4(const char* name, const f32* value, bool transpose = false) = 0;
+    virtual void bindTexture(u32 slot, RHITexture* texture) = 0;
 };
 
 } // namespace Entelechy

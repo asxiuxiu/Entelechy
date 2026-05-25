@@ -2,13 +2,23 @@
 #include "foundation_types.h"
 #include "math/vec.h"
 #include "math/mat4.h"
+#include "rhi_device.h"
+#include "rhi_resources.h"
+#include "material.h"
+#include "shader_cache.h"
+#include <memory>
 
 namespace Entelechy {
 
+// Forward declaration
+class GLRHIDevice;
+
 // ------------------------------------------------------------------
 // Minimal cube renderer for batch B visual validation.
-// Hard-coded indexed cube mesh + simple MVP shader.
-// No materials, no texture, no lighting — just flat shaded colored cubes.
+// Indexed cube mesh + MVP shader, now backed by Material + RHI.
+//
+// Phase 1: uses an internal GLRHIDevice to exercise the RHI layer.
+// Future: cube mesh and material will be managed by ECS + render pipeline.
 // ------------------------------------------------------------------
 class SimpleCubeRenderer {
 public:
@@ -25,14 +35,15 @@ public:
     void drawCube(const Mat4& world, const Mat4& view, const Mat4& proj, const Vec3& color);
 
 private:
-    bool compileShader(const char* vertexSrc, const char* fragmentSrc);
+    bool createMesh();
 
-    u32 m_shaderProgram = 0;
-    u32 m_vao = 0;
-    u32 m_vbo = 0;
-    u32 m_ebo = 0;
-    i32 m_mvpLoc = -1;
-    i32 m_colorLoc = -1;
+    std::unique_ptr<GLRHIDevice> m_device;
+    std::unique_ptr<ShaderCache> m_shaderCache;
+    Material m_material;
+
+    RHIBufferRef m_vertexBuffer;
+    RHIBufferRef m_indexBuffer;
+
     bool m_initialized = false;
 };
 

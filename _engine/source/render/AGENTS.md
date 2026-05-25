@@ -15,7 +15,10 @@
 | `opengl_backend.cpp` | OpenGL 初始化、视口管理、清除与呈现（SwapChain 层，保留兼容） |
 | `opengl_backend.h` | `OpenGLBackend` 类声明 |
 | `render_backend.h` | `IRenderBackend` 接口 + `RenderSettings`（SwapChain 兼容层） |
-| `simple_cube_renderer.cpp` | 最小可行立方体渲染器：硬编码索引立方体网格 + MVP 着色器（批次 B 验证用） |
+| `material_types.h` | 材质参数类型枚举（Float/Vec2/Vec3/Vec4/Mat4/Texture）与布局描述 |
+| `shader_cache.h` / `.cpp` | Shader 编译缓存：按 (stage, sourceHash) 去重，同步编译，内存缓存 |
+| `material.h` / `.cpp` | **材质系统核心**：Shader 引用 + CPU uniform 块 + 参数按名设置 + PSO 绑定 |
+| `simple_cube_renderer.cpp` | 最小可行立方体渲染器：通过 `Material` + `GLRHIDevice` 绘制（批次 B 验证用） |
 | `simple_cube_renderer.h` | `SimpleCubeRenderer` 类声明 |
 
 ## 重要入口
@@ -39,9 +42,17 @@
   - OpenGL 后端采用**即时执行**实现（Phase 1 简化），但接口不暴露即时语义
   - 资源生命周期：引用计数 (`GPUResource`) + `RHIRef` 智能句柄，延迟删除队列为未来扩展预留
   - PSO 管理：运行时全局哈希缓存 (`PSOManager`)，异步编译架构预留
+  - **Uniform 绑定**：Phase 1 通过 `IRHICommandList::setUniform*` 直接上传（OpenGL immediate mode）。未来迁移到 UBO / PushConstants / Bindless。
+- **材质系统（Phase 1 简化路径）**：
+  - 无 Template-Instance 分层：Material 直接引用单个 VS/FS，无变体管理
+  - 同步编译：`Material::init()` 同步编译 shader、创建 PSO
+  - CPU 侧 uniform 块：按 std140 布局计算偏移，`bind()` 时遍历参数并调用 `setUniform*`
+  - `ShaderCache`：按 (stage, sourceHash) 去重，避免重复编译
+  - 未来扩展：异步变体编译、Technique 缓存、BindGroup 池、Template/Keyword 系统
 - **分层**：
   - `IRenderBackend` / `OpenGLBackend` 负责 SwapChain 和帧边界（上下文、Present、清屏）
   - `IRHIDevice` / `GLRHIDevice` 负责 GPU 资源创建和命令录制
+  - `Material` 位于 RHI 之上，管理 shader + 参数 + PSO
   - 未来引入 D3D12/Vulkan 时，`IRenderBackend` 可能合并进 `IRHIDevice`
 - 目前只有 OpenGL 后端，未来可能加入 Vulkan / Metal / D3D12
 - `beginFrame()` 每帧自动查询窗口大小并设置 glViewport

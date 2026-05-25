@@ -73,8 +73,8 @@ int main() {
     // App + Plugins
     // ------------------------------------------------------------------
     Entelechy::App app;
-    game::GamePlugin gamePlugin;
-    app.addPlugin(&gamePlugin);
+    auto gamePlugin = std::make_unique<game::GamePlugin>();
+    app.addPlugin(gamePlugin.release());
     app.build();
     app.setup();
 

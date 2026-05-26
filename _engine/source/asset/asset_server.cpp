@@ -3,7 +3,7 @@
 namespace Entelechy {
 
 AssetServer::AssetServer(VFS* vfs) : m_vfs(vfs) {
-    m_loaderThread = std::thread(&AssetServer::loadingThreadLoop, this);
+    m_loader_thread = std::thread(&AssetServer::loadingThreadLoop, this);
 }
 
 AssetServer::~AssetServer() {
@@ -13,8 +13,8 @@ AssetServer::~AssetServer() {
 void AssetServer::shutdown() {
     bool expected = true;
     if (m_running.compare_exchange_strong(expected, false)) {
-        if (m_loaderThread.joinable()) {
-            m_loaderThread.join();
+        if (m_loader_thread.joinable()) {
+            m_loader_thread.join();
         }
     }
 }
@@ -23,10 +23,10 @@ void AssetServer::loadingThreadLoop() {
     while (m_running.load()) {
         std::function<void()> task;
         {
-            std::lock_guard<std::mutex> lock(m_pendingMutex);
-            if (!m_pendingTasks.empty()) {
-                task = std::move(m_pendingTasks.front());
-                m_pendingTasks.pop_front();
+            std::lock_guard<std::mutex> lock(m_pending_mutex);
+            if (!m_pending_tasks.empty()) {
+                task = std::move(m_pending_tasks.front());
+                m_pending_tasks.pop_front();
             }
         }
         if (task) {
@@ -40,8 +40,8 @@ void AssetServer::loadingThreadLoop() {
 void AssetServer::processEvents() {
     std::deque<std::function<void()>> callbacks;
     {
-        std::lock_guard<std::mutex> lock(m_completedMutex);
-        callbacks.swap(m_completedCallbacks);
+        std::lock_guard<std::mutex> lock(m_completed_mutex);
+        callbacks.swap(m_completed_callbacks);
     }
     for (auto& cb : callbacks) {
         cb();

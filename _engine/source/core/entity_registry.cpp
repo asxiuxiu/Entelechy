@@ -1,12 +1,12 @@
-#include "entity_registry.h"
+﻿#include "entity_registry.h"
 
 namespace Entelechy {
 
 Entity EntityRegistry::create() {
     Entity e;
-    if (!m_freeList.empty()) {
-        e.id = m_freeList.back();
-        m_freeList.popBack();
+    if (!m_free_list.empty()) {
+        e.id = m_free_list.back();
+        m_free_list.popBack();
         e.generation = m_slots[e.id].generation;
         m_slots[e.id].alive = true;
     } else {
@@ -30,7 +30,7 @@ void EntityRegistry::destroy(Entity e) {
     if (!isAlive(e)) return;
     m_slots[e.id].alive = false;
     m_slots[e.id].generation++;
-    m_freeList.pushBack(e.id);
+    m_free_list.pushBack(e.id);
 }
 
 bool EntityRegistry::isAlive(Entity e) const {
@@ -43,7 +43,7 @@ u32 EntityRegistry::getGeneration(u32 id) const {
 }
 
 usize EntityRegistry::aliveCount() const {
-    return m_slots.size() - m_freeList.size();
+    return m_slots.size() - m_free_list.size();
 }
 
 usize EntityRegistry::capacity() const {
@@ -52,7 +52,7 @@ usize EntityRegistry::capacity() const {
 
 void EntityRegistry::clear() {
     m_slots.clear();
-    m_freeList.clear();
+    m_free_list.clear();
 }
 
 } // namespace Entelechy

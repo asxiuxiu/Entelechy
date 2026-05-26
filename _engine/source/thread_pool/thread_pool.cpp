@@ -1,4 +1,4 @@
-#include "thread_pool.h"
+﻿#include "thread_pool.h"
 
 namespace Entelechy {
 
@@ -82,7 +82,7 @@ std::function<void()> WorkStealingQueue::steal() {
 
 // ---------- ThreadPool ----------
 
-ThreadPool::ThreadPool(usize numThreads) : m_numThreads(numThreads) {
+ThreadPool::ThreadPool(usize numThreads) : m_num_threads(numThreads) {
     for (usize i = 0; i < numThreads; ++i) {
         Worker* w = new Worker();
         w->thread = std::thread([this, w]() {
@@ -110,24 +110,24 @@ ThreadPool::~ThreadPool() {
 void ThreadPool::submit(std::function<void()> task) {
     if (!task) return;
 
-    m_pendingTasks.fetch_add(1, std::memory_order_relaxed);
+    m_pending_tasks.fetch_add(1, std::memory_order_relaxed);
 
     auto wrapped = [this, t = std::move(task)]() mutable {
         t();
-        m_pendingTasks.fetch_sub(1, std::memory_order_release);
+        m_pending_tasks.fetch_sub(1, std::memory_order_release);
     };
 
     static std::atomic<usize> s_next{0};
     usize idx = s_next.fetch_add(1, std::memory_order_relaxed) % m_workers.size();
 
     if (!m_workers[idx]->queue.push(std::move(wrapped))) {
-        std::lock_guard<std::mutex> lock(m_overflowMutex);
-        m_overflowTasks.push_back(std::move(wrapped));
+        std::lock_guard<std::mutex> lock(m_overflow_mutex);
+        m_overflow_tasks.push_back(std::move(wrapped));
     }
 }
 
 void ThreadPool::waitForAll() {
-    while (m_pendingTasks.load(std::memory_order_acquire) > 0) {
+    while (m_pending_tasks.load(std::memory_order_acquire) > 0) {
         std::this_thread::yield();
     }
 }
@@ -153,10 +153,10 @@ void ThreadPool::runWorkerLoop(Worker* self) {
         if (stolen) continue;
 
         {
-            std::lock_guard<std::mutex> lock(m_overflowMutex);
-            if (!m_overflowTasks.empty()) {
-                task = std::move(m_overflowTasks.front());
-                m_overflowTasks.pop_front();
+            std::lock_guard<std::mutex> lock(m_overflow_mutex);
+            if (!m_overflow_tasks.empty()) {
+                task = std::move(m_overflow_tasks.front());
+                m_overflow_tasks.pop_front();
             }
         }
         if (task) {

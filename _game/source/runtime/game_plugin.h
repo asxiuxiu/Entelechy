@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "core/plugin.h"
 #include "core/app.h"
 #include "scheduler.h"
@@ -38,10 +38,10 @@ private:
 
     struct ColorChangeSystem : Entelechy::System {
         void tick(Entelechy::World& w, Entelechy::FrameArena&, f32) override;
-    } m_colorChange;
+    } m_color_change;
 
-    Entelechy::TransformPropagationSystem m_transformSystem;
-    Entelechy::EventCleanupSystem m_eventCleanup;
+    Entelechy::TransformPropagationSystem m_transform_system;
+    Entelechy::EventCleanupSystem m_event_cleanup;
 };
 
 } // namespace game

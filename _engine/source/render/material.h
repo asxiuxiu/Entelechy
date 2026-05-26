@@ -61,24 +61,24 @@ public:
 
     // -- Queries -----------------------------------------------------------
     bool isValid() const { return m_valid; }
-    const PipelineStateDesc& getPipelineDesc() const { return m_pipelineDesc; }
+    const PipelineStateDesc& getPipelineDesc() const { return m_pipeline_desc; }
 
 private:
     struct ParamSlot {
         MaterialParamType type = MaterialParamType::Float;
-        u32 offset = 0;      // bytes within m_uniformData (for uniform types)
+        u32 offset = 0;      // bytes within m_uniform_data (for uniform types)
         u32 textureSlot = 0; // texture unit index (for texture types)
     };
 
     bool m_valid = false;
 
-    RHIShaderRef m_vertexShader;
-    RHIShaderRef m_fragmentShader;
-    PipelineStateDesc m_pipelineDesc;
-    RHIPipelineStateRef m_pipelineState;
+    RHIShaderRef m_vertex_shader;
+    RHIShaderRef m_fragment_shader;
+    PipelineStateDesc m_pipeline_desc;
+    RHIPipelineStateRef m_pipeline_state;
 
-    u8* m_uniformData = nullptr;
-    u32 m_uniformDataSize = 0;
+    u8* m_uniform_data = nullptr;
+    u32 m_uniform_data_size = 0;
 
     HashMap<SmallString, ParamSlot> m_params;
     HashMap<SmallString, RHITextureRef> m_textures;

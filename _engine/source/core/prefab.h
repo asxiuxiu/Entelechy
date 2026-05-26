@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "foundation_types.h"
 #include "entity_registry.h"
 #include "type_registry.h"
@@ -80,7 +80,7 @@ public:
 
 private:
     DynamicArray<PrefabAsset> m_assets;
-    u32 m_nextAssetID = 0;
+    u32 m_next_asset_id = 0;
 };
 
 } // namespace Entelechy

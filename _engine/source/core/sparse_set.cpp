@@ -1,4 +1,4 @@
-#include "sparse_set.h"
+﻿#include "sparse_set.h"
 
 namespace Entelechy {
 

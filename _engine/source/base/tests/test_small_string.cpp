@@ -1,4 +1,4 @@
-#include "test_framework.h"
+﻿#include "test_framework.h"
 #include "small_string.h"
 
 TEST(Base, SmallStringConstructAndCompare) {

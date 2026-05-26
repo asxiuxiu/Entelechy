@@ -1,4 +1,4 @@
-#include "world.h"
+﻿#include "world.h"
 #include "command_buffer.h"
 #include "type_registry.h"
 #include "math/mat4.h"
@@ -8,15 +8,15 @@
 
 namespace Entelechy {
 
-World::World() : m_registry(new EntityRegistry()), m_ownsRegistry(true) {}
+World::World() : m_registry(new EntityRegistry()), m_owns_registry(true) {}
 
-World::World(EntityRegistry& registry) : m_registry(&registry), m_ownsRegistry(false) {}
+World::World(EntityRegistry& registry) : m_registry(&registry), m_owns_registry(false) {}
 
 World::~World() {
-    for (auto pair : m_componentArrays) {
+    for (auto pair : m_component_arrays) {
         delete pair.second;
     }
-    if (m_ownsRegistry) {
+    if (m_owns_registry) {
         delete m_registry;
     }
 }
@@ -28,23 +28,23 @@ DynamicArray<Entity> World::spawnBatch(usize count) {
     for (const auto& e : entities) {
         if (e.id > maxID) maxID = e.id;
     }
-    if (maxID >= m_entityMasks.size()) {
-        m_entityMasks.resize(maxID + 1, 0);
+    if (maxID >= m_entity_masks.size()) {
+        m_entity_masks.resize(maxID + 1, 0);
     }
-    if (maxID >= m_entityRanks.size()) {
-        m_entityRanks.resize(maxID + 1, 0);
+    if (maxID >= m_entity_ranks.size()) {
+        m_entity_ranks.resize(maxID + 1, 0);
     }
     for (const auto& e : entities) {
-        m_entityMasks[e.id] = 0;
-        m_entityRanks[e.id] = 0;
+        m_entity_masks[e.id] = 0;
+        m_entity_ranks[e.id] = 0;
     }
     return entities;
 }
 
 void World::destroy(Entity e) {
     if (!valid(e)) return;
-    if (m_cmdBuffer) {
-        m_cmdBuffer->destroy(e);
+    if (m_cmd_buffer) {
+        m_cmd_buffer->destroy(e);
     } else {
         destroyImmediate(e);
     }
@@ -52,35 +52,35 @@ void World::destroy(Entity e) {
 
 void World::destroyImmediate(Entity e) {
     if (!valid(e)) return;
-    for (auto pair : m_componentArrays) {
+    for (auto pair : m_component_arrays) {
         pair.second->remove(e);
     }
-    m_entityMasks[e.id] = 0;
-    if (e.id < m_entityRanks.size()) {
-        m_entityRanks[e.id] = 0;
+    m_entity_masks[e.id] = 0;
+    if (e.id < m_entity_ranks.size()) {
+        m_entity_ranks[e.id] = 0;
     }
     m_registry->destroy(e);
 }
 
 void World::setParent(Entity child, Entity parent) {
     if (!valid(child)) return;
-    if (m_cmdBuffer) {
-        m_cmdBuffer->setParent(child, parent);
+    if (m_cmd_buffer) {
+        m_cmd_buffer->setParent(child, parent);
     } else {
         setParentImmediate(child, parent);
     }
 }
 
 u32 World::getRank(Entity e) const {
-    if (e.id < m_entityRanks.size()) return m_entityRanks[e.id];
+    if (e.id < m_entity_ranks.size()) return m_entity_ranks[e.id];
     return 0;
 }
 
 void World::setRank(Entity e, u32 rank) {
-    if (e.id >= m_entityRanks.size()) {
-        m_entityRanks.resize(e.id + 1, 0);
+    if (e.id >= m_entity_ranks.size()) {
+        m_entity_ranks.resize(e.id + 1, 0);
     }
-    m_entityRanks[e.id] = rank;
+    m_entity_ranks[e.id] = rank;
 }
 
 void World::setParentImmediate(Entity child, Entity parent) {
@@ -226,7 +226,7 @@ void World::setParentInPlace(Entity child, Entity parent) {
 }
 
 void World::addComponentRaw(Entity e, ComponentTypeID type, const void* data) {
-    auto* v = m_componentArrays.find(type);
+    auto* v = m_component_arrays.find(type);
     if (v) {
         (*v)->setRaw(e, data);
     } else {
@@ -235,36 +235,36 @@ void World::addComponentRaw(Entity e, ComponentTypeID type, const void* data) {
     const ComponentDesc* desc = TypeRegistry::instance().findComponent(type);
     if (desc) {
         u32 mask = TypeRegistry::instance().getComponentMask(desc->name);
-        m_entityMasks[e.id] |= mask;
+        m_entity_masks[e.id] |= mask;
     }
 }
 
 void World::removeComponentRaw(Entity e, ComponentTypeID type) {
-    auto* v = m_componentArrays.find(type);
+    auto* v = m_component_arrays.find(type);
     if (v) {
         (*v)->remove(e);
     }
     const ComponentDesc* desc = TypeRegistry::instance().findComponent(type);
     if (desc) {
         u32 mask = TypeRegistry::instance().getComponentMask(desc->name);
-        m_entityMasks[e.id] &= ~mask;
+        m_entity_masks[e.id] &= ~mask;
     }
 }
 
 const void* World::getComponentRaw(Entity e, ComponentTypeID type) const {
-    auto* v = m_componentArrays.find(type);
+    auto* v = m_component_arrays.find(type);
     if (!v) return nullptr;
     return (*v)->getRaw(e);
 }
 
 void* World::getComponentRaw(Entity e, ComponentTypeID type) {
-    auto* v = m_componentArrays.find(type);
+    auto* v = m_component_arrays.find(type);
     if (!v) return nullptr;
     return (*v)->getRaw(e);
 }
 
 bool World::hasComponentRaw(Entity e, ComponentTypeID type) const {
-    auto* v = m_componentArrays.find(type);
+    auto* v = m_component_arrays.find(type);
     if (!v) return false;
     return (*v)->has(e);
 }

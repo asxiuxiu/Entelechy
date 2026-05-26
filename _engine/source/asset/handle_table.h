@@ -35,20 +35,20 @@ public:
     // The slot is reserved but not yet occupied (get() returns nullptr
     // until fill() is called). This supports async loading workflows.
     Handle<T> allocate() {
-        if (!m_freeList.empty()) {
-            u32 index = m_freeList.back();
-            m_freeList.popBack();
+        if (!m_free_list.empty()) {
+            u32 index = m_free_list.back();
+            m_free_list.popBack();
             auto& slot = m_slots[index];
             slot.generation++;
-            m_refCounts[index] = 0;
+            m_ref_counts[index] = 0;
             return Handle<T>{index, slot.generation};
         }
         u32 index = static_cast<u32>(m_slots.size());
         m_slots.resize(index + 1);
-        m_refCounts.resize(index + 1);
+        m_ref_counts.resize(index + 1);
         auto& slot = m_slots[index];
         slot.generation = 1;
-        m_refCounts[index] = 0;
+        m_ref_counts[index] = 0;
         return Handle<T>{index, 1};
     }
 
@@ -60,13 +60,13 @@ public:
         if (slot.generation != handle.generation) return;
         if (slot.occupied) {
             slot.occupied = false;
-            --m_activeCount;
+            --m_active_count;
         }
         slot.generation++;
         std::destroy_at(&slot.data);
         std::construct_at(&slot.data);
-        m_refCounts[handle.index] = 0;
-        m_freeList.pushBack(handle.index);
+        m_ref_counts[handle.index] = 0;
+        m_free_list.pushBack(handle.index);
     }
 
     // Try to get a pointer to the data. Returns nullptr if handle
@@ -95,38 +95,38 @@ public:
         CHECK(slot.generation == handle.generation);
         if (!slot.occupied) {
             slot.occupied = true;
-            ++m_activeCount;
+            ++m_active_count;
         }
         slot.data = std::move(value);
     }
 
     void incrementRef(Handle<T> handle) {
         if (!handle.valid()) return;
-        if (handle.index >= m_refCounts.size()) return;
+        if (handle.index >= m_ref_counts.size()) return;
         auto& slot = m_slots[handle.index];
         if (slot.generation != handle.generation) return;
-        m_refCounts[handle.index]++;
+        m_ref_counts[handle.index]++;
     }
 
     void decrementRef(Handle<T> handle) {
         if (!handle.valid()) return;
-        if (handle.index >= m_refCounts.size()) return;
+        if (handle.index >= m_ref_counts.size()) return;
         auto& slot = m_slots[handle.index];
         if (slot.generation != handle.generation) return;
-        CHECK(m_refCounts[handle.index] > 0);
-        m_refCounts[handle.index]--;
+        CHECK(m_ref_counts[handle.index] > 0);
+        m_ref_counts[handle.index]--;
     }
 
     [[nodiscard]] u32 refCount(Handle<T> handle) const {
         if (!handle.valid()) return 0;
-        if (handle.index >= m_refCounts.size()) return 0;
+        if (handle.index >= m_ref_counts.size()) return 0;
         const auto& slot = m_slots[handle.index];
         if (slot.generation != handle.generation) return 0;
-        return m_refCounts[handle.index];
+        return m_ref_counts[handle.index];
     }
 
     [[nodiscard]] usize slotCount() const { return m_slots.size(); }
-    [[nodiscard]] usize activeCount() const { return m_activeCount; }
+    [[nodiscard]] usize activeCount() const { return m_active_count; }
 
     [[nodiscard]] bool isOccupied(Handle<T> handle) const {
         if (!handle.valid()) return false;
@@ -142,16 +142,16 @@ public:
             }
         }
         m_slots.clear();
-        m_refCounts.clear();
-        m_freeList.clear();
-        m_activeCount = 0;
+        m_ref_counts.clear();
+        m_free_list.clear();
+        m_active_count = 0;
     }
 
 private:
     DynamicArray<HandleTableSlot<T>> m_slots;
-    DynamicArray<u32> m_refCounts;
-    DynamicArray<u32> m_freeList;
-    usize m_activeCount = 0;
+    DynamicArray<u32> m_ref_counts;
+    DynamicArray<u32> m_free_list;
+    usize m_active_count = 0;
 };
 
 } // namespace Entelechy

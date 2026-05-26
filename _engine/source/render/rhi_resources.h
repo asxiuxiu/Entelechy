@@ -18,25 +18,25 @@ public:
     virtual ~GPUResource() = default;
 
     void addRef() {
-        m_refCount.fetch_add(1, std::memory_order_relaxed);
+        m_ref_count.fetch_add(1, std::memory_order_relaxed);
     }
 
     void release() {
-        if (m_refCount.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        if (m_ref_count.fetch_sub(1, std::memory_order_acq_rel) == 1) {
             onDestroy();
             delete this;
         }
     }
 
     u32 refCount() const {
-        return m_refCount.load(std::memory_order_relaxed);
+        return m_ref_count.load(std::memory_order_relaxed);
     }
 
 protected:
     virtual void onDestroy() {}
 
 private:
-    mutable std::atomic<u32> m_refCount{1};
+    mutable std::atomic<u32> m_ref_count{1};
 };
 
 // ------------------------------------------------------------------

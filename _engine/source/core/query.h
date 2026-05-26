@@ -23,7 +23,7 @@ class QueryImpl {
 
 public:
     explicit QueryImpl(WorldT& world) : m_world(&world) {
-        m_primaryArray = world.template getComponentArray<FirstC>();
+        m_primary_array = world.template getComponentArray<FirstC>();
     }
 
     struct Iterator {
@@ -70,23 +70,23 @@ public:
 
     Iterator begin() const {
         u32 requiredMask = (TypeRegistry::instance().getMask<Cs>() | ...);
-        if (!m_primaryArray || m_primaryArray->count() == 0) {
+        if (!m_primary_array || m_primary_array->count() == 0) {
             return end();
         }
-        Iterator it{m_world, m_primaryArray->entityIds(), 0, m_primaryArray->count(), requiredMask};
+        Iterator it{m_world, m_primary_array->entityIds(), 0, m_primary_array->count(), requiredMask};
         it.advanceToNextValid();
         return it;
     }
 
     Iterator end() const {
         u32 requiredMask = (TypeRegistry::instance().getMask<Cs>() | ...);
-        usize count = m_primaryArray ? m_primaryArray->count() : 0;
+        usize count = m_primary_array ? m_primary_array->count() : 0;
         return Iterator{m_world, nullptr, count, count, requiredMask};
     }
 
 private:
     WorldT* m_world;
-    PrimaryArrayPtr m_primaryArray = nullptr;
+    PrimaryArrayPtr m_primary_array = nullptr;
 };
 
 template<typename... Cs>

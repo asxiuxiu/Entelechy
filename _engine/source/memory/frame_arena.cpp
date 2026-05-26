@@ -1,4 +1,4 @@
-#include "frame_arena.h"
+﻿#include "frame_arena.h"
 #include "allocator.h"
 #include <utility>
 
@@ -31,7 +31,7 @@ FrameArena::FrameArena(usize capacity)
     : m_base(static_cast<u8*>(DefaultAllocator::alloc(capacity, 64)))
     , m_capacity(capacity)
     , m_offset(0)
-    , m_overflowHead(nullptr) {
+    , m_overflow_head(nullptr) {
 }
 
 FrameArena::~FrameArena() {
@@ -50,12 +50,12 @@ void* FrameArena::allocate(usize size, usize align) {
     }
 
     // Try to fit into the newest overflow block (head of list)
-    if (m_overflowHead) {
-        usize op = (m_overflowHead->offset + mask) & ~mask;
-        if (op + size <= m_overflowHead->capacity) {
-            m_overflowHead->offset = op + size;
+    if (m_overflow_head) {
+        usize op = (m_overflow_head->offset + mask) & ~mask;
+        if (op + size <= m_overflow_head->capacity) {
+            m_overflow_head->offset = op + size;
             m_stats.allocationCount++;
-            return m_overflowHead->memory + op;
+            return m_overflow_head->memory + op;
         }
     }
 
@@ -76,8 +76,8 @@ void* FrameArena::allocate(usize size, usize align) {
     block->memory = mem;
     block->capacity = blockSize;
     block->offset = size;
-    block->next = m_overflowHead;
-    m_overflowHead = block;
+    block->next = m_overflow_head;
+    m_overflow_head = block;
     m_stats.allocationCount++;
 
     return mem;
@@ -85,14 +85,14 @@ void* FrameArena::allocate(usize size, usize align) {
 
 void FrameArena::reset() {
     m_offset = 0;
-    OverflowBlock* block = m_overflowHead;
+    OverflowBlock* block = m_overflow_head;
     while (block) {
         OverflowBlock* next = block->next;
         DefaultAllocator::free(block->memory);
         DefaultAllocator::free(block);
         block = next;
     }
-    m_overflowHead = nullptr;
+    m_overflow_head = nullptr;
 }
 
 void FrameArena::rollback(const MemMark& mark) {
@@ -101,32 +101,32 @@ void FrameArena::rollback(const MemMark& mark) {
     if (mark.savedOffset <= m_capacity) {
         // Rollback within main block: free all overflow and reset main offset
         m_offset = mark.savedOffset;
-        OverflowBlock* block = m_overflowHead;
+        OverflowBlock* block = m_overflow_head;
         while (block) {
             OverflowBlock* next = block->next;
             DefaultAllocator::free(block->memory);
             DefaultAllocator::free(block);
             block = next;
         }
-        m_overflowHead = nullptr;
+        m_overflow_head = nullptr;
     } else {
         // Overflow rollback not precisely supported in Phase A.
         // Safe fallback: free all overflow and clamp to capacity.
-        OverflowBlock* block = m_overflowHead;
+        OverflowBlock* block = m_overflow_head;
         while (block) {
             OverflowBlock* next = block->next;
             DefaultAllocator::free(block->memory);
             DefaultAllocator::free(block);
             block = next;
         }
-        m_overflowHead = nullptr;
+        m_overflow_head = nullptr;
         m_offset = m_capacity; // main block was already full
     }
 }
 
 usize FrameArena::consumedBytes() const {
     usize total = m_offset;
-    for (OverflowBlock* b = m_overflowHead; b; b = b->next) {
+    for (OverflowBlock* b = m_overflow_head; b; b = b->next) {
         total += b->offset;
     }
     return total;
@@ -149,7 +149,7 @@ void FrameArena::swap(FrameArena& other) noexcept {
     swap(m_base, other.m_base);
     swap(m_capacity, other.m_capacity);
     swap(m_offset, other.m_offset);
-    swap(m_overflowHead, other.m_overflowHead);
+    swap(m_overflow_head, other.m_overflow_head);
     swap(m_stats, other.m_stats);
 }
 

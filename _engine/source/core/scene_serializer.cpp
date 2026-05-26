@@ -1,4 +1,4 @@
-#include "scene_serializer.h"
+﻿#include "scene_serializer.h"
 #include "world.h"
 #include "type_registry.h"
 #include "component_array.h"

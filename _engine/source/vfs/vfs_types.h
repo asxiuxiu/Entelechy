@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "dynamic_array.h"
 #include "foundation_types.h"
 

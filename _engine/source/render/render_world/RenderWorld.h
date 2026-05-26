@@ -14,7 +14,7 @@ public:
     World& world() { return m_world; }
     const World& world() const { return m_world; }
 
-    ExtractSchedule& extractSchedule() { return m_extractSchedule; }
+    ExtractSchedule& extractSchedule() { return m_extract_schedule; }
 
     MainWorldSync& sync() { return m_sync; }
     const MainWorldSync& sync() const { return m_sync; }
@@ -27,7 +27,7 @@ public:
 
 private:
     World m_world;
-    ExtractSchedule m_extractSchedule;
+    ExtractSchedule m_extract_schedule;
     MainWorldSync m_sync;
 };
 

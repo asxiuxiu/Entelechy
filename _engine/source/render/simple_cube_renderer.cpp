@@ -69,8 +69,8 @@ bool SimpleCubeRenderer::createMesh() {
     vbDesc.vertexAttributes = &attr;
     vbDesc.vertexAttributeCount = 1;
 
-    m_vertexBuffer = m_device->createBuffer(vbDesc, s_cubeVertices);
-    if (!m_vertexBuffer) {
+    m_vertex_buffer = m_device->createBuffer(vbDesc, s_cubeVertices);
+    if (!m_vertex_buffer) {
         LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to create vertex buffer");
         return false;
     }
@@ -79,8 +79,8 @@ bool SimpleCubeRenderer::createMesh() {
     ibDesc.size = sizeof(s_cubeIndices);
     ibDesc.usage = BufferUsage::Index;
 
-    m_indexBuffer = m_device->createBuffer(ibDesc, s_cubeIndices);
-    if (!m_indexBuffer) {
+    m_index_buffer = m_device->createBuffer(ibDesc, s_cubeIndices);
+    if (!m_index_buffer) {
         LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to create index buffer");
         return false;
     }
@@ -97,7 +97,7 @@ bool SimpleCubeRenderer::init() {
         return false;
     }
 
-    m_shaderCache = std::make_unique<ShaderCache>();
+    m_shader_cache = std::make_unique<ShaderCache>();
 
     // Parameter layout: matches shader uniforms
     MaterialParamDesc params[] = {
@@ -111,7 +111,7 @@ bool SimpleCubeRenderer::init() {
     pipelineDesc.depthStencilState.depthTest = true;
     pipelineDesc.depthStencilState.depthWrite = true;
 
-    if (!m_material.init(m_device.get(), m_shaderCache.get(),
+    if (!m_material.init(m_device.get(), m_shader_cache.get(),
                          s_vertexShader, s_fragmentShader,
                          params, 2, pipelineDesc)) {
         LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to init material");
@@ -132,9 +132,9 @@ void SimpleCubeRenderer::shutdown() {
     if (!m_initialized) return;
 
     m_material.shutdown();
-    m_indexBuffer.reset();
-    m_vertexBuffer.reset();
-    m_shaderCache.reset();
+    m_index_buffer.reset();
+    m_vertex_buffer.reset();
+    m_shader_cache.reset();
     if (m_device) {
         m_device->shutdown();
         m_device.reset();
@@ -151,8 +151,8 @@ void SimpleCubeRenderer::drawCube(const Mat4& mvp, const Vec3& color) {
     m_material.setVec3("uColor", color);
     m_material.bind(cmdList);
 
-    cmdList->bindVertexBuffer(m_vertexBuffer.get(), 0, 0);
-    cmdList->bindIndexBuffer(m_indexBuffer.get(), 0);
+    cmdList->bindVertexBuffer(m_vertex_buffer.get(), 0, 0);
+    cmdList->bindIndexBuffer(m_index_buffer.get(), 0);
     cmdList->drawIndexed(36, 0, 0);
 
     m_device->submit(cmdList);

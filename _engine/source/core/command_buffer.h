@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "world.h"
 #include "dynamic_array.h"
 #include <cstring>

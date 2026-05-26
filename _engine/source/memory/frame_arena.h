@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "foundation_types.h"
 #include "iallocator.h"
 
@@ -57,7 +57,7 @@ private:
     u8* m_base;
     usize m_capacity;
     usize m_offset;
-    OverflowBlock* m_overflowHead;
+    OverflowBlock* m_overflow_head;
     mutable AllocatorStats m_stats;
 };
 

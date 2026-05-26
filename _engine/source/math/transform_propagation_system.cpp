@@ -74,8 +74,8 @@ void TransformPropagationSystem::tick(World& world, FrameArena& arena, f32 dt) {
             trans->dirty = 0;
         };
 
-        if (m_threadPool && bucket.size() > 16) {
-            m_threadPool->parallelFor(bucket.size(), 16, [&](usize i) {
+        if (m_thread_pool && bucket.size() > 16) {
+            m_thread_pool->parallelFor(bucket.size(), 16, [&](usize i) {
                 propagateOne(bucket[i]);
             });
         } else {

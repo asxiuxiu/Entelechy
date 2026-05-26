@@ -24,6 +24,16 @@ namespace Entelechy {
 // - A deque stores the last MAX_HISTORY entries as a ring buffer for
 //   the ImGui log panel.
 // - Output is routed through pluggable LogOutputDevice instances.
+//
+// Architecture notes:
+// - Logger is intentionally a global singleton, NOT an ECS-driven system.
+//   Logging is lower-level than ECS (memory allocators, ECS bootstrap,
+//   and thread pools all need to log before a World exists).
+// - Future evolution (Phase 2~3): replace mutex+vector with TLS lock-free
+//   ring buffers (UE TraceLog style) to eliminate contention under
+//   >1000 logs/frame from many worker threads.
+// - Future evolution (Phase 1+): ECS can emit LogEvent components; a
+//   LogSinkSystem reads them and forwards to Logger::instance().log().
 class Logger {
 public:
     static constexpr usize MAX_HISTORY = 4096;
@@ -46,6 +56,15 @@ public:
     // Called once per frame from the main thread.
     // Swaps the double buffer and drains all pending entries to devices and history.
     void flush();
+
+    // Register OS-level crash/termination handlers.
+    // Call once after init() and before the engine starts running.
+    void installCrashHandlers();
+
+    // Best-effort signal-safe emergency flush. Does NOT take locks.
+    // Iterates both m_read_queue and m_write_queue and writes to all
+    // output devices. Intended for use only inside crash handlers.
+    void emergencyFlush() noexcept;
 
     // Runtime level filtering
     void setMinLevel(LogLevel level);

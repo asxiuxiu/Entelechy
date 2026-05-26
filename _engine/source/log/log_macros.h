@@ -10,6 +10,22 @@
 namespace Entelechy {
 
 // ============================================================
+// Log macro architecture: two-tier filtering
+// ============================================================
+//
+// Tier 1 — Compile-time filter (LOG_COMPILE_LEVEL):
+//   - Shipping builds strip Debug/Info via if constexpr.
+//   - Zero runtime cost for disabled levels.
+//
+// Tier 2 — Runtime filter (Logger::setMinLevel):
+//   - Atomic level check in logDispatch() before formatting/queueing.
+//   - Allows live toggling (e.g. console command "log.render verbose").
+//
+// Once macros (LOG_*_ONCE) use a static bool per call site.
+// They are NOT thread-safe for the first race, but the race window
+// is a single bool store and duplicate emission is harmless.
+//
+// ============================================================
 // Compile-time log level filter
 // ============================================================
 #ifdef SHIPPING_BUILD

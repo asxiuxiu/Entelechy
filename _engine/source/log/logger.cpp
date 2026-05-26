@@ -5,6 +5,15 @@
 #include <iostream>
 #include <ctime>
 #include <cstring>
+#include <csignal>
+#include <cstdlib>
+#include <atomic>
+
+#if PLATFORM_WINDOWS
+    #define WIN32_LEAN_AND_MEAN
+    #define NOMINMAX
+    #include <windows.h>
+#endif
 
 namespace Entelechy {
 
@@ -161,6 +170,99 @@ void Logger::flush() {
 // ============================================================
 void Logger::pushToHistory(const QueuedLogEntry& entry) {
     m_history.pushBack(entry);
+}
+
+// ============================================================
+// Crash / termination handlers
+// ============================================================
+// NOTE: These handlers run in a compromised process state. We do NOT
+// take any locks (the crashing thread may already hold m_mutex).
+// Calling virtual functions from a signal handler is technically UB,
+// but it is the only practical way to flush file buffers, and the
+// process is already terminating. All major engines (UE, Unity) do this.
+
+namespace {
+
+static std::terminate_handler s_original_terminate_handler = nullptr;
+
+#if PLATFORM_WINDOWS
+static LPTOP_LEVEL_EXCEPTION_FILTER s_original_exception_filter = nullptr;
+#endif
+
+static std::atomic<bool> s_in_emergency_flush{false};
+
+void invokeEmergencyFlush() {
+    // Prevent recursive emergency flush if a device's write() crashes.
+    bool expected = false;
+    if (!s_in_emergency_flush.compare_exchange_strong(expected, true)) {
+        return;
+    }
+    Logger::instance().emergencyFlush();
+}
+
+void terminateHandler() {
+    invokeEmergencyFlush();
+    if (s_original_terminate_handler) {
+        s_original_terminate_handler();
+    } else {
+        std::abort();
+    }
+}
+
+#if PLATFORM_WINDOWS
+LONG WINAPI winExceptionHandler(EXCEPTION_POINTERS* exceptionInfo) {
+    invokeEmergencyFlush();
+    if (s_original_exception_filter) {
+        return s_original_exception_filter(exceptionInfo);
+    }
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+
+#if !PLATFORM_WINDOWS
+void posixSignalHandler(int sig) {
+    invokeEmergencyFlush();
+    // Restore default handler and re-raise so the OS generates a core dump.
+    std::signal(sig, SIG_DFL);
+    std::raise(sig);
+}
+#endif
+
+} // anonymous namespace
+
+void Logger::installCrashHandlers() {
+    s_original_terminate_handler = std::set_terminate(terminateHandler);
+
+#if PLATFORM_WINDOWS
+    s_original_exception_filter = SetUnhandledExceptionFilter(winExceptionHandler);
+#else
+    std::signal(SIGSEGV, posixSignalHandler);
+    std::signal(SIGABRT, posixSignalHandler);
+    std::signal(SIGILL, posixSignalHandler);
+    std::signal(SIGFPE, posixSignalHandler);
+#endif
+}
+
+void Logger::emergencyFlush() noexcept {
+    // Best-effort: write everything in m_read_queue (already swapped out)
+    // and m_write_queue (skip lock; process is terminating anyway).
+    // We intentionally do NOT touch m_history to avoid side effects.
+
+    for (const auto& entry : m_read_queue) {
+        for (auto& device : m_devices) {
+            device->write(entry);
+        }
+    }
+
+    for (const auto& entry : m_write_queue) {
+        for (auto& device : m_devices) {
+            device->write(entry);
+        }
+    }
+
+    for (auto& device : m_devices) {
+        device->flush();
+    }
 }
 
 } // namespace Entelechy

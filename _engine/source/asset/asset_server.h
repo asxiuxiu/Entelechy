@@ -66,12 +66,12 @@ private:
 
     VFS* m_vfs = nullptr;
 
-    std::thread m_loaderThread;
-    std::mutex m_pendingMutex;
-    std::deque<std::function<void()>> m_pendingTasks;
+    std::thread m_loader_thread;
+    std::mutex m_pending_mutex;
+    std::deque<std::function<void()>> m_pending_tasks;
 
-    std::mutex m_completedMutex;
-    std::deque<std::function<void()>> m_completedCallbacks;
+    std::mutex m_completed_mutex;
+    std::deque<std::function<void()>> m_completed_callbacks;
 
     std::atomic<bool> m_running{true};
 };
@@ -99,15 +99,15 @@ Handle<T> AssetServer::loadAsync(const Path& path, IAssetLoader<T>& loader, Asse
         }
         T asset = loader.load(data, path);
 
-        std::lock_guard<std::mutex> lock(m_completedMutex);
-        m_completedCallbacks.push_back([handle, asset = std::move(asset), &storage]() mutable {
+        std::lock_guard<std::mutex> lock(m_completed_mutex);
+        m_completed_callbacks.push_back([handle, asset = std::move(asset), &storage]() mutable {
             storage.fill(handle, std::move(asset));
         });
     };
 
     {
-        std::lock_guard<std::mutex> lock(m_pendingMutex);
-        m_pendingTasks.push_back(std::move(task));
+        std::lock_guard<std::mutex> lock(m_pending_mutex);
+        m_pending_tasks.push_back(std::move(task));
     }
 
     return handle;

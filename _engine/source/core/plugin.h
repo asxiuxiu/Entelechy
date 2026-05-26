@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "foundation_types.h"
 #include "small_string.h"
 

@@ -9,7 +9,7 @@ void RenderWorld::extract(const World& mainWorld, f32 dt) {
     clear();
 
     FrameArena arena(1024 * 1024); // 1 MiB temporary scratch for extract
-    m_extractSchedule.run(mainWorld, m_world, arena, dt);
+    m_extract_schedule.run(mainWorld, m_world, arena, dt);
 }
 
 void RenderWorld::clear() {

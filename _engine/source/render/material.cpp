@@ -44,34 +44,34 @@ Material::~Material() {
 
 Material::Material(Material&& other) noexcept
     : m_valid(other.m_valid)
-    , m_vertexShader(std::move(other.m_vertexShader))
-    , m_fragmentShader(std::move(other.m_fragmentShader))
-    , m_pipelineDesc(std::move(other.m_pipelineDesc))
-    , m_pipelineState(std::move(other.m_pipelineState))
-    , m_uniformData(other.m_uniformData)
-    , m_uniformDataSize(other.m_uniformDataSize)
+    , m_vertex_shader(std::move(other.m_vertex_shader))
+    , m_fragment_shader(std::move(other.m_fragment_shader))
+    , m_pipeline_desc(std::move(other.m_pipeline_desc))
+    , m_pipeline_state(std::move(other.m_pipeline_state))
+    , m_uniform_data(other.m_uniform_data)
+    , m_uniform_data_size(other.m_uniform_data_size)
     , m_params(std::move(other.m_params))
     , m_textures(std::move(other.m_textures)) {
     other.m_valid = false;
-    other.m_uniformData = nullptr;
-    other.m_uniformDataSize = 0;
+    other.m_uniform_data = nullptr;
+    other.m_uniform_data_size = 0;
 }
 
 Material& Material::operator=(Material&& other) noexcept {
     if (this != &other) {
         shutdown();
         m_valid = other.m_valid;
-        m_vertexShader = std::move(other.m_vertexShader);
-        m_fragmentShader = std::move(other.m_fragmentShader);
-        m_pipelineDesc = std::move(other.m_pipelineDesc);
-        m_pipelineState = std::move(other.m_pipelineState);
-        m_uniformData = other.m_uniformData;
-        m_uniformDataSize = other.m_uniformDataSize;
+        m_vertex_shader = std::move(other.m_vertex_shader);
+        m_fragment_shader = std::move(other.m_fragment_shader);
+        m_pipeline_desc = std::move(other.m_pipeline_desc);
+        m_pipeline_state = std::move(other.m_pipeline_state);
+        m_uniform_data = other.m_uniform_data;
+        m_uniform_data_size = other.m_uniform_data_size;
         m_params = std::move(other.m_params);
         m_textures = std::move(other.m_textures);
         other.m_valid = false;
-        other.m_uniformData = nullptr;
-        other.m_uniformDataSize = 0;
+        other.m_uniform_data = nullptr;
+        other.m_uniform_data_size = 0;
     }
     return *this;
 }
@@ -92,25 +92,25 @@ bool Material::init(IRHIDevice* device, ShaderCache* shaderCache,
     usize fsLen = std::strlen(fragmentSource);
 
     if (shaderCache) {
-        m_vertexShader   = shaderCache->getOrCreateShader(device, ShaderStage::Vertex,   vertexSource,   vsLen);
-        m_fragmentShader = shaderCache->getOrCreateShader(device, ShaderStage::Fragment, fragmentSource, fsLen);
+        m_vertex_shader   = shaderCache->getOrCreateShader(device, ShaderStage::Vertex,   vertexSource,   vsLen);
+        m_fragment_shader = shaderCache->getOrCreateShader(device, ShaderStage::Fragment, fragmentSource, fsLen);
     } else {
-        m_vertexShader   = device->createShader(ShaderStage::Vertex,   vertexSource,   vsLen);
-        m_fragmentShader = device->createShader(ShaderStage::Fragment, fragmentSource, fsLen);
+        m_vertex_shader   = device->createShader(ShaderStage::Vertex,   vertexSource,   vsLen);
+        m_fragment_shader = device->createShader(ShaderStage::Fragment, fragmentSource, fsLen);
     }
 
-    if (!m_vertexShader || !m_fragmentShader) {
+    if (!m_vertex_shader || !m_fragment_shader) {
         LOG_ERROR(LogCategories::kEngine, "Material::init: shader compilation failed");
         shutdown();
         return false;
     }
 
     // Create pipeline state
-    m_pipelineDesc = pipelineDesc;
-    m_pipelineDesc.vertexShader = m_vertexShader.get();
-    m_pipelineDesc.fragmentShader = m_fragmentShader.get();
-    m_pipelineState = device->createPipelineState(m_pipelineDesc);
-    if (!m_pipelineState) {
+    m_pipeline_desc = pipelineDesc;
+    m_pipeline_desc.vertexShader = m_vertex_shader.get();
+    m_pipeline_desc.fragmentShader = m_fragment_shader.get();
+    m_pipeline_state = device->createPipelineState(m_pipeline_desc);
+    if (!m_pipeline_state) {
         LOG_ERROR(LogCategories::kEngine, "Material::init: pipeline state creation failed");
         shutdown();
         return false;
@@ -145,9 +145,9 @@ bool Material::init(IRHIDevice* device, ShaderCache* shaderCache,
         }
 
         if (uniformOffset > 0) {
-            m_uniformDataSize = alignOffset(uniformOffset, 16);
-            m_uniformData = new u8[m_uniformDataSize];
-            std::memset(m_uniformData, 0, m_uniformDataSize);
+            m_uniform_data_size = alignOffset(uniformOffset, 16);
+            m_uniform_data = new u8[m_uniform_data_size];
+            std::memset(m_uniform_data, 0, m_uniform_data_size);
         }
     }
 
@@ -157,14 +157,14 @@ bool Material::init(IRHIDevice* device, ShaderCache* shaderCache,
 
 void Material::shutdown() {
     m_valid = false;
-    m_pipelineState.reset();
-    m_vertexShader.reset();
-    m_fragmentShader.reset();
-    if (m_uniformData) {
-        delete[] m_uniformData;
-        m_uniformData = nullptr;
+    m_pipeline_state.reset();
+    m_vertex_shader.reset();
+    m_fragment_shader.reset();
+    if (m_uniform_data) {
+        delete[] m_uniform_data;
+        m_uniform_data = nullptr;
     }
-    m_uniformDataSize = 0;
+    m_uniform_data_size = 0;
     m_params.clear();
     m_textures.clear();
 }
@@ -173,40 +173,40 @@ void Material::shutdown() {
 // Parameter setters
 // ------------------------------------------------------------------
 void Material::setFloat(const char* name, f32 value) {
-    if (!m_uniformData || !name) return;
+    if (!m_uniform_data || !name) return;
     auto* slot = m_params.find(SmallString(name));
     if (!slot || slot->type != MaterialParamType::Float) return;
-    std::memcpy(m_uniformData + slot->offset, &value, sizeof(f32));
+    std::memcpy(m_uniform_data + slot->offset, &value, sizeof(f32));
 }
 
 void Material::setVec2(const char* name, const Vec2& value) {
-    if (!m_uniformData || !name) return;
+    if (!m_uniform_data || !name) return;
     auto* slot = m_params.find(SmallString(name));
     if (!slot || slot->type != MaterialParamType::Vec2) return;
-    std::memcpy(m_uniformData + slot->offset, &value.x, 2 * sizeof(f32));
+    std::memcpy(m_uniform_data + slot->offset, &value.x, 2 * sizeof(f32));
 }
 
 void Material::setVec3(const char* name, const Vec3& value) {
-    if (!m_uniformData || !name) return;
+    if (!m_uniform_data || !name) return;
     auto* slot = m_params.find(SmallString(name));
     if (!slot || slot->type != MaterialParamType::Vec3) return;
-    std::memcpy(m_uniformData + slot->offset, &value.x, 3 * sizeof(f32));
+    std::memcpy(m_uniform_data + slot->offset, &value.x, 3 * sizeof(f32));
     // Note: std140 vec3 has 4 floats (16 bytes), but we only write 3.
     // The shader only reads .xyz; the w component is padding.
 }
 
 void Material::setVec4(const char* name, const Vec4& value) {
-    if (!m_uniformData || !name) return;
+    if (!m_uniform_data || !name) return;
     auto* slot = m_params.find(SmallString(name));
     if (!slot || slot->type != MaterialParamType::Vec4) return;
-    std::memcpy(m_uniformData + slot->offset, &value.x, 4 * sizeof(f32));
+    std::memcpy(m_uniform_data + slot->offset, &value.x, 4 * sizeof(f32));
 }
 
 void Material::setMat4(const char* name, const Mat4& value, bool /*transpose*/) {
-    if (!m_uniformData || !name) return;
+    if (!m_uniform_data || !name) return;
     auto* slot = m_params.find(SmallString(name));
     if (!slot || slot->type != MaterialParamType::Mat4) return;
-    std::memcpy(m_uniformData + slot->offset, value.m, 16 * sizeof(f32));
+    std::memcpy(m_uniform_data + slot->offset, value.m, 16 * sizeof(f32));
 }
 
 void Material::setTexture(const char* name, RHITextureRef texture) {
@@ -222,7 +222,7 @@ void Material::setTexture(const char* name, RHITextureRef texture) {
 void Material::bind(IRHICommandList* cmdList) {
     if (!m_valid || !cmdList) return;
 
-    cmdList->bindPipeline(m_pipelineState.get());
+    cmdList->bindPipeline(m_pipeline_state.get());
 
     // Upload scalar/vector/matrix uniforms
     for (auto kv : m_params) {
@@ -232,24 +232,24 @@ void Material::bind(IRHICommandList* cmdList) {
         switch (slot.type) {
             case MaterialParamType::Float: {
                 f32 v;
-                std::memcpy(&v, m_uniformData + slot.offset, sizeof(f32));
+                std::memcpy(&v, m_uniform_data + slot.offset, sizeof(f32));
                 cmdList->setUniformFloat(name.c_str(), v);
                 break;
             }
             case MaterialParamType::Vec2: {
-                cmdList->setUniformVec2(name.c_str(), reinterpret_cast<f32*>(m_uniformData + slot.offset));
+                cmdList->setUniformVec2(name.c_str(), reinterpret_cast<f32*>(m_uniform_data + slot.offset));
                 break;
             }
             case MaterialParamType::Vec3: {
-                cmdList->setUniformVec3(name.c_str(), reinterpret_cast<f32*>(m_uniformData + slot.offset));
+                cmdList->setUniformVec3(name.c_str(), reinterpret_cast<f32*>(m_uniform_data + slot.offset));
                 break;
             }
             case MaterialParamType::Vec4: {
-                cmdList->setUniformVec4(name.c_str(), reinterpret_cast<f32*>(m_uniformData + slot.offset));
+                cmdList->setUniformVec4(name.c_str(), reinterpret_cast<f32*>(m_uniform_data + slot.offset));
                 break;
             }
             case MaterialParamType::Mat4: {
-                cmdList->setUniformMat4(name.c_str(), reinterpret_cast<f32*>(m_uniformData + slot.offset), false);
+                cmdList->setUniformMat4(name.c_str(), reinterpret_cast<f32*>(m_uniform_data + slot.offset), false);
                 break;
             }
             default:

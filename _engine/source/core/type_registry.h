@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "foundation_types.h"
 #include "small_string.h"
 #include "string_format.h"
@@ -104,16 +104,16 @@ public:
 private:
     TypeRegistry() = default;
     ComponentTypeID allocateNextID() {
-        CHECK(m_nextID < 32 && "Exceeded maximum 32 component types");
-        return m_nextID++;
+        CHECK(m_next_id < 32 && "Exceeded maximum 32 component types");
+        return m_next_id++;
     }
 
     // ECS component tables
     HashMap<ComponentTypeID, ComponentDesc> m_components;
-    HashMap<SmallString, ComponentTypeID> m_nameToID;
-    HashMap<ComponentTypeID, SmallString> m_idToName;
-    HashMap<SmallString, u32> m_nameToMask;
-    ComponentTypeID m_nextID = 0;
+    HashMap<SmallString, ComponentTypeID> m_name_to_id;
+    HashMap<ComponentTypeID, SmallString> m_id_to_name;
+    HashMap<SmallString, u32> m_name_to_mask;
+    ComponentTypeID m_next_id = 0;
 
     // General type table
     HashMap<SmallString, TypeDesc> m_types;

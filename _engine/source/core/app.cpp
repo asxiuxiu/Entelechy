@@ -1,4 +1,4 @@
-#include "app.h"
+﻿#include "app.h"
 #include "log/log_macros.h"
 
 namespace Entelechy {

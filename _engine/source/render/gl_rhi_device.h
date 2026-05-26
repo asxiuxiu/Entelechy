@@ -117,11 +117,11 @@ public:
     void bindTexture(u32 slot, RHITexture* texture) override;
 
 private:
-    bool m_insideRenderPass = false;
-    GLuint m_boundProgram = 0;
-    GLuint m_boundVAO = 0;
-    GLuint m_boundEBO = 0;
-    u32 m_eboOffset = 0;
+    bool m_inside_render_pass = false;
+    GLuint m_bound_program = 0;
+    GLuint m_bound_vao = 0;
+    GLuint m_bound_ebo = 0;
+    u32 m_ebo_offset = 0;
 };
 
 // ==================================================================
@@ -149,11 +149,11 @@ public:
 
     RenderBackendType getBackendType() const override { return RenderBackendType::OpenGL; }
 
-    PSOManager& getPSOManager() { return m_psoManager; }
+    PSOManager& getPSOManager() { return m_pso_manager; }
 
 private:
-    PSOManager m_psoManager;
-    GLCommandList m_cmdList;
+    PSOManager m_pso_manager;
+    GLCommandList m_cmd_list;
     bool m_initialized = false;
 };
 

@@ -190,24 +190,24 @@ void GLPipelineState::onDestroy() {
 // ==================================================================
 
 void GLCommandList::begin() {
-    m_insideRenderPass = false;
-    m_boundProgram = 0;
-    m_boundVAO = 0;
-    m_boundEBO = 0;
-    m_eboOffset = 0;
+    m_inside_render_pass = false;
+    m_bound_program = 0;
+    m_bound_vao = 0;
+    m_bound_ebo = 0;
+    m_ebo_offset = 0;
 }
 
 void GLCommandList::end() {
-    if (m_insideRenderPass) {
+    if (m_inside_render_pass) {
         endRenderPass();
     }
 }
 
 void GLCommandList::beginRenderPass(const RenderPassDesc& desc) {
-    if (m_insideRenderPass) {
+    if (m_inside_render_pass) {
         endRenderPass();
     }
-    m_insideRenderPass = true;
+    m_inside_render_pass = true;
 
     // For now, assume framebuffer 0 (default / swapchain)
     // In the future, bind FBO based on desc attachments
@@ -221,7 +221,7 @@ void GLCommandList::beginRenderPass(const RenderPassDesc& desc) {
 }
 
 void GLCommandList::endRenderPass() {
-    m_insideRenderPass = false;
+    m_inside_render_pass = false;
 }
 
 void GLCommandList::setViewport(f32 x, f32 y, f32 w, f32 h) {
@@ -238,8 +238,8 @@ void GLCommandList::setScissor(u32 x, u32 y, u32 w, u32 h) {
 void GLCommandList::bindPipeline(RHIPipelineState* pso) {
     if (!pso) return;
     auto* glPso = static_cast<GLPipelineState*>(pso);
-    m_boundProgram = glPso->getProgram();
-    glUseProgram(m_boundProgram);
+    m_bound_program = glPso->getProgram();
+    glUseProgram(m_bound_program);
 
     // Apply rasterizer state
     const auto& raster = glPso->getDesc().rasterizerState;
@@ -276,11 +276,11 @@ void GLCommandList::bindVertexBuffer(RHIBuffer* buffer, u32 /*slot*/, u32 /*offs
     if (!buffer) return;
     auto* glBuf = static_cast<GLBuffer*>(buffer);
     if (glBuf->getVAO()) {
-        m_boundVAO = glBuf->getVAO();
-        glBindVertexArray(m_boundVAO);
+        m_bound_vao = glBuf->getVAO();
+        glBindVertexArray(m_bound_vao);
     } else {
         // Legacy mode: bind VBO only, no VAO
-        m_boundVAO = 0;
+        m_bound_vao = 0;
         glBindBuffer(GL_ARRAY_BUFFER, glBuf->getVBO());
     }
 }
@@ -288,22 +288,22 @@ void GLCommandList::bindVertexBuffer(RHIBuffer* buffer, u32 /*slot*/, u32 /*offs
 void GLCommandList::bindIndexBuffer(RHIBuffer* buffer, u32 offset) {
     if (!buffer) return;
     auto* glBuf = static_cast<GLBuffer*>(buffer);
-    m_boundEBO = glBuf->getVBO(); // For index buffers, VBO field stores EBO name
-    m_eboOffset = offset;
+    m_bound_ebo = glBuf->getVBO(); // For index buffers, VBO field stores EBO name
+    m_ebo_offset = offset;
 }
 
 void GLCommandList::drawIndexed(u32 indexCount, u32 startIndex, i32 baseVertex) {
-    if (m_boundVAO && m_boundEBO) {
+    if (m_bound_vao && m_bound_ebo) {
         // Bind EBO to the current VAO
-        glBindVertexArray(m_boundVAO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boundEBO);
+        glBindVertexArray(m_bound_vao);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_bound_ebo);
     }
 
     GLenum topology = GL_TRIANGLES; // TODO: track from bound pipeline
     GLsizei count = static_cast<GLsizei>(indexCount);
     GLenum indexType = GL_UNSIGNED_INT; // TODO: derive from buffer desc
     const void* indexOffset = reinterpret_cast<const void*>(
-        static_cast<uintptr_t>(m_eboOffset) + startIndex * sizeof(u32));
+        static_cast<uintptr_t>(m_ebo_offset) + startIndex * sizeof(u32));
 
     if (baseVertex != 0) {
         glDrawElementsBaseVertex(topology, count, indexType, indexOffset, baseVertex);
@@ -313,8 +313,8 @@ void GLCommandList::drawIndexed(u32 indexCount, u32 startIndex, i32 baseVertex) 
 }
 
 void GLCommandList::draw(u32 vertexCount, u32 startVertex) {
-    if (m_boundVAO) {
-        glBindVertexArray(m_boundVAO);
+    if (m_bound_vao) {
+        glBindVertexArray(m_bound_vao);
     }
     glDrawArrays(GL_TRIANGLES, static_cast<GLint>(startVertex), static_cast<GLsizei>(vertexCount));
 }
@@ -348,7 +348,7 @@ bool GLRHIDevice::initialize() {
 }
 
 void GLRHIDevice::shutdown() {
-    m_psoManager.clear();
+    m_pso_manager.clear();
     m_initialized = false;
 }
 
@@ -495,8 +495,8 @@ RHIPipelineStateRef GLRHIDevice::createPipelineState(const PipelineStateDesc& de
 
 IRHICommandList* GLRHIDevice::createCommandList() {
     // Phase 1: return the single internal command list
-    m_cmdList.begin();
-    return &m_cmdList;
+    m_cmd_list.begin();
+    return &m_cmd_list;
 }
 
 void GLRHIDevice::submit(IRHICommandList* cmdList) {
@@ -546,38 +546,38 @@ usize PSOManager::getCacheSize() const {
 // ==================================================================
 
 void GLCommandList::setUniformFloat(const char* name, f32 value) {
-    if (!m_boundProgram || !name) return;
-    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (!m_bound_program || !name) return;
+    GLint loc = glGetUniformLocation(m_bound_program, name);
     if (loc >= 0) glUniform1f(loc, value);
 }
 
 void GLCommandList::setUniformInt(const char* name, i32 value) {
-    if (!m_boundProgram || !name) return;
-    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (!m_bound_program || !name) return;
+    GLint loc = glGetUniformLocation(m_bound_program, name);
     if (loc >= 0) glUniform1i(loc, value);
 }
 
 void GLCommandList::setUniformVec2(const char* name, const f32* value) {
-    if (!m_boundProgram || !name || !value) return;
-    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (!m_bound_program || !name || !value) return;
+    GLint loc = glGetUniformLocation(m_bound_program, name);
     if (loc >= 0) glUniform2fv(loc, 1, value);
 }
 
 void GLCommandList::setUniformVec3(const char* name, const f32* value) {
-    if (!m_boundProgram || !name || !value) return;
-    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (!m_bound_program || !name || !value) return;
+    GLint loc = glGetUniformLocation(m_bound_program, name);
     if (loc >= 0) glUniform3fv(loc, 1, value);
 }
 
 void GLCommandList::setUniformVec4(const char* name, const f32* value) {
-    if (!m_boundProgram || !name || !value) return;
-    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (!m_bound_program || !name || !value) return;
+    GLint loc = glGetUniformLocation(m_bound_program, name);
     if (loc >= 0) glUniform4fv(loc, 1, value);
 }
 
 void GLCommandList::setUniformMat4(const char* name, const f32* value, bool transpose) {
-    if (!m_boundProgram || !name || !value) return;
-    GLint loc = glGetUniformLocation(m_boundProgram, name);
+    if (!m_bound_program || !name || !value) return;
+    GLint loc = glGetUniformLocation(m_bound_program, name);
     if (loc >= 0) glUniformMatrix4fv(loc, 1, transpose ? GL_TRUE : GL_FALSE, value);
 }
 

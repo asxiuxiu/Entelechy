@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "foundation_types.h"
 #include "iallocator.h"
 #include "dynamic_array.h"
@@ -74,7 +74,7 @@ private:
     const Slot& getSlot(u32 globalIndex) const;
 
     DynamicArray<Block> m_blocks;
-    u32 m_freeHead;
+    u32 m_free_head;
     usize m_count;
     mutable AllocatorStats m_stats;
 
@@ -87,7 +87,7 @@ private:
 
 template <typename T>
 ObjectPool<T>::ObjectPool(usize initialBlockCount)
-    : m_freeHead(INVALID_SLOT)
+    : m_free_head(INVALID_SLOT)
     , m_count(0) {
     if (initialBlockCount == 0) initialBlockCount = 1;
     for (usize i = 0; i < initialBlockCount; ++i) {
@@ -116,10 +116,10 @@ void ObjectPool<T>::addBlock() {
 
     for (usize i = SLOTS_PER_BLOCK; i > 0; --i) {
         u32 localIdx = static_cast<u32>(i - 1);
-        block.slots[localIdx].free.nextFreeIndex = m_freeHead;
+        block.slots[localIdx].free.nextFreeIndex = m_free_head;
         block.slots[localIdx].free.generation = 1; // 0 = invalid
         block.slots[localIdx].occupied = false;
-        m_freeHead = base + localIdx;
+        m_free_head = base + localIdx;
     }
 
     m_blocks.pushBack(block);
@@ -142,12 +142,12 @@ const typename ObjectPool<T>::Slot& ObjectPool<T>::getSlot(u32 globalIndex) cons
 template <typename T>
 template <typename... Args>
 PoolHandle ObjectPool<T>::alloc(Args&&... args) {
-    if (m_freeHead == INVALID_SLOT) {
+    if (m_free_head == INVALID_SLOT) {
         addBlock();
     }
-    u32 index = m_freeHead;
+    u32 index = m_free_head;
     Slot& slot = getSlot(index);
-    m_freeHead = slot.free.nextFreeIndex;
+    m_free_head = slot.free.nextFreeIndex;
     std::construct_at(&slot.object, std::forward<Args>(args)...);
     slot.occupied = true;
     ++m_count;
@@ -162,8 +162,8 @@ void ObjectPool<T>::free(PoolHandle handle) {
     std::destroy_at(&slot.object);
     slot.occupied = false;
     ++slot.free.generation;
-    slot.free.nextFreeIndex = m_freeHead;
-    m_freeHead = handle.slotIndex;
+    slot.free.nextFreeIndex = m_free_head;
+    m_free_head = handle.slotIndex;
     --m_count;
 }
 

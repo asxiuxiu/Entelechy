@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "foundation_types.h"
 #include "dynamic_array.h"
 
@@ -36,7 +36,7 @@ struct EntityRegistry {
 
 private:
     DynamicArray<Slot> m_slots;
-    DynamicArray<u32> m_freeList;
+    DynamicArray<u32> m_free_list;
 };
 
 } // namespace Entelechy

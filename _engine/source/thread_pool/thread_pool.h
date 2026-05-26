@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "foundation_types.h"
 #include "dynamic_array.h"
 #include <atomic>
@@ -49,7 +49,7 @@ public:
     // Blocks until all currently submitted tasks complete.
     void waitForAll();
 
-    [[nodiscard]] usize workerCount() const { return m_numThreads; }
+    [[nodiscard]] usize workerCount() const { return m_num_threads; }
 
     // Dynamic-index parallel for. Returns when all iterations complete.
     template<typename Func>
@@ -65,19 +65,19 @@ private:
 
     DynamicArray<Worker*> m_workers;
     std::atomic<bool> m_stop{false};
-    std::atomic<usize> m_pendingTasks{0};
-    usize m_numThreads = 0;
+    std::atomic<usize> m_pending_tasks{0};
+    usize m_num_threads = 0;
 
     // Thread-safe overflow for when a local queue is full.
-    std::mutex m_overflowMutex;
-    std::deque<std::function<void()>> m_overflowTasks;
+    std::mutex m_overflow_mutex;
+    std::deque<std::function<void()>> m_overflow_tasks;
 };
 
 // ---------- Template implementation ----------
 
 template<typename Func>
 void ThreadPool::parallelFor(usize count, usize minBatchSize, Func&& fn) {
-    if (m_numThreads == 0 || count <= minBatchSize) {
+    if (m_num_threads == 0 || count <= minBatchSize) {
         for (usize i = 0; i < count; ++i) {
             fn(i);
         }
@@ -85,8 +85,8 @@ void ThreadPool::parallelFor(usize count, usize minBatchSize, Func&& fn) {
     }
 
     usize numBatches = (count + minBatchSize - 1) / minBatchSize;
-    if (numBatches > m_numThreads * 4) {
-        numBatches = m_numThreads * 4;
+    if (numBatches > m_num_threads * 4) {
+        numBatches = m_num_threads * 4;
     }
     usize batchSize = count / numBatches;
     if (batchSize < 1) batchSize = 1;

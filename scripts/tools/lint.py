@@ -212,9 +212,11 @@ FUNCTION_NAME_BAD = re.compile(
 
 # Class/struct names: must be PascalCase
 # Violations: snake_case class names
+# NOTE: Excludes standard library specializations like `struct hash` and keywords like `alignas`
 CLASS_NAME_BAD = re.compile(
     r'\b(?:class|struct)\s+([a-z][a-z0-9_]*[a-z0-9])\b'
 )
+CLASS_NAME_SKIP = {'hash', 'alignas'}
 
 # Enum values: must be PascalCase (not UPPER_SNAKE_CASE)
 ENUM_VALUE_BAD = re.compile(
@@ -310,6 +312,10 @@ def check_class_names(ctx: LintContext, file: Path, lines: List[str], in_third_p
         for match in CLASS_NAME_BAD.finditer(code):
             name = match.group(1)
             if not name:
+                continue
+
+            # Skip standard library specializations and keywords
+            if name in CLASS_NAME_SKIP:
                 continue
 
             # Skip if already PascalCase

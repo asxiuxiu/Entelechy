@@ -1,4 +1,4 @@
-#include "vfs.h"
+﻿#include "vfs.h"
 #include "string_intern_pool.h"
 
 namespace Entelechy {

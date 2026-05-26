@@ -38,11 +38,11 @@ private:
     bool createMesh();
 
     std::unique_ptr<GLRHIDevice> m_device;
-    std::unique_ptr<ShaderCache> m_shaderCache;
+    std::unique_ptr<ShaderCache> m_shader_cache;
     Material m_material;
 
-    RHIBufferRef m_vertexBuffer;
-    RHIBufferRef m_indexBuffer;
+    RHIBufferRef m_vertex_buffer;
+    RHIBufferRef m_index_buffer;
 
     bool m_initialized = false;
 };

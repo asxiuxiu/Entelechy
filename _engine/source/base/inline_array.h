@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "foundation_types.h"
 #include "allocator.h"
 #include <utility>
@@ -10,7 +10,7 @@ namespace Entelechy {
 template <typename T, usize N>
 class InlineArray {
 public:
-    InlineArray() : m_count(0), m_heapData(nullptr), m_heapCapacity(0) {}
+    InlineArray() : m_count(0), m_heap_data(nullptr), m_heap_capacity(0) {}
     ~InlineArray() { clear(); }
 
     InlineArray(const InlineArray&) = delete;
@@ -18,15 +18,15 @@ public:
 
     InlineArray(InlineArray&& other) noexcept
         : m_count(other.m_count)
-        , m_heapData(other.m_heapData)
-        , m_heapCapacity(other.m_heapCapacity) {
+        , m_heap_data(other.m_heap_data)
+        , m_heap_capacity(other.m_heap_capacity) {
         for (usize i = 0; i < other.m_count && i < N; ++i) {
             std::construct_at(&inlineSlot(i), std::move(other.inlineSlot(i)));
             std::destroy_at(&other.inlineSlot(i));
         }
         other.m_count = 0;
-        other.m_heapData = nullptr;
-        other.m_heapCapacity = 0;
+        other.m_heap_data = nullptr;
+        other.m_heap_capacity = 0;
     }
 
     InlineArray& operator=(InlineArray&& other) noexcept {
@@ -37,11 +37,11 @@ public:
                 std::destroy_at(&other.inlineSlot(i));
             }
             m_count = other.m_count;
-            m_heapData = other.m_heapData;
-            m_heapCapacity = other.m_heapCapacity;
+            m_heap_data = other.m_heap_data;
+            m_heap_capacity = other.m_heap_capacity;
             other.m_count = 0;
-            other.m_heapData = nullptr;
-            other.m_heapCapacity = 0;
+            other.m_heap_data = nullptr;
+            other.m_heap_capacity = 0;
         }
         return *this;
     }
@@ -69,12 +69,12 @@ public:
         for (usize i = m_count; i > 0; --i) {
             std::destroy_at(&slot(i - 1));
         }
-        if (m_heapData) {
-            DefaultAllocator::free(m_heapData);
-            m_heapData = nullptr;
+        if (m_heap_data) {
+            DefaultAllocator::free(m_heap_data);
+            m_heap_data = nullptr;
         }
         m_count = 0;
-        m_heapCapacity = 0;
+        m_heap_capacity = 0;
     }
 
     void resize(usize newCount) {
@@ -105,10 +105,10 @@ public:
         m_count = newCount;
     }
 
-    [[nodiscard]] T* data() { return m_count <= N ? inlinePtr() : m_heapData; }
-    [[nodiscard]] const T* data() const { return m_count <= N ? inlinePtr() : m_heapData; }
+    [[nodiscard]] T* data() { return m_count <= N ? inlinePtr() : m_heap_data; }
+    [[nodiscard]] const T* data() const { return m_count <= N ? inlinePtr() : m_heap_data; }
     [[nodiscard]] usize size() const { return m_count; }
-    [[nodiscard]] usize capacity() const { return m_heapCapacity > 0 ? m_heapCapacity : N; }
+    [[nodiscard]] usize capacity() const { return m_heap_capacity > 0 ? m_heap_capacity : N; }
     [[nodiscard]] bool empty() const { return m_count == 0; }
 
     T& operator[](usize i) { return slot(i); }
@@ -126,9 +126,9 @@ public:
 
 private:
     alignas(alignof(T)) u8 m_inline[N * sizeof(T)];
-    T* m_heapData;
+    T* m_heap_data;
     usize m_count;
-    usize m_heapCapacity;
+    usize m_heap_capacity;
 
     T* inlinePtr() { return reinterpret_cast<T*>(m_inline); }
     const T* inlinePtr() const { return reinterpret_cast<const T*>(m_inline); }
@@ -136,31 +136,31 @@ private:
     T& inlineSlot(usize i) { return reinterpret_cast<T*>(m_inline)[i]; }
     const T& inlineSlot(usize i) const { return reinterpret_cast<const T*>(m_inline)[i]; }
 
-    T& slot(usize i) { return (i < N && m_heapData == nullptr) ? inlineSlot(i) : m_heapData[i]; }
-    const T& slot(usize i) const { return (i < N && m_heapData == nullptr) ? inlineSlot(i) : m_heapData[i]; }
+    T& slot(usize i) { return (i < N && m_heap_data == nullptr) ? inlineSlot(i) : m_heap_data[i]; }
+    const T& slot(usize i) const { return (i < N && m_heap_data == nullptr) ? inlineSlot(i) : m_heap_data[i]; }
 
     void ensureSpace() {
         if (m_count < N) return;
-        if (m_count < m_heapCapacity) return;
+        if (m_count < m_heap_capacity) return;
         ensureSpaceFor(m_count + 1);
     }
 
     void ensureSpaceFor(usize needed) {
-        if (needed <= N && m_heapData == nullptr) return;
-        usize newCap = m_heapCapacity == 0 ? 4 : m_heapCapacity;
+        if (needed <= N && m_heap_data == nullptr) return;
+        usize newCap = m_heap_capacity == 0 ? 4 : m_heap_capacity;
         while (newCap < needed) newCap *= 2;
         if (newCap < N) newCap = N;
         T* newHeap = static_cast<T*>(DefaultAllocator::alloc(newCap * sizeof(T), alignof(T)));
-        usize heapStart = m_heapData ? 0 : N;
+        usize heapStart = m_heap_data ? 0 : N;
         for (usize i = 0; i < m_count; ++i) {
             std::construct_at(&newHeap[i], std::move(slot(i)));
             std::destroy_at(&slot(i));
         }
-        if (m_heapData) {
-            DefaultAllocator::free(m_heapData);
+        if (m_heap_data) {
+            DefaultAllocator::free(m_heap_data);
         }
-        m_heapData = newHeap;
-        m_heapCapacity = newCap;
+        m_heap_data = newHeap;
+        m_heap_capacity = newCap;
     }
 };
 

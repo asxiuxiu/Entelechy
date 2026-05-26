@@ -9,10 +9,10 @@ class TransformPropagationSystem : public System {
 public:
     void tick(World& world, FrameArena& arena, f32 dt) override;
 
-    void setThreadPool(ThreadPool* tp) { m_threadPool = tp; }
+    void setThreadPool(ThreadPool* tp) { m_thread_pool = tp; }
 
 private:
-    ThreadPool* m_threadPool = nullptr;
+    ThreadPool* m_thread_pool = nullptr;
 };
 
 } // namespace Entelechy

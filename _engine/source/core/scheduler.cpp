@@ -15,13 +15,13 @@ void Scheduler::registerSystem(const SystemDesc& desc) {
 }
 
 void Scheduler::build() {
-    m_phaseGroups.clear();
+    m_phase_groups.clear();
 
     // Group systems by phase index.
     for (usize i = 0; i < m_systems.size(); ++i) {
         SystemDesc* desc = &m_systems[i];
         bool found = false;
-        for (auto& group : m_phaseGroups) {
+        for (auto& group : m_phase_groups) {
             if (group.phaseIndex == desc->phase) {
                 group.systems.pushBack(desc);
                 found = true;
@@ -32,23 +32,23 @@ void Scheduler::build() {
             PhaseGroup group;
             group.phaseIndex = desc->phase;
             group.systems.pushBack(desc);
-            m_phaseGroups.pushBack(std::move(group));
+            m_phase_groups.pushBack(std::move(group));
         }
     }
 
     // Sort phase groups by phase index (bubble sort, N is tiny).
-    for (usize i = 0; i < m_phaseGroups.size(); ++i) {
-        for (usize j = i + 1; j < m_phaseGroups.size(); ++j) {
-            if (m_phaseGroups[j].phaseIndex < m_phaseGroups[i].phaseIndex) {
-                PhaseGroup tmp = std::move(m_phaseGroups[i]);
-                m_phaseGroups[i] = std::move(m_phaseGroups[j]);
-                m_phaseGroups[j] = std::move(tmp);
+    for (usize i = 0; i < m_phase_groups.size(); ++i) {
+        for (usize j = i + 1; j < m_phase_groups.size(); ++j) {
+            if (m_phase_groups[j].phaseIndex < m_phase_groups[i].phaseIndex) {
+                PhaseGroup tmp = std::move(m_phase_groups[i]);
+                m_phase_groups[i] = std::move(m_phase_groups[j]);
+                m_phase_groups[j] = std::move(tmp);
             }
         }
     }
 
     // Topological sort within each phase group (Kahn's algorithm).
-    for (auto& group : m_phaseGroups) {
+    for (auto& group : m_phase_groups) {
         auto& sys = group.systems;
         usize n = sys.size();
         if (n <= 1) continue;
@@ -118,7 +118,7 @@ void Scheduler::build() {
 }
 
 void Scheduler::detectAmbiguities() {
-    for (const auto& group : m_phaseGroups) {
+    for (const auto& group : m_phase_groups) {
         const auto& sys = group.systems;
         usize n = sys.size();
         for (usize i = 0; i < n; ++i) {
@@ -190,36 +190,36 @@ void Scheduler::tick(World& world, f32 raw_dt) {
     while (m_accumulator >= FIXED_DT) {
         tickFixed(world, FIXED_DT);
         m_accumulator -= FIXED_DT;
-        ++m_currentFrame;
+        ++m_current_frame;
     }
 }
 
 void Scheduler::tickOnce(World& world, f32 dt) {
     tickFixed(world, dt);
-    ++m_currentFrame;
+    ++m_current_frame;
 }
 
 void Scheduler::tickFixed(World& world, f32 dt) {
     if (!m_built) build();
 
-    world.setCurrentFrame(m_currentFrame);
-    m_frameArena.reset();
-    for (auto& group : m_phaseGroups) {
+    world.setCurrentFrame(m_current_frame);
+    m_frame_arena.reset();
+    for (auto& group : m_phase_groups) {
         for (auto* desc : group.systems) {
             if (desc->system) {
-                desc->system->tick(world, m_frameArena, dt);
+                desc->system->tick(world, m_frame_arena, dt);
             }
         }
     }
-    m_commandBuffer.apply(world);
+    m_command_buffer.apply(world);
 }
 
 FrameArena& Scheduler::frameArena() {
-    return m_frameArena;
+    return m_frame_arena;
 }
 
 CommandBuffer& Scheduler::commandBuffer() {
-    return m_commandBuffer;
+    return m_command_buffer;
 }
 
 } // namespace Entelechy

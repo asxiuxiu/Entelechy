@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "entity_registry.h"
 #include "component_array.h"
 #include "type_registry.h"
@@ -17,19 +17,19 @@ public:
     explicit World(EntityRegistry& registry);
     ~World();
 
-    void bindCommandBuffer(CommandBuffer* cmdBuffer) { m_cmdBuffer = cmdBuffer; }
+    void bindCommandBuffer(CommandBuffer* cmdBuffer) { m_cmd_buffer = cmdBuffer; }
 
     [[nodiscard]] Entity spawn() {
         CHECK(m_registry != nullptr);
         Entity e = m_registry->create();
-        if (e.id >= m_entityMasks.size()) {
-            m_entityMasks.resize(e.id + 1, 0);
+        if (e.id >= m_entity_masks.size()) {
+            m_entity_masks.resize(e.id + 1, 0);
         }
-        if (e.id >= m_entityRanks.size()) {
-            m_entityRanks.resize(e.id + 1, 0);
+        if (e.id >= m_entity_ranks.size()) {
+            m_entity_ranks.resize(e.id + 1, 0);
         }
-        m_entityMasks[e.id] = 0;
-        m_entityRanks[e.id] = 0;
+        m_entity_masks[e.id] = 0;
+        m_entity_ranks[e.id] = 0;
         return e;
     }
 
@@ -55,12 +55,12 @@ public:
     }
 
     [[nodiscard]] u32 getEntityMask(u32 id) const {
-        if (id < m_entityMasks.size()) return m_entityMasks[id];
+        if (id < m_entity_masks.size()) return m_entity_masks[id];
         return 0;
     }
 
-    void setCurrentFrame(u64 frame) { m_currentFrame = frame; }
-    [[nodiscard]] u64 currentFrame() const { return m_currentFrame; }
+    void setCurrentFrame(u64 frame) { m_current_frame = frame; }
+    [[nodiscard]] u64 currentFrame() const { return m_current_frame; }
 
     void setParent(Entity child, Entity parent);
     void setParentImmediate(Entity child, Entity parent);
@@ -77,7 +77,7 @@ public:
     T* addComponent(Entity e, const T& comp) {
         auto* array = getOrCreateComponentArray<T>();
         array->set(e, comp);
-        m_entityMasks[e.id] |= TypeRegistry::instance().getMask<T>();
+        m_entity_masks[e.id] |= TypeRegistry::instance().getMask<T>();
         return array->get(e);
     }
 
@@ -86,7 +86,7 @@ public:
         auto* array = getComponentArray<T>();
         if (array) {
             array->remove(e);
-            m_entityMasks[e.id] &= ~TypeRegistry::instance().getMask<T>();
+            m_entity_masks[e.id] &= ~TypeRegistry::instance().getMask<T>();
         }
     }
 
@@ -121,7 +121,7 @@ public:
     template<typename T>
     [[nodiscard]] ComponentArray<T>* getComponentArray() {
         ComponentTypeID typeID = TypeRegistry::instance().getTypeID<T>();
-        auto* v = m_componentArrays.find(typeID);
+        auto* v = m_component_arrays.find(typeID);
         if (!v) return nullptr;
         return static_cast<ComponentArray<T>*>(*v);
     }
@@ -129,13 +129,13 @@ public:
     template<typename T>
     [[nodiscard]] const ComponentArray<T>* getComponentArray() const {
         ComponentTypeID typeID = TypeRegistry::instance().getTypeID<T>();
-        auto* v = m_componentArrays.find(typeID);
+        auto* v = m_component_arrays.find(typeID);
         if (!v) return nullptr;
         return static_cast<const ComponentArray<T>*>(*v);
     }
 
     const HashMap<ComponentTypeID, IComponentArray*>& componentArrays() const {
-        return m_componentArrays;
+        return m_component_arrays;
     }
 
     void collectDescendants(Entity e, DynamicArray<Entity>& out) const;
@@ -144,22 +144,22 @@ private:
     template<typename T>
     ComponentArray<T>* getOrCreateComponentArray() {
         ComponentTypeID typeID = TypeRegistry::instance().getTypeID<T>();
-        auto* v = m_componentArrays.find(typeID);
+        auto* v = m_component_arrays.find(typeID);
         if (v) {
             return static_cast<ComponentArray<T>*>(*v);
         }
         auto* array = new ComponentArray<T>();
-        m_componentArrays.insert(typeID, array);
+        m_component_arrays.insert(typeID, array);
         return array;
     }
 
     EntityRegistry* m_registry = nullptr;
-    bool m_ownsRegistry = false;
-    CommandBuffer* m_cmdBuffer = nullptr;
-    DynamicArray<u32> m_entityMasks;
-    HashMap<ComponentTypeID, IComponentArray*> m_componentArrays;
-    DynamicArray<u32> m_entityRanks;
-    u64 m_currentFrame = 0;
+    bool m_owns_registry = false;
+    CommandBuffer* m_cmd_buffer = nullptr;
+    DynamicArray<u32> m_entity_masks;
+    HashMap<ComponentTypeID, IComponentArray*> m_component_arrays;
+    DynamicArray<u32> m_entity_ranks;
+    u64 m_current_frame = 0;
 };
 
 void initCore();

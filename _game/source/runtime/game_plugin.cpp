@@ -1,4 +1,4 @@
-#include "game_plugin.h"
+﻿#include "game_plugin.h"
 #include "world.h"
 #include "query.h"
 #include "type_registry.h"
@@ -40,7 +40,7 @@ void GamePlugin::build(Entelechy::App& app) {
     // TransformPropagationSystem
     app.scheduler().registerSystem({
         .name = "TransformPropagationSystem",
-        .system = &m_transformSystem,
+        .system = &m_transform_system,
         .phase = static_cast<u8>(DefaultPhase::PostUpdate),
         .reads = { TypeRegistry::instance().getTypeID<Transform>(),
                    TypeRegistry::instance().getTypeID<ChildOf>() },
@@ -50,7 +50,7 @@ void GamePlugin::build(Entelechy::App& app) {
     // ColorChangeSystem
     app.scheduler().registerSystem({
         .name = "ColorChangeSystem",
-        .system = &m_colorChange,
+        .system = &m_color_change,
         .phase = static_cast<u8>(DefaultPhase::Update),
         .reads = { TypeRegistry::instance().getTypeID<KeyboardEvent>() },
         .writes = { TypeRegistry::instance().getTypeID<Color>() }
@@ -59,7 +59,7 @@ void GamePlugin::build(Entelechy::App& app) {
     // EventCleanupSystem
     app.scheduler().registerSystem({
         .name = "EventCleanupSystem",
-        .system = &m_eventCleanup,
+        .system = &m_event_cleanup,
         .phase = static_cast<u8>(DefaultPhase::Last),
         .reads = { TypeRegistry::instance().getTypeID<EventLifetime>() }
     });

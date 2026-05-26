@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "vfs_types.h"
 #include "small_string.h"
 #include "hash_map.h"

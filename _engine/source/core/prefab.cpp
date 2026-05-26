@@ -1,11 +1,11 @@
-#include "prefab.h"
+﻿#include "prefab.h"
 #include "world.h"
 #include "component_array.h"
 
 namespace Entelechy {
 
 u32 PrefabSystem::registerAsset(PrefabAsset asset) {
-    u32 id = m_nextAssetID++;
+    u32 id = m_next_asset_id++;
     if (id >= m_assets.size()) {
         m_assets.resize(id + 1);
     }

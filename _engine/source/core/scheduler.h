@@ -35,7 +35,7 @@ public:
     FrameArena& frameArena();
     CommandBuffer& commandBuffer();
 
-    [[nodiscard]] u64 currentFrame() const { return m_currentFrame; }
+    [[nodiscard]] u64 currentFrame() const { return m_current_frame; }
 
 private:
     static constexpr f32 FIXED_DT = 1.0f / 60.0f;
@@ -49,11 +49,11 @@ private:
     };
 
     DynamicArray<SystemDesc> m_systems;
-    DynamicArray<PhaseGroup> m_phaseGroups;
-    CommandBuffer m_commandBuffer;
-    FrameArena m_frameArena{1024 * 1024}; // 1 MiB per frame
+    DynamicArray<PhaseGroup> m_phase_groups;
+    CommandBuffer m_command_buffer;
+    FrameArena m_frame_arena{1024 * 1024}; // 1 MiB per frame
     f32 m_accumulator = 0.0f;
-    u64 m_currentFrame = 0;
+    u64 m_current_frame = 0;
     bool m_built = false;
 };
 

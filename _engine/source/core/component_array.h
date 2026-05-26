@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "types.h"
 #include "sparse_set.h"
 #include "allocator.h"
@@ -126,11 +126,11 @@ template <typename T>
 class ComponentArray : public IComponentArray {
 public:
     void set(Entity e, const T& value) {
-        if (!m_sparseSet.has(e.id)) {
-            m_sparseSet.add(e.id);
+        if (!m_sparse_set.has(e.id)) {
+            m_sparse_set.add(e.id);
             m_column.pushBack(value);
         } else {
-            u32 idx = m_sparseSet.indexOf(e.id);
+            u32 idx = m_sparse_set.indexOf(e.id);
             m_column[idx] = value;
         }
     }
@@ -140,39 +140,39 @@ public:
     }
 
     void remove(Entity e) override {
-        if (!m_sparseSet.has(e.id)) return;
+        if (!m_sparse_set.has(e.id)) return;
         if (m_hooks && m_hooks->onRemove) {
-            u32 idx = m_sparseSet.indexOf(e.id);
+            u32 idx = m_sparse_set.indexOf(e.id);
             m_hooks->onRemove(e, &m_column[idx]);
         }
-        u32 idx = m_sparseSet.indexOf(e.id);
+        u32 idx = m_sparse_set.indexOf(e.id);
         m_column.swapAndPop(idx);
-        m_sparseSet.remove(e.id);
+        m_sparse_set.remove(e.id);
     }
 
     bool has(Entity e) const override {
-        return m_sparseSet.has(e.id);
+        return m_sparse_set.has(e.id);
     }
 
     [[nodiscard]] T* get(Entity e) {
         if (!has(e)) return nullptr;
-        return &m_column[m_sparseSet.indexOf(e.id)];
+        return &m_column[m_sparse_set.indexOf(e.id)];
     }
 
     [[nodiscard]] const T* get(Entity e) const {
         if (!has(e)) return nullptr;
-        return &m_column[m_sparseSet.indexOf(e.id)];
+        return &m_column[m_sparse_set.indexOf(e.id)];
     }
 
     [[nodiscard]] usize count() const override {
-        return m_sparseSet.count();
+        return m_sparse_set.count();
     }
 
     [[nodiscard]] T* data() { return m_column.data(); }
     [[nodiscard]] const T* data() const { return m_column.data(); }
 
     [[nodiscard]] const u32* entityIds() const override {
-        return m_sparseSet.denseData();
+        return m_sparse_set.denseData();
     }
 
     [[nodiscard]] const void* getRaw(Entity e) const override {
@@ -187,7 +187,7 @@ public:
     void setHooks(ComponentHooks* hooks) { m_hooks = hooks; }
 
 private:
-    SparseSet m_sparseSet;
+    SparseSet m_sparse_set;
     Column<T> m_column;
     ComponentHooks* m_hooks = nullptr;
 };

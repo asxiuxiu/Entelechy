@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "test_framework.h"
 #include "math_lib.h"
 #include <cmath>

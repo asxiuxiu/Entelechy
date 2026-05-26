@@ -40,13 +40,13 @@
 - [ ] Render / RHI | `BinnedRenderPhase`（`render/queue/BinnedRenderPhase.h`）使用 `DynamicArray<PhaseBin>` 线性分箱，因 ECS `ComponentArray::set` 要求组件可拷贝而 `HashMap` 显式 delete 了拷贝，为绕过限制改用线性查找，大规模场景下退化为 O(n)，需恢复 `HashMap` 或引入独立 Resource 系统。
 - [ ] Render / RHI | `QueueDrawsSystem`（`render/queue/QueueDrawsSystem.cpp:65`）深度计算使用物体原点 `worldMatrix * Vec3{0,0,0}` 的 z 值，对于中心偏移的大型物体排序结果不准确，若实体有 `AABB` 应使用 `(aabb.min + aabb.max) * 0.5f` 作为深度采样点，无 AABB 则回退到原点。
 - [ ] Render / RHI | `QueueDrawsSystem`（`render/queue/QueueDrawsSystem.cpp:48`）SortKey 的 float→uint 编码未处理 viewZ ≤ 0，IEEE-754 负数 bit pattern 按 uint 排序与数值排序不一致，若物体在相机后方或近平面处深度键会混乱，需将 viewZ 钳制到 `[near, far]` 后规范化到 `[0, 1]` 再编码为 uint（如 `uint32_t(depth * 0xFFFFFFFF)`），保证全范围单调。
-- [ ] Render / RHI | `FrustumCullSystem` 和 `QueueDrawsSystem` 由调用方手动按顺序调用，无内建依赖声明，未来阶段增多后容易顺序出错，需仿照 `ExtractSchedule` 引入 `RenderSchedule`（`IRenderSystem` 接口 + 注册表），在 `RenderWorld` 中统一定义 Extract → Cull → Queue → ... 的 SystemSet 链。
+- [ ] Render / RHI | `FrustumCullSystem` 和 `QueueDrawsSystem` 由调用方手动按顺序调用，无内建依赖声明，未来渲染步骤增多后容易顺序出错，需仿照 `ExtractSchedule` 引入 `RenderSchedule`（`IRenderSystem` 接口 + 注册表），在 `RenderWorld` 中统一定义 Extract → Cull → Queue → ... 的 SystemSet 链。
 - [ ] Render / RHI | Culling 与 Queue 系统仅处理第一个 `ExtractedView`，`ViewVisibleList`、`ViewBinnedPhases`、`ViewSortedPhases` 在设计上应每 view 一份，需将 View-level Resource 改为与 view 实体绑定（`Entity viewEntity` 作为 key），Culling 和 Queue 系统遍历所有含 `ExtractedView` 的实体，为每个 view 生成独立的可见列表和 phase 容器。
-- [ ] Render / RHI | `PhaseItem::instance_count`（`render/queue/PhaseItem.h`、`render/queue/QueueDrawsSystem.cpp`）字段已预留为 1 但未实现 instancing 合并，`QueueDrawsSystem` 未检测同 material + 同 mesh 的连续实体，需在 `BinnedRenderPhase::addItem` 中检测并合并为同一 `PhaseItem` 且累加 `instance_count`，并配合 Prepare 阶段生成 instance buffer。
+- [ ] Render / RHI | `PhaseItem::instance_count`（`render/queue/PhaseItem.h`、`render/queue/QueueDrawsSystem.cpp`）字段已预留为 1 但未实现 instancing 合并，`QueueDrawsSystem` 未检测同 material + 同 mesh 的连续实体，需在 `BinnedRenderPhase::addItem` 中检测并合并为同一 `PhaseItem` 且累加 `instance_count`，并配合 Prepare 步骤生成 instance buffer。
 - [ ] Render / RHI | `ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:23`）每帧对静态 AABB 全量拷贝，大多数模型的本地 AABB 是静态的但每帧都通过 `mainWorld.getComponent<AABB>(entity)` 提取到 render world，需在 `MainWorldSync` 中记录「上一帧是否有 AABB」或引入脏标记机制，仅当 AABB 组件被修改时才重新提取。
 
 ## Material / Shader
-> 2026-05-25：当前实现为同步编译 + CPU uniform 块 + `glUniform*` 即时上传 + 无模板分层。以下为与工业级方案的差额，后续按阶段补齐。
+> 2026-05-25：当前实现为同步编译 + CPU uniform 块 + `glUniform*` 即时上传 + 无模板分层。以下为与工业级方案的差额，后续逐步补齐。
 
 - [ ] Material / Shader | 当前 `Material` 直接硬编码 VS/FS，无变体管理，美术资产与 GPU 状态未解耦，需引入模板-实例三层：`ShaderTemplate` → `MaterialAsset` → `MaterialInstance`，`ShaderTemplate` 定义 `Category/Keyword` 变体规则，`MaterialAsset` 存储参数/PassHint/RenderState，`MaterialInstance` 运行时维护 `TechniqueCache[permutation_id]`。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 1 分支 B。
@@ -70,24 +70,25 @@
 - [ ] AI / Agent 基建 | `AgentBridge` 直接暴露内部 API，外部 AI 客户端（Claude Desktop / Kimi CLI / Cursor）无法直接接入，需增加 `McpAdapter`，将 `ToolRegistry` 翻译成 MCP `ListToolsResult` / `CallToolRequest`，使引擎成为标准 MCP Server。
   - 参考：`Notes/Agent/引擎-AI-集成实战-MVP.md` 修正 1。
 - [ ] AI / Agent 基建 | `AgentBridge::set_component` 直接修改世界状态，若 AI 在 System tick 中途写入会破坏迭代器稳定性，需引入 `CommandBuffer`，`AgentBridge::set_component` 先 stage，在 `Scheduler::tick()` 结束后统一 `apply()`。
-  - 参考：路线图 `Phase 1.4`。
+  - 参考：路线图。
 - [ ] AI / Agent 基建 | AI 在 Runtime 调参或执行「奇怪行为」时无法追踪影响、快速撤销，需在 `World` 内建 `ChangeLog` 记录 `(entity, component, field, old, new)`，实现 `WorldSnapshot::capture / restore`，在 `AgentBridge` 暴露 `snapshot(name)` / `rollback(name)` 工具。
-  - 参考：路线图 `Phase 2.1 / 2.2`。
+  - 参考：路线图。
 - [ ] AI / Agent 基建 | 只读与写工具混在一起，没有统一的安全 gate，需在 `AgentBridge::execute_tool()` 入口处嵌入三级权限（Deny / Ask / Allow），配合组件白名单和 `ApprovalRuntime`，高危操作（如批量删除）强制人工确认，常规写操作自动记录 Undo。
-  - 参考：路线图 `Phase 2.5`、`Notes/Agent/Permission-System-架构解析`。
+  - 参考：路线图、`Notes/Agent/Permission-System-架构解析`。
 - [ ] AI / Agent 基建 | `AgentBridge` 为批处理式返回，Editor 无法同步 AI 的「正在思考」「调用了工具 X」等中间状态，需借鉴 Kimi CLI 的 Wire 协议，定义 `EngineDisplayBlock` 事件流（`diff / changelog / task_status`），`AgentBridge` 在工具执行中途 `emitEvent`，Editor AI Panel 消费并渲染。
   - 参考：`Notes/Agent/Agent-Loop-架构解析`、`Notes/Agent/UI-System-架构解析`。
 - [ ] AI / Agent 基建 | 未来复杂任务（如「搭建一个射击关卡」）需要 Director Agent 拆分子任务给 LevelDesignAgent、GameplayAgent 并行执行，需实现 `TransactionalWorld`（主世界 + 沙箱副本）+ `AgentOrchestrator` 冲突检测与合并，每个 Agent 绑定独立 `ApprovalSource` 和组件锁。
-  - 参考：路线图 `Phase 3.6`、`Notes/Agent/Multi-Agent-架构解析`。
+  - 参考：路线图、`Notes/Agent/Multi-Agent-架构解析`。
 
 ## Log / 日志系统
-> 2026-05-25：阶段 0~2 已完成（设备抽象、JSONL、文件滚动、Once 宏、ImGui 面板）。以下为性能与架构升级储备。
+> 2026-05-25：基础功能已完成（设备抽象、JSONL、文件滚动、Once 宏、ImGui 面板）。
+> 架构原则：Logger 是底层基础设施，保持全局单例；ECS 通过桥接方式消费日志，而非反向依赖。
 
-- [ ] Log / 日志系统 | 双缓冲队列在 >1000 条/帧时存在锁竞争，需引入 TLS 无锁写缓冲（UE TraceLog 模式），每个线程 `thread_local` 预分配 64KB 环形缓冲，三指针模型（Cursor/Committed/Reaped），后台 Worker 定期批量收集，消除锁竞争。
-- [ ] Log / 日志系统 | 当前日志为纯文本消息，AI 无法按字段过滤（如 `fps < 30`），需引入结构化字段日志（Bevy tracing 风格），`LOG_STRUCT("Render", "frame_stats", field("fps", fps), field("draw_calls", dc))`，JSON 输出增加 `fields` 对象。
-- [ ] Log / 日志系统 | 掉帧排查时日志与帧时间、实体数、内存用量未关联，需每帧自动注入 `DiagnosticSnapshot`（fps / frame_time_ms / entity_count / memory_used_mb），`LOG_STRUCT("Diagnostics", "frame_snapshot", ...)`。
-- [ ] Log / 日志系统 | 崩溃时未刷盘的日志会丢失，需注册 `std::set_terminate` 和信号处理函数，崩溃时无锁强制遍历所有缓冲区 `Committed` 数据写入文件。
-- [ ] Log / 日志系统 | 当前 `Logger` 为全局单例，与 ECS 架构不一致，需重构为 ECS Event 驱动：`LogEvent` 瞬时 ECS Event + `LogSink` Component（Console / File / JsonFile）+ `LogFilter` Resource，`ConsoleSinkSystem` / `FileSinkSystem` / `JsonSinkSystem` 并行消费。
+- [x] Log / 日志系统 | `logger.cpp` 崩溃时未刷盘的日志会丢失 → 已实现 `installCrashHandlers()` + `emergencyFlush()`，注册 `std::set_terminate` 与平台信号/SEH handler，崩溃时无锁遍历双缓冲并强制写入所有输出设备。
+- [ ] Log / 日志系统 | `logger.cpp` 双缓冲队列在 >1000 条/帧时存在锁竞争，需引入 TLS 无锁写缓冲（UE TraceLog 模式），每个线程 `thread_local` 预分配 64KB 环形缓冲，三指针模型（Cursor/Committed/Reaped），后台 Worker 定期批量收集，消除锁竞争。
+- [ ] Log / 日志系统 | `log_entry.h` 当前日志为纯文本消息，AI 无法按字段过滤（如 `fps < 30`），需引入结构化字段日志（Bevy tracing 风格），`LOG_STRUCT("Render", "frame_stats", field("fps", fps), field("draw_calls", dc))`，JSON 输出增加 `fields` 对象。
+- [ ] Log / 日志系统 | `logger.cpp` 掉帧排查时日志与帧时间、实体数、内存用量未关联，需每帧自动注入 `DiagnosticSnapshot`（fps / frame_time_ms / entity_count / memory_used_mb），`LOG_STRUCT("Diagnostics", "frame_snapshot", ...)`。
+- [ ] Log / 日志系统 | `logger.h` ECS 侧需桥接日志系统：`LogEvent` 瞬时 ECS Event + `LogSinkSystem` 每帧读取 EventBuffer 并调用 `LOG_INFO` / `LOG_ERROR` 输出到现有 Logger；Logger 本身保持独立单例，不依赖 ECS World。
 
 ## Module / 模块架构
 > 来自已完成的模块重构计划，以下拆分/扩展时机未到，但方向已明确。
@@ -99,7 +100,7 @@
 - [ ] Module / 模块架构 | `math/aabb.h:42` 注册了 ECS 组件 `REFLECT_COMPONENT(AABB)`，迫使 `math` 模块依赖 `core/type_registry.h`，破坏底层纯净性，需在 `render/components/` 下新建 `WorldAabb.h`（主世界）与 `RenderAabb.h`（渲染世界）作为专用 ECS 组件，`math/aabb.h` 移除 `type_registry.h` 依赖，恢复零依赖。
 
 ## Core Runtime / 剩余优化
-> Phase 4 核心运行时闭环已大部分落地，以下为代码中仍存的 legacy 与缺失。
+> 核心运行时闭环已大部分落地，以下为代码中仍存的 legacy 与缺失。
 
 - [ ] Core Runtime | `imgui_panels.cpp` 中仍有 `Fallback: legacy ComponentDesc recursive lookup` 分支，新增组件若未走新反射路径会静默回退到旧逻辑，需补全 `AtomRegistry::registerBuiltinAtoms()` 覆盖所有引擎内置原子类型，`imgui_panels.cpp` 中删除 legacy 分支，强制走 `inspectorDrawComponent()` 递归绘制。
 - [ ] Core Runtime | `App::addPlugin()` 只有唯一性检查，无依赖声明与拓扑排序，若 Plugin A 依赖 Plugin B 但 B 未注册只能在运行时才发现功能缺失，需在 `IPlugin` 中增加 `dependencies()` 虚函数返回依赖名称列表，`App` 在 `build()` 前做拓扑排序，循环依赖或未满足依赖时 `LOG_FATAL`。

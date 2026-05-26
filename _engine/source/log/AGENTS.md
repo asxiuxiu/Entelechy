@@ -26,6 +26,7 @@
 - 改**文本日志格式** → 动 `file_output.cpp` 的 `write()`
 - 改**JSON 日志字段或转义逻辑** → 动 `json_file_output.cpp`
 - 改**异步刷新策略**（如批量刷新的阈值） → 动 `logger.cpp`
+- 改**崩溃/终止时的日志刷盘行为** → 动 `logger.cpp` 的 crash handler 区域
 - 新增**日志输出目标**（如网络、远程） → 新增继承 `LogOutputDevice` 的类
 
 ## 依赖关系
@@ -38,6 +39,7 @@
 - 日志系统通过 header-only 风格宏被大量模块包含，改动 `log_macros.h` 会触发大规模重编译
 - `Logger` 目前是单线程模型，异步仅指缓冲队列，未来可能引入真正的后台刷写线程
 - FileOutput 和 JsonFileOutput 各自独立实现滚动逻辑，未来可提取公共基类
+- 崩溃 handler（`installCrashHandlers()`）在信号/终止路径中不拿锁、直接遍历双缓冲写所有设备。这是 UB 与实用性的权衡，所有主流引擎均如此
 - 每次 `Logger::init()` 会为文件输出生成带 `_YYYYMMDD_HHMMSS_mmm` 后缀的独立日志文件，避免多次启动混写
 - 文本与 JSON 时间戳均包含毫秒精度（如 `2026-05-06T18:01:55.464`）
 - `LogFileConfig` 与 `JsonFileOutput` 内部使用 `SmallString` 存储路径，避免栈指针悬垂且消除小字符串堆分配

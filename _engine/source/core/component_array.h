@@ -4,6 +4,8 @@
 #include "allocator.h"
 #include <memory>
 #include <utility>
+#include <type_traits>
+#include <cstring>
 
 namespace Entelechy {
 
@@ -104,9 +106,13 @@ private:
         usize newCap = m_capacity == 0 ? 4 : m_capacity * 2;
         constexpr usize ALIGN = (alignof(T) > 16) ? alignof(T) : 16;
         T* newData = static_cast<T*>(DefaultAllocator::alloc(newCap * sizeof(T), ALIGN));
-        for (usize i = 0; i < m_count; ++i) {
-            std::construct_at(&newData[i], std::move(m_data[i]));
-            std::destroy_at(&m_data[i]);
+        if constexpr (std::is_trivially_copyable_v<T>) {
+            std::memcpy(newData, m_data, m_count * sizeof(T));
+        } else {
+            for (usize i = 0; i < m_count; ++i) {
+                std::construct_at(&newData[i], std::move(m_data[i]));
+                std::destroy_at(&m_data[i]);
+            }
         }
         if (m_data) {
             DefaultAllocator::free(m_data);

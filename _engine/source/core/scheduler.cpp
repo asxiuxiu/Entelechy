@@ -1,4 +1,4 @@
-﻿#include "scheduler.h"
+#include "scheduler.h"
 #include "log/log_macros.h"
 
 namespace Entelechy {
@@ -86,16 +86,16 @@ void Scheduler::build() {
             }
         }
 
-        // Kahn
+        // Kahn — use index front instead of removeAt(0) for O(1) dequeue.
         DynamicArray<usize> queue;
         for (usize i = 0; i < n; ++i) {
             if (inDegree[i] == 0) queue.pushBack(i);
         }
 
         DynamicArray<SystemDesc*> sorted;
-        while (!queue.empty()) {
-            usize u = queue.front();
-            queue.removeAt(0);
+        usize front = 0;
+        while (front < queue.size()) {
+            usize u = queue[front++];
             sorted.pushBack(sys[u]);
             for (usize vIdx = 0; vIdx < adj[u].size(); ++vIdx) {
                 usize v = adj[u][vIdx];

@@ -1,4 +1,4 @@
-﻿#include "world.h"
+#include "world.h"
 #include "command_buffer.h"
 #include "type_registry.h"
 #include "math/mat4.h"
@@ -234,7 +234,7 @@ void World::addComponentRaw(Entity e, ComponentTypeID type, const void* data) {
     }
     const ComponentDesc* desc = TypeRegistry::instance().findComponent(type);
     if (desc) {
-        u32 mask = TypeRegistry::instance().getComponentMask(desc->name);
+        u64 mask = TypeRegistry::instance().getComponentMask(desc->name);
         m_entity_masks[e.id] |= mask;
     }
 }
@@ -246,7 +246,7 @@ void World::removeComponentRaw(Entity e, ComponentTypeID type) {
     }
     const ComponentDesc* desc = TypeRegistry::instance().findComponent(type);
     if (desc) {
-        u32 mask = TypeRegistry::instance().getComponentMask(desc->name);
+        u64 mask = TypeRegistry::instance().getComponentMask(desc->name);
         m_entity_masks[e.id] &= ~mask;
     }
 }

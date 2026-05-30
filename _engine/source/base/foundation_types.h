@@ -106,18 +106,33 @@ using isize = std::ptrdiff_t;
         #define DEBUG_BREAK() __builtin_trap()
     #endif
 
-    #define CHECK_IMPL(cond, expr_str, func, file) \
+    using AssertHandler = void(*)(const char* expr, const char* func, const char* file, int line);
+
+    inline AssertHandler& GetAssertHandlerRef() {
+        static AssertHandler s_handler = nullptr;
+        return s_handler;
+    }
+
+    inline void SetAssertHandler(AssertHandler handler) {
+        GetAssertHandlerRef() = handler;
+    }
+
+    #define CHECK_IMPL(cond, expr_str, func, file, line) \
         do { if (!(cond)) { \
-            std::fprintf(stderr, "[CHECK FAILED] %s in %s at %s\n", expr_str, func, file); \
-            DEBUG_BREAK(); \
-            std::abort(); \
+            if (AssertHandler h = GetAssertHandlerRef()) { \
+                h(expr_str, func, file, line); \
+            } else { \
+                std::fprintf(stderr, "[CHECK FAILED] %s in %s at %s:%d\n", expr_str, func, file, line); \
+                DEBUG_BREAK(); \
+                std::abort(); \
+            } \
         } } while(0)
 
     // CHECK: internal invariant, stripped in Release (zero cost)
-    #define CHECK(cond) CHECK_IMPL(cond, #cond, __func__, __FILE__)
+    #define CHECK(cond) CHECK_IMPL(cond, #cond, __func__, __FILE__, __LINE__)
 
     // VERIFY: expression always executes, failure handling is Debug-only
-    #define VERIFY(cond) CHECK_IMPL(cond, #cond, __func__, __FILE__)
+    #define VERIFY(cond) CHECK_IMPL(cond, #cond, __func__, __FILE__, __LINE__)
 
     // ENSURE: log error and continue (non-fatal)
     #define ENSURE_MSG(cond, fmt, ...) \

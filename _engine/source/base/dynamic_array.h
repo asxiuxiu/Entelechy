@@ -3,6 +3,8 @@
 #include <initializer_list>
 #include <memory>
 #include <utility>
+#include <type_traits>
+#include <cstring>
 
 namespace Entelechy {
 
@@ -206,9 +208,13 @@ public:
 private:
     void grow(usize newCapacity) {
         T* newData = static_cast<T*>(AllocatorT::alloc(newCapacity * sizeof(T), alignof(T)));
-        for (usize i = 0; i < m_count; ++i) {
-            std::construct_at(&newData[i], std::move(m_data[i]));
-            std::destroy_at(&m_data[i]);
+        if constexpr (std::is_trivially_copyable_v<T>) {
+            std::memcpy(newData, m_data, m_count * sizeof(T));
+        } else {
+            for (usize i = 0; i < m_count; ++i) {
+                std::construct_at(&newData[i], std::move(m_data[i]));
+                std::destroy_at(&m_data[i]);
+            }
         }
         if (m_data) {
             AllocatorT::free(m_data);

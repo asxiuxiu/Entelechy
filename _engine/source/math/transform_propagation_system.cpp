@@ -1,4 +1,4 @@
-﻿#include "transform_propagation_system.h"
+#include "transform_propagation_system.h"
 #include "query.h"
 #include "transform_component.h"
 #include "mat4.h"
@@ -12,7 +12,27 @@ void TransformPropagationSystem::tick(World& world, FrameArena& arena, f32 dt) {
     (void)dt;
 
     // ------------------------------------------------------------------
-    // Step 1: Collect all entities with Transform + GlobalTransform
+    // Phase 1: Mark dirty trees.
+    // Any entity whose Transform.dirty == 1 gets TransformTreeChanged,
+    // and the marker propagates up the parent chain to root.
+    // ------------------------------------------------------------------
+    for (auto [e, trans] : Query<Transform>(world)) {
+        if (!trans || !trans->dirty) continue;
+        trans->dirty = 0;
+
+        Entity current = e;
+        while (current.valid()) {
+            if (!world.hasComponent<TransformTreeChanged>(current)) {
+                world.addComponent(current, TransformTreeChanged{});
+            }
+            auto* childOf = world.getComponent<ChildOf>(current);
+            if (!childOf || !childOf->parent.valid()) break;
+            current = childOf->parent;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 2: Collect only entities marked for update.
     // ------------------------------------------------------------------
     struct Entry {
         Entity e;
@@ -24,13 +44,14 @@ void TransformPropagationSystem::tick(World& world, FrameArena& arena, f32 dt) {
     DynamicArray<Entry> entries;
     for (auto [e, trans, global] : Query<Transform, GlobalTransform>(world)) {
         if (!trans || !global) continue;
+        if (!world.hasComponent<TransformTreeChanged>(e)) continue;
         entries.pushBack({e, trans, global, world.getRank(e)});
     }
 
     if (entries.empty()) return;
 
     // ------------------------------------------------------------------
-    // Step 2: Build rank buckets (O(n) instead of O(n log n) sort)
+    // Phase 3: Build rank buckets (O(n) instead of O(n log n) sort)
     // ------------------------------------------------------------------
     u32 maxRank = 0;
     for (const auto& entry : entries) {
@@ -44,7 +65,7 @@ void TransformPropagationSystem::tick(World& world, FrameArena& arena, f32 dt) {
     }
 
     // ------------------------------------------------------------------
-    // Step 3: Propagate local → world by rank, parents before children.
+    // Phase 4: Propagate local → world by rank, parents before children.
     // Within the same rank, entities have no parent-child dependency
     // and can be processed in parallel.
     // ------------------------------------------------------------------
@@ -70,8 +91,6 @@ void TransformPropagationSystem::tick(World& world, FrameArena& arena, f32 dt) {
             } else {
                 global->matrix = local;
             }
-
-            trans->dirty = 0;
         };
 
         if (m_thread_pool && bucket.size() > 16) {
@@ -83,6 +102,13 @@ void TransformPropagationSystem::tick(World& world, FrameArena& arena, f32 dt) {
                 propagateOne(e);
             }
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 5: Clean up dirty markers.
+    // ------------------------------------------------------------------
+    for (const auto& entry : entries) {
+        world.removeComponent<TransformTreeChanged>(entry.e);
     }
 }
 

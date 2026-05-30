@@ -1,9 +1,10 @@
-﻿#pragma once
+#pragma once
 #include "world.h"
 #include "type_registry.h"
 #include <tuple>
 #include <iterator>
 #include <type_traits>
+#include <limits>
 
 namespace Entelechy {
 
@@ -13,17 +14,31 @@ namespace Entelechy {
 template<typename WorldT, typename... Cs>
     requires (sizeof...(Cs) > 0)
 class QueryImpl {
-    using FirstC = std::tuple_element_t<0, std::tuple<Cs...>>;
-    using PrimaryArrayPtr = std::conditional_t<std::is_const_v<WorldT>,
-        const ComponentArray<FirstC>*,
-        ComponentArray<FirstC>*>;
-
     template<typename T>
     using MaybeConstPtr = std::conditional_t<std::is_const_v<WorldT>, const T*, T*>;
 
+    using PrimaryArrayPtr = std::conditional_t<std::is_const_v<WorldT>,
+        const IComponentArray*, IComponentArray*>;
+
+    template<size_t... Is>
+    static PrimaryArrayPtr findShortest(WorldT& world, std::index_sequence<Is...>) {
+        PrimaryArrayPtr shortest = nullptr;
+        usize min_count = std::numeric_limits<usize>::max();
+        (void)(([&]() {
+            using C = std::tuple_element_t<Is, std::tuple<Cs...>>;
+            auto* arr = world.template getComponentArray<C>();
+            if (arr && arr->count() < min_count) {
+                min_count = arr->count();
+                shortest = arr;
+            }
+            return true;
+        }()) && ...);
+        return shortest;
+    }
+
 public:
     explicit QueryImpl(WorldT& world) : m_world(&world) {
-        m_primary_array = world.template getComponentArray<FirstC>();
+        m_primary_array = findShortest(world, std::index_sequence_for<Cs...>{});
     }
 
     struct Iterator {
@@ -37,7 +52,7 @@ public:
         const u32* ids;
         usize index;
         usize count;
-        u32 requiredMask;
+        u64 requiredMask;
 
         void advanceToNextValid() {
             while (index < count) {
@@ -69,7 +84,7 @@ public:
     };
 
     Iterator begin() const {
-        u32 requiredMask = (TypeRegistry::instance().getMask<Cs>() | ...);
+        u64 requiredMask = (TypeRegistry::instance().getMask<Cs>() | ...);
         if (!m_primary_array || m_primary_array->count() == 0) {
             return end();
         }
@@ -79,7 +94,7 @@ public:
     }
 
     Iterator end() const {
-        u32 requiredMask = (TypeRegistry::instance().getMask<Cs>() | ...);
+        u64 requiredMask = (TypeRegistry::instance().getMask<Cs>() | ...);
         usize count = m_primary_array ? m_primary_array->count() : 0;
         return Iterator{m_world, nullptr, count, count, requiredMask};
     }

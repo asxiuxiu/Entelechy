@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "entity_registry.h"
 #include "component_array.h"
 #include "type_registry.h"
@@ -54,7 +54,7 @@ public:
         return m_registry ? m_registry->getGeneration(id) : 0xFFFFFFFFu;
     }
 
-    [[nodiscard]] u32 getEntityMask(u32 id) const {
+    [[nodiscard]] u64 getEntityMask(u32 id) const {
         if (id < m_entity_masks.size()) return m_entity_masks[id];
         return 0;
     }
@@ -156,7 +156,7 @@ private:
     EntityRegistry* m_registry = nullptr;
     bool m_owns_registry = false;
     CommandBuffer* m_cmd_buffer = nullptr;
-    DynamicArray<u32> m_entity_masks;
+    DynamicArray<u64> m_entity_masks;
     HashMap<ComponentTypeID, IComponentArray*> m_component_arrays;
     DynamicArray<u32> m_entity_ranks;
     u64 m_current_frame = 0;

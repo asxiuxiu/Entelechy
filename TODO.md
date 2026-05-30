@@ -1,4 +1,4 @@
-﻿# SelfGameEngine TODO / 技术债务
+# SelfGameEngine TODO / 技术债务
 
 ## ECS / Core Runtime
 - [ ] ECS / Core Runtime | `src/world.h` 中 `std::vector<bool> alive` 存在位压缩特化性能陷阱，读写较慢且无法返回真实引用，需替换为 `std::vector<uint8_t>` 或引入 Sparse Set 架构。
@@ -90,6 +90,47 @@
 - [ ] Log / 日志系统 | `logger.cpp` 掉帧排查时日志与帧时间、实体数、内存用量未关联，需每帧自动注入 `DiagnosticSnapshot`（fps / frame_time_ms / entity_count / memory_used_mb），`LOG_STRUCT("Diagnostics", "frame_snapshot", ...)`。
 - [ ] Log / 日志系统 | `logger.h` ECS 侧需桥接日志系统：`LogEvent` 瞬时 ECS Event + `LogSinkSystem` 每帧读取 EventBuffer 并调用 `LOG_INFO` / `LOG_ERROR` 输出到现有 Logger；Logger 本身保持独立单例，不依赖 ECS World。
 
+## Base Layer / 基础层优化
+> 本章节完整融合 `plans/BaseLayer-Optimizations-Plan.md` 全部内容（已完成 + 未做 + 回探替换确认）。原 plan 文件可视为已归档。
+
+### 已完成的简单优化（BaseLayer Plan 归档）
+
+- [x] Base Layer | `trivially_relocatable` 快速路径 — `grow()` 中对 `std::is_trivially_copyable_v<T>` 走 `std::memcpy` 而非逐个 move+destroy，ECS 组件数组扩容性能提升数倍。
+  - 文件：`base/dynamic_array.h`、`core/component_array.h`
+- [x] Base Layer | `AssertHandler` 预留接口 — 增加 `AssertHandler` 函数指针类型、`SetAssertHandler()`、`GetAssertHandlerRef()`，`CHECK`/`VERIFY` 失败时优先调用注册的处理函数，未来接入 Sentry/Backtrace 时无需改动所有 `CHECK` 调用点。
+  - 文件：`base/foundation_types.h`
+
+### 回探替换时机确认（阶段 1/2 → 阶段 3）
+
+| 回探项 | 当前状态 | 备注 |
+|--------|----------|------|
+| `std::vector` → `DynamicArray`/`SparseSet` | ✅ 已完成 | ECS 核心已用自研容器 |
+| `std::string` → `SmallString`/`StringId` | ✅ 已完成 | 日志、路径、组件名已替换 |
+| 裸 `assert()` → `CHECK`/`VERIFY`/`ENSURE` | ✅ 已完成 | `foundation_types.h` 已提供 |
+| 裸 `fopen` → VFS | ✅ 已完成 | `vfs/` 模块已存在 |
+| 裸 `std::thread` → `ThreadPool` | ✅ 已完成 | `thread_pool/` 已存在 |
+
+### 未做：不影响初版引擎（后续阶段补齐）
+
+- [ ] Base Layer | 线程池 TLS 本地队列快速路径。当前 round-robin 原子计数器不是瓶颈，但阶段 4 System 并行化前必须实施。
+  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/线程池与任务系统.md` — `thread_local Worker* s_localWorker` + `SubmitLocal()`
+- [ ] Base Layer | 线程池 `waitForAll()` 帮助执行。当前主线程 waitForAll 空转不致命，但与 TLS 本地队列一起改。
+  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/线程池与任务系统.md` — 等待线程主动 pop/steal 并执行任务
+- [ ] Base Layer | 主线程回调队列 (`MainThreadQueue`)。初版无异步加载/热重载需求，阶段 5 异步加载管线开始前必须完成。
+  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/线程池与任务系统.md` — 后台线程通过回调队列投递，主线程 swap 后无锁消费
+- [ ] Base Layer | 线程池命名线程 (`Named Threads`)。初版单线程渲染 + 单线程 ECS 足够，阶段 5 渲染管线（RenderThread 引入）前实施。
+  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/线程池与任务系统.md` — `AnyThread` / `GameThread` / `RenderThread` / `IOThread`
+- [ ] Base Layer | 任务依赖图 DAG + Retraction。初版无复杂异步链式任务，阶段 5 异步加载管线（资源依赖图）前实施。
+  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/线程池与任务系统.md` — `TaskNode` + 原子依赖计数器 + `TryRetractAndExecute`
+- [ ] Base Layer | `StringInternPool` ECS Resource 化。当前单 World 场景全局单例无问题，阶段 4 多 World 或编辑器需要隔离时实施。
+  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — Intern 池全局状态应以 ECS Resource 形式存在
+- [ ] Base Layer | `StringId` 增加 intern 池索引。当前字符串碰撞概率极低，与 StringInternPool Resource 化一起改。
+  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — `u64 m_hash` + `u32 m_index` 二次校验
+- [ ] Base Layer | `SmallString` strict aliasing 修正。当前 union 用法在主流编译器上工作正常，基础层稳定后修正。
+  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — 工业级实现用 `std::aligned_storage` 或手动指针运算
+- [ ] Base Layer | 日志 `flush()` devices 锁竞争优化。初版日志量小，锁竞争不显著，高并发日志场景前实施。
+  - 参考：知识库 `Notes/SelfGameEngine/Hello-Engine-Window/可视化日志系统.md` — 未来替换为 TLS 无锁环形缓冲
+
 ## Module / 模块架构
 > 来自已完成的模块重构计划，以下拆分/扩展时机未到，但方向已明确。
 
@@ -99,9 +140,33 @@
 - [ ] Module / 模块架构 | `render/` 下所有文件平铺，随着 RHI、材质、后处理加入会越来越混乱，需按 `render/rhi/`（RHI 抽象层 + 各后端）、`render/renderer/`（RenderGraph、RenderPass）、`render/material/`（Material、ShaderCache）、`render/2d/`（Sprite、UI）、`render/post_process/`（后处理栈）分层。
 - [ ] Module / 模块架构 | `math/aabb.h:42` 注册了 ECS 组件 `REFLECT_COMPONENT(AABB)`，迫使 `math` 模块依赖 `core/type_registry.h`，破坏底层纯净性，需在 `render/components/` 下新建 `WorldAabb.h`（主世界）与 `RenderAabb.h`（渲染世界）作为专用 ECS 组件，`math/aabb.h` 移除 `type_registry.h` 依赖，恢复零依赖。
 
-## Core Runtime / 剩余优化
-> 核心运行时闭环已大部分落地，以下为代码中仍存的 legacy 与缺失。
+## Core Runtime / 阶段 4 优化（已完成的低成本项）
+> 2026-05-30：参照 SelfGameEngine 第四阶段知识库，执行了一批低成本直接优化，以下已落地。
 
+- [x] Core Runtime | `Query` 最短列表优化 — `QueryImpl` 构造时遍历所有组件类型，选 `count()` 最小的 `ComponentArray` 作为 primary array，多组件查询时减少 mask 检查次数。
+  - 文件：`core/query.h`
+- [x] Core Runtime | `Scheduler` 拓扑排序队列优化 — Kahn 算法中 `queue.removeAt(0)`（O(n)）改为 `front` 索引递增（O(1)）。
+  - 文件：`core/scheduler.cpp`
+- [x] Core Runtime | `TransformPropagationSystem` 子树脏标记剪枝 — 新增 Phase 1：收集 `Transform.dirty == 1` 的实体，沿 `ChildOf` 链向上传播 `TransformTreeChanged`；Phase 2~4 只更新带 dirty marker 的实体；Phase 5 清理 marker。静态场景下可跳过 80%+ 的冗余矩阵计算。
+  - 文件：`math/transform_propagation_system.cpp`、`game_plugin.cpp`（RotationSystem / WobbleSystem 补充 `dirty = 1`）
+- [x] Core Runtime | 组件类型上限从 32 扩到 64 — `TypeRegistry::allocateNextID()` 断言放宽，`getMask()` 返回 `u64`，`entity mask` 全链路（World/Query/AgentBridge）同步升级。
+  - 文件：`core/type_registry.h`、`core/type_registry.cpp`、`core/world.h`、`core/world.cpp`、`core/query.h`、`bridge/agent_bridge.h`、`bridge/agent_bridge.cpp`
+
+## Core Runtime / 阶段 4 差距（尚未实施）
+> 以下项来自 SelfGameEngine 第四阶段知识库的「默认推荐」路径，当前代码已实现骨架但关键特性缺失。
+
+- [ ] Core Runtime | **双轨时间步（Main + FixedMain）**。当前 `Scheduler::tick()` 只有单一 Fixed 轨道（60Hz），所有 System 都跑固定步长。需拆分 `Main`（可变步长，渲染/UI/相机跟随）与 `FixedMain`（固定步长，物理/AI/确定性逻辑），`RunFixedMainLoop` 作为桥接，渲染插值消除卡顿。
+  - 参考：知识库 `Notes/SelfGameEngine/核心运行时闭环/系统调度与确定性.md` 问题 5
+- [ ] Core Runtime | **System 级并行调度**。当前 `Scheduler::tickFixed()` 是纯串行执行。需构建期分析 `reads/writes` 冲突图，按 Wavefront 分组，同波次无冲突 System 并行执行。
+  - 参考：知识库 `Notes/SelfGameEngine/核心运行时闭环/系统调度与确定性.md` 问题 4
+- [ ] Core Runtime | **事件总线 Pub-Sub**。当前事件只是普通 ECS 组件（`KeyboardEvent`、`ColorChangeEvent`、`DeathEvent`），无通用事件总线。需设计 `EventBus` / `EventReader<T>` / `EventWriter<T>`，消费后自动清理，支持延迟投递。
+  - 参考：知识库 `Notes/SelfGameEngine/核心运行时闭环/事件总线.md`
+- [ ] Core Runtime | **命令缓冲扁平化**。当前 `CommandBuffer` 每条命令单独 `DefaultAllocator::alloc` + 虚函数 `ICommand::apply`，大量命令时分配开销大。应改为类型擦除的固定容量 buffer（`DynamicArray<u8>` 存扁平命令 + 函数指针表），并引入线程本地命令队列。
+  - 参考：知识库 `Notes/SelfGameEngine/核心运行时闭环/系统调度与确定性.md` 问题 3
+- [ ] Core Runtime | **快照/回放/确定性**。缺少 `WorldSnapshot` 捕获与恢复、增量 Diff、确定性保证清单（稳定拓扑排序 FIFO、确定性 RNG、禁止未初始化内存）。
+  - 参考：知识库 `Notes/SelfGameEngine/核心运行时闭环/系统调度与确定性.md` 问题 6
+- [ ] Core Runtime | `GlobalTransform` 用 `Affine3A` 替代 `Mat4`。`Affine3A` 48 字节 vs `Mat4` 64 字节，省 25% 内存，且能正确表达层级叠加后的 shear。Bevy 生产验证。
+  - 参考：知识库 `Notes/SelfGameEngine/核心运行时闭环/场景图与变换.md` 问题 2
 - [ ] Core Runtime | `imgui_panels.cpp` 中仍有 `Fallback: legacy ComponentDesc recursive lookup` 分支，新增组件若未走新反射路径会静默回退到旧逻辑，需补全 `AtomRegistry::registerBuiltinAtoms()` 覆盖所有引擎内置原子类型，`imgui_panels.cpp` 中删除 legacy 分支，强制走 `inspectorDrawComponent()` 递归绘制。
 - [ ] Core Runtime | `App::addPlugin()` 只有唯一性检查，无依赖声明与拓扑排序，若 Plugin A 依赖 Plugin B 但 B 未注册只能在运行时才发现功能缺失，需在 `IPlugin` 中增加 `dependencies()` 虚函数返回依赖名称列表，`App` 在 `build()` 前做拓扑排序，循环依赖或未满足依赖时 `LOG_FATAL`。
 - [ ] Core Runtime | `ViewBinnedPhases` / `ViewSortedPhases` / `ViewVisibleList`（`render/RenderResources.h`、`render/culling/ViewVisibleList.h`）未注册 `REFLECT_COMPONENT`，Inspector 和序列化系统无法遍历字段，需补全注册，并确认 `ViewVisibleList` 中的 `DynamicArray<Entity>` 反射系统是否支持容器字段（当前可能只支持 Atom/Composite）。

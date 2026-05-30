@@ -1,4 +1,4 @@
-﻿#include "game_plugin.h"
+#include "game_plugin.h"
 #include "world.h"
 #include "query.h"
 #include "type_registry.h"
@@ -102,6 +102,7 @@ void GamePlugin::RotationSystem::tick(Entelechy::World& w, Entelechy::FrameArena
     for (auto [e, trans] : Entelechy::Query<Entelechy::Transform>(w)) {
         if (!trans) continue;
         trans->rotation = trans->rotation * Entelechy::Quat::fromAxisAngle({0.0f, 1.0f, 0.0f}, dt);
+        trans->dirty = 1;
     }
 }
 
@@ -110,6 +111,7 @@ void GamePlugin::WobbleSystem::tick(Entelechy::World& w, Entelechy::FrameArena&,
     for (auto [e, trans] : Entelechy::Query<Entelechy::Transform>(w)) {
         if (!trans) continue;
         trans->translation.y += 0.001f;
+        trans->dirty = 1;
     }
 }
 

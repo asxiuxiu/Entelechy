@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "foundation_types.h"
 #include "small_string.h"
 #include "string_format.h"
@@ -78,17 +78,17 @@ public:
     }
 
     template<typename T>
-    [[nodiscard]] u32 getMask() const {
+    [[nodiscard]] u64 getMask() const {
         ComponentTypeID id = getTypeID<T>();
         CHECK(id != INVALID_COMPONENT_TYPE_ID && "Component type not registered");
-        return (1u << id);
+        return (1ull << id);
     }
 
-    void registerComponent(ComponentTypeID id, u32 mask, const ComponentDesc& desc);
+    void registerComponent(ComponentTypeID id, u64 mask, const ComponentDesc& desc);
     const ComponentDesc* findComponent(ComponentTypeID id) const;
     const ComponentDesc* findComponent(const SmallString& name) const;
     ComponentTypeID findComponentID(const SmallString& name) const;
-    u32 getComponentMask(const SmallString& name) const;
+    u64 getComponentMask(const SmallString& name) const;
 
     // ----- General type descriptions (new) -----
     void registerType(const TypeDesc& desc);
@@ -104,7 +104,7 @@ public:
 private:
     TypeRegistry() = default;
     ComponentTypeID allocateNextID() {
-        CHECK(m_next_id < 32 && "Exceeded maximum 32 component types");
+        CHECK(m_next_id < 64 && "Exceeded maximum 64 component types");
         return m_next_id++;
     }
 
@@ -112,7 +112,7 @@ private:
     HashMap<ComponentTypeID, ComponentDesc> m_components;
     HashMap<SmallString, ComponentTypeID> m_name_to_id;
     HashMap<ComponentTypeID, SmallString> m_id_to_name;
-    HashMap<SmallString, u32> m_name_to_mask;
+    HashMap<SmallString, u64> m_name_to_mask;
     ComponentTypeID m_next_id = 0;
 
     // General type table
@@ -133,7 +133,7 @@ private:
     struct _AutoReg_##Name { \
         _AutoReg_##Name() { \
             Entelechy::ComponentTypeID id = Entelechy::TypeRegistry::instance().getOrAllocateTypeID<Name>(); \
-            u32 mask = (1u << id); \
+            u64 mask = (1ull << id); \
             Entelechy::TypeRegistry::instance().registerComponent(id, mask, Entelechy::ComponentDesc{ \
                 #Name, sizeof(Name), { __VA_ARGS__ } \
             }); \

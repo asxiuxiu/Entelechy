@@ -1,4 +1,4 @@
-﻿#include "agent_bridge.h"
+#include "agent_bridge.h"
 #include "type_registry.h"
 #include "log/log_macros.h"
 #include "base/string_intern_pool.h"
@@ -238,7 +238,7 @@ SmallString AgentBridge::queryEntities(const SmallString& comp_name) const {
     return queryEntitiesByMask(mask);
 }
 
-SmallString AgentBridge::queryEntitiesByMask(u32 mask) const {
+SmallString AgentBridge::queryEntitiesByMask(u64 mask) const {
     SmallString json = "[";
     bool first = true;
     for (u32 id = 0; id < m_world.maxEntityID(); ++id) {

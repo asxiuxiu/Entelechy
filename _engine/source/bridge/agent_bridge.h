@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "world.h"
 #include "scheduler.h"
 #include "movement_system.h"
@@ -22,7 +22,7 @@ public:
     SmallString setComponent(Entity e, const SmallString& comp_name, const SmallString& json);
 
     // New AI-friendly tools
-    SmallString queryEntitiesByMask(u32 mask) const;
+    SmallString queryEntitiesByMask(u64 mask) const;
     SmallString getWorldSummary() const;
 
     // ToolRegistry integration

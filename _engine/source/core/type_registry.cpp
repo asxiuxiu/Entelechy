@@ -1,4 +1,4 @@
-﻿#include "type_registry.h"
+#include "type_registry.h"
 #include <cstdio>
 
 namespace Entelechy {
@@ -10,7 +10,7 @@ TypeRegistry& TypeRegistry::instance() {
 
 // ----- ECS component APIs -----
 
-void TypeRegistry::registerComponent(ComponentTypeID id, u32 mask, const ComponentDesc& desc) {
+void TypeRegistry::registerComponent(ComponentTypeID id, u64 mask, const ComponentDesc& desc) {
     m_components.insert(id, desc);
     m_name_to_id.insert(desc.name, id);
     m_id_to_name.insert(id, desc.name);
@@ -35,7 +35,7 @@ ComponentTypeID TypeRegistry::findComponentID(const SmallString& name) const {
     return INVALID_COMPONENT_TYPE_ID;
 }
 
-u32 TypeRegistry::getComponentMask(const SmallString& name) const {
+u64 TypeRegistry::getComponentMask(const SmallString& name) const {
     auto* v = m_name_to_mask.find(name);
     if (v) return *v;
     return 0;

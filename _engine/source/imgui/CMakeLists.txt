@@ -17,28 +17,22 @@ else()
 endif()
 set(IMGUI_BACKENDS_DIR ${IMGUI_PACKAGE_DIR}/res/bindings)
 
-add_library(ImGuiLib STATIC
-    ${CMAKE_CURRENT_LIST_DIR}/imgui_init.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/imgui_manager.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/imgui_panels.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/imgui_atom_registry.cpp
-    ${IMGUI_BACKENDS_DIR}/imgui_impl_glfw.cpp
-    ${IMGUI_BACKENDS_DIR}/imgui_impl_opengl3.cpp
+entelechy_module(
+    NAME ImGuiLib
+    SOURCES
+        ${IMGUI_BACKENDS_DIR}/imgui_impl_glfw.cpp
+        ${IMGUI_BACKENDS_DIR}/imgui_impl_opengl3.cpp
+    PUBLIC_DEPS
+        imgui::imgui
+        glad::glad
+        glfw
+        WindowLib
+        LogLib
+        CoreLib
+        EcsLib
+    INIT_FUNCTION initImGui
+    NAMESPACE Entelechy
 )
 
-target_include_directories(ImGuiLib PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/..
-    ${IMGUI_BACKENDS_DIR}
-)
 
-target_compile_features(ImGuiLib PUBLIC cxx_std_20)
-
-target_link_libraries(ImGuiLib PUBLIC
-    imgui::imgui
-    glad::glad
-    glfw
-    WindowLib
-    LogLib
-    CoreLib
-)
+target_include_directories(ImGuiLib PUBLIC ${IMGUI_BACKENDS_DIR})

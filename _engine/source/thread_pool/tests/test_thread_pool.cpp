@@ -1,5 +1,5 @@
-﻿#include "test_framework.h"
-#include "thread_pool.h"
+﻿#include "test/test_framework.h"
+#include "thread_pool/thread_pool.h"
 #include <atomic>
 
 TEST(ThreadPool, Submit1000Tasks) {

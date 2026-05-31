@@ -1,4 +1,4 @@
-﻿# 代码规范
+# 代码规范
 
 ## 命名空间
 
@@ -50,7 +50,7 @@
 
 - **注释语言**：所有代码注释必须使用英文（含 TODO / FIXME / NOTE）。Markdown / 设计文档可用中文。
 - **Commit Message**：必须使用英文，遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范：`type[scope]: description`
-- **文件编码**：UTF-8 with BOM（避免 MSVC C4819 和 Windows 乱码）
+- **文件编码**：UTF-8（项目 CMake 已配置 MSVC `/utf-8` 编译选项，无需 BOM）
 - **换行符**：C++ / CMake / Python / JSON / Markdown 等统一使用 LF；仅 `.bat` / `.cmd` 使用 CRLF
 
 ## 自动化检查
@@ -67,7 +67,7 @@
 | `assert.bare` | 禁止裸 `assert()`，须用 `CHECK/VERIFY/ENSURE` | error |
 | `language.chinese-comment` | 代码注释须为英文 | warning |
 | `format.line-ending` | 须使用 LF 换行符 | warning |
-| `format.encoding` | 须使用 UTF-8 with BOM | warning |
+| `format.encoding` | 须使用有效 UTF-8 编码 | warning |
 | `cmake.relative-path` | `CMakeLists.txt` 须用 `${CMAKE_CURRENT_LIST_DIR}` | error |
 
 ### 手动运行

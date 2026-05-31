@@ -56,7 +56,7 @@
 ## 依赖关系
 - 向上依赖：
   - Window（依赖 IWindow 做 SwapBuffers）
-  - BaseLib（HashMap、foundation_types）
+  - CoreLib（HashMap、foundation_types）
 - 被依赖：
   - Runtime（主循环调用 beginFrame / present）
 

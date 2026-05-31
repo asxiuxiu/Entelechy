@@ -1,19 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
 
-add_library(RuntimeLib STATIC
-    ${CMAKE_CURRENT_LIST_DIR}/game_runtime.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/game_runtime.h
-    ${CMAKE_CURRENT_LIST_DIR}/game_plugin.h
-    ${CMAKE_CURRENT_LIST_DIR}/game_plugin.cpp
+entelechy_module(
+    NAME RuntimeLib
+    PUBLIC_DEPS
+        EcsLib
+        BridgeLib
+    INIT_FUNCTION initRuntime
+    NAMESPACE game
 )
 
-target_include_directories(RuntimeLib PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}
-)
-
-target_compile_features(RuntimeLib PUBLIC cxx_std_20)
-
-target_link_libraries(RuntimeLib PUBLIC
-    CoreLib
-    BridgeLib
-)

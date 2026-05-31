@@ -1,6 +1,6 @@
-﻿#include "test_framework.h"
-#include "vfs.h"
-#include "mount_point.h"
+﻿#include "test/test_framework.h"
+#include "vfs/vfs.h"
+#include "vfs/mount_point.h"
 
 TEST(VFS, FileSystemMountPointReadWrite) {
     Entelechy::VFS vfs;

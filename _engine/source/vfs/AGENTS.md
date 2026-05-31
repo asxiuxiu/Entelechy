@@ -12,7 +12,7 @@
 | `vfs.h/.cpp` | `VFS` 类：挂载点管理（mount/unmount/clear）、文件存在查询、读写分发；后挂载者优先 |
 | `mount_point.h/.cpp` | `IMountPoint` 抽象接口；`FileSystemMountPoint` 本地磁盘挂载；`MemoryMountPoint` 内存文件挂载 |
 | `vfs_types.h` | `FileData` 结构体（字节数组 + valid 标志） |
-| `CMakeLists.txt` | `VFSLib` 静态库定义，依赖 `BaseLib` |
+| `CMakeLists.txt` | `VFSLib` 静态库定义，依赖 `CoreLib` |
 
 ## 重要入口
 

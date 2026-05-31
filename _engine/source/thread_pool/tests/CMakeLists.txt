@@ -6,4 +6,6 @@ add_library(ThreadPoolTests OBJECT
 
 target_link_libraries(ThreadPoolTests PUBLIC ThreadPoolLib TestFrameworkLib)
 
+target_include_directories(ThreadPoolTests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../private)
+
 target_compile_features(ThreadPoolTests PUBLIC cxx_std_20)

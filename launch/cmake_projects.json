@@ -3,14 +3,16 @@
     "root_path": "_engine",
     "modules": [
         {
-            "name": "base",
-            "path": "source/base",
-            "enabled": true
-        },
-        {
             "name": "core",
             "path": "source/core",
             "enabled": true
+        },
+        {
+            "name": "ecs",
+            "path": "source/ecs",
+            "enabled": true,
+            "init_function": "initCore",
+            "namespace": "Entelechy"
         },
         {
             "name": "motor",
@@ -20,22 +22,16 @@
         {
             "name": "bridge",
             "path": "source/bridge",
-            "enabled": true
-        },
-        {
-            "name": "math",
-            "path": "source/math",
-            "enabled": true
-        },
-        {
-            "name": "memory",
-            "path": "source/memory",
-            "enabled": true
+            "enabled": true,
+            "init_function": "initBridge",
+            "namespace": "Entelechy"
         },
         {
             "name": "window",
             "path": "source/window",
-            "enabled": true
+            "enabled": true,
+            "init_function": "initWindow",
+            "namespace": "Entelechy"
         },
         {
             "name": "log",
@@ -50,7 +46,9 @@
         {
             "name": "imgui",
             "path": "source/imgui",
-            "enabled": true
+            "enabled": true,
+            "init_function": "initImGui",
+            "namespace": "Entelechy"
         },
         {
             "name": "vfs",

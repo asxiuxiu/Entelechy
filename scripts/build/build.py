@@ -236,9 +236,8 @@ def main():
     project_root = Path(__file__).resolve().parents[2]
     setup_skills_link(project_root)
 
-    # Step 1: Generate Source Forest
-    print("[Build] Step 1: Generating Source Forest...")
-    run([sys.executable, "launch/generator.py", "--config", config_path])
+    # Step 1: Source Forest generation is now handled by CMake configure_file.
+    # (legacy generator.py removed — modules are discovered directly by CMake.)
 
     # Prepare CMake File API query for IDE IntelliSense (Visual Studio generator
     # does not generate compile_commands.json, so we rely on File API replies)

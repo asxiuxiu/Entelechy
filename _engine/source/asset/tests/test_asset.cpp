@@ -1,8 +1,8 @@
-﻿#include "test_framework.h"
-#include "asset_handle.h"
-#include "handle_table.h"
-#include "assets.h"
-#include "asset_server.h"
+﻿#include "test/test_framework.h"
+#include "asset/handle/asset_handle.h"
+#include "asset/handle/handle_table.h"
+#include "asset/type/assets.h"
+#include "asset/loader/asset_server.h"
 #include <cstring>
 
 // ------------------------------------------------------------------

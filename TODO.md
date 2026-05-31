@@ -4,6 +4,10 @@
 - [ ] ECS / Core Runtime | `src/world.h` 中 `std::vector<bool> alive` 存在位压缩特化性能陷阱，读写较慢且无法返回真实引用，需替换为 `std::vector<uint8_t>` 或引入 Sparse Set 架构。
 - [ ] ECS / Core Runtime | `src/world.h` 中 `positions` / `velocities` 数组只增不减，先 spawn 大量实体再销毁后数组仍保持峰值大小，浪费内存，需升级为 Sparse Set（`dense + sparse`）让存活数据保持紧凑。
 - [ ] ECS / Core Runtime | `AgentBridge`（`_engine/source/bridge/agent_bridge.cpp:12`）越界承担 System 注册职责，直接持有 `World`、`Scheduler`、`MovementSystem` 并在 `init()` 中注册，把「AI 接口桥梁」与「运行时装配」耦合在一起，需将装配逻辑上提到 Runtime / App 层，`AgentBridge` 仅通过指针/引用访问外部注入的世界与调度器。
+- [ ] ECS / Core Runtime | `ecs/type/type_registry.h` `allocateNextID()` 使用 `u64` 掩码硬限制 64 种组件类型（`CHECK(m_next_id < 64)`），当前约 10~15 个但渲染/物理/动画组件加入后将触顶，需迁移到 Archetype/Chunk 存储或改用 `DynamicArray<u64>` 位集。
+- [ ] ECS / Core Runtime | `ecs/world/world.h` `m_component_arrays` 使用 `HashMap<ComponentTypeID, IComponentArray*>` 裸指针存储，无分配器注入，生命周期由 `World` 析构手动 `delete`。
+- [ ] ECS / Core Runtime | ECS 当前没有 Resource 概念（全局数据存储），`Assets<T>` 是独立存储，后续 ECS 演进后应把 `Assets<T>` 注册为 World 级全局数据。
+- [ ] ECS / Core Runtime | `ecs/world/plugin.h` `PluginManifest` 只记录 name/phase/dependencies，缺少 registered_components / registered_systems / registered_resources，AI Agent 无法完整查询插件能力。
 
 ## Asset / 资源管理
 > 2026-05-25：已完成简化路径（Handle Table + 单后台线程异步加载 + 手动 unload）。以下差额在后续阶段补齐。
@@ -44,6 +48,7 @@
 - [ ] Render / RHI | Culling 与 Queue 系统仅处理第一个 `ExtractedView`，`ViewVisibleList`、`ViewBinnedPhases`、`ViewSortedPhases` 在设计上应每 view 一份，需将 View-level Resource 改为与 view 实体绑定（`Entity viewEntity` 作为 key），Culling 和 Queue 系统遍历所有含 `ExtractedView` 的实体，为每个 view 生成独立的可见列表和 phase 容器。
 - [ ] Render / RHI | `PhaseItem::instance_count`（`render/queue/PhaseItem.h`、`render/queue/QueueDrawsSystem.cpp`）字段已预留为 1 但未实现 instancing 合并，`QueueDrawsSystem` 未检测同 material + 同 mesh 的连续实体，需在 `BinnedRenderPhase::addItem` 中检测并合并为同一 `PhaseItem` 且累加 `instance_count`，并配合 Prepare 步骤生成 instance buffer。
 - [ ] Render / RHI | `ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:23`）每帧对静态 AABB 全量拷贝，大多数模型的本地 AABB 是静态的但每帧都通过 `mainWorld.getComponent<AABB>(entity)` 提取到 render world，需在 `MainWorldSync` 中记录「上一帧是否有 AABB」或引入脏标记机制，仅当 AABB 组件被修改时才重新提取。
+- [ ] Render / RHI | `render/public/render/rhi/rhi_device.h` `IRHICommandList::setUniform*` 直接上传（OpenGL immediate mode），每 draw call 遍历参数调用 `glUniform*`，CPU 开销大且无法合批，未来应迁移到 UBO / PushConstants / Bindless。
 
 ## Material / Shader
 > 2026-05-25：当前实现为同步编译 + CPU uniform 块 + `glUniform*` 即时上传 + 无模板分层。以下为与工业级方案的差额，后续逐步补齐。
@@ -79,6 +84,7 @@
   - 参考：`Notes/Agent/Agent-Loop-架构解析`、`Notes/Agent/UI-System-架构解析`。
 - [ ] AI / Agent 基建 | 未来复杂任务（如「搭建一个射击关卡」）需要 Director Agent 拆分子任务给 LevelDesignAgent、GameplayAgent 并行执行，需实现 `TransactionalWorld`（主世界 + 沙箱副本）+ `AgentOrchestrator` 冲突检测与合并，每个 Agent 绑定独立 `ApprovalSource` 和组件锁。
   - 参考：路线图、`Notes/Agent/Multi-Agent-架构解析`。
+- [ ] Bridge / AI 桥接 | `bridge/private/agent_bridge.cpp` + `bridge/private/tool_registry.cpp` JSON 解析使用手写字符串查找（非完整 JSON parser），仅支持简单参数提取，复杂嵌套结构解析会失败，需引入轻量级 JSON 库或手写递归下降解析器。
 
 ## Log / 日志系统
 > 2026-05-25：基础功能已完成（设备抽象、JSONL、文件滚动、Once 宏、ImGui 面板）。
@@ -88,6 +94,7 @@
 - [ ] Log / 日志系统 | `log_entry.h` 当前日志为纯文本消息，AI 无法按字段过滤（如 `fps < 30`），需引入结构化字段日志（Bevy tracing 风格），`LOG_STRUCT("Render", "frame_stats", field("fps", fps), field("draw_calls", dc))`，JSON 输出增加 `fields` 对象。
 - [ ] Log / 日志系统 | `logger.cpp` 掉帧排查时日志与帧时间、实体数、内存用量未关联，需每帧自动注入 `DiagnosticSnapshot`（fps / frame_time_ms / entity_count / memory_used_mb），`LOG_STRUCT("Diagnostics", "frame_snapshot", ...)`。
 - [ ] Log / 日志系统 | `logger.h` ECS 侧需桥接日志系统：`LogEvent` 瞬时 ECS Event + `LogSinkSystem` 每帧读取 EventBuffer 并调用 `LOG_INFO` / `LOG_ERROR` 输出到现有 Logger；Logger 本身保持独立单例，不依赖 ECS World。
+- [ ] Log / 日志系统 | `log/private/output/file_output.cpp` + `log/private/output/json_file_output.cpp` 各自独立实现滚动逻辑，未来应提取公共基类或统一策略。
 
 ## Base Layer / 基础层优化
 > 本章节完整融合 `plans/BaseLayer-Optimizations-Plan.md` 全部内容（已完成 + 未做 + 回探替换确认）。原 plan 文件可视为已归档。
@@ -157,7 +164,7 @@
 - [ ] Core Runtime | `GlobalTransform` 用 `Affine3A` 替代 `Mat4`。`Affine3A` 48 字节 vs `Mat4` 64 字节，省 25% 内存，且能正确表达层级叠加后的 shear。Bevy 生产验证。
   - 参考：知识库 `Notes/SelfGameEngine/核心运行时闭环/场景图与变换.md` 问题 2
 - [ ] Core Runtime | `imgui_panels.cpp` 中仍有 `Fallback: legacy ComponentDesc recursive lookup` 分支，新增组件若未走新反射路径会静默回退到旧逻辑，需补全 `AtomRegistry::registerBuiltinAtoms()` 覆盖所有引擎内置原子类型，`imgui_panels.cpp` 中删除 legacy 分支，强制走 `inspectorDrawComponent()` 递归绘制。
-- [ ] Core Runtime | `App::addPlugin()` 只有唯一性检查，无依赖声明与拓扑排序，若 Plugin A 依赖 Plugin B 但 B 未注册只能在运行时才发现功能缺失，需在 `IPlugin` 中增加 `dependencies()` 虚函数返回依赖名称列表，`App` 在 `build()` 前做拓扑排序，循环依赖或未满足依赖时 `LOG_FATAL`。
+- [x] Core Runtime | `App::addPlugin()` 只有唯一性检查，无依赖声明与拓扑排序。 **2026-05-31 已修复**：新增 `IPlugin::dependencies()` / `phase()` / `ready()` / `finish()`，`App::sortPlugins()` 实现 LoadingPhase 分组 + Kahn 拓扑排序 + 循环依赖检测。
 - [ ] Core Runtime | `ViewBinnedPhases` / `ViewSortedPhases` / `ViewVisibleList`（`render/RenderResources.h`、`render/culling/ViewVisibleList.h`）未注册 `REFLECT_COMPONENT`，Inspector 和序列化系统无法遍历字段，需补全注册，并确认 `ViewVisibleList` 中的 `DynamicArray<Entity>` 反射系统是否支持容器字段（当前可能只支持 Atom/Composite）。
 
 ## Build System / 构建体系重构
@@ -170,3 +177,21 @@
   - 文件：`launch/generator.py`
 - [ ] Build System | `main.cpp.in` 模板中硬编码了大量跨模块 include（如 `#include "glfw_window.h"`、`#include "render/opengl_backend.h"`），未通过模块依赖自动推导。未来应让各模块在 `entelechy_module()` 中声明「需要暴露给 main 的头文件」，或由 CMake 自动生成 include 列表。
   - 文件：`launch/templates/main.cpp.in`
+- [x] Build System | `.conan/profiles/default` `compiler.cppstd=14` 与 `CMakeLists.txt` `CMAKE_CXX_STANDARD 20` 冲突产生警告。**2026-05-31 已修复**：profile 改为 `compiler.cppstd=20`。
+
+## ThreadPool / 线程池
+
+- [ ] ThreadPool / 线程池 | `thread_pool/public/thread_pool/thread_pool.h` `WorkStealingQueue` 固定容量 4096，本地队列满时回退到全局 `overflowMutex` + `std::deque`，极端负载下可能阻塞，需评估是否引入动态扩容或更优溢出策略。
+
+## VFS / 虚拟文件系统
+
+- [ ] VFS / 虚拟文件系统 | `vfs/private/mount_point.cpp` `FileSystemMountPoint` 使用 `fopen/fread/fwrite` 做文件 IO，路径拼接限制 512 字节缓冲区，未来应支持超长路径和异步 IO。
+
+## Window / 窗口系统
+
+- [ ] Window / 窗口系统 | `window/public/window/window/window.h` `IWindow` 目前只有 GLFW 实现，未来需加入 SDL / Win32 后端。
+- [ ] Window / 窗口系统 | `window/public/window/window/glfw_window.h` `getNativeDisplay()` 是 Vulkan 创建 Surface 的预留 stub，未实现。
+
+## Runtime / 游戏运行时
+
+- [ ] Runtime / 游戏运行时 | `_game/source/runtime/private/game_runtime.cpp` `main.cpp` 由 `launch/generator.py` 构建时生成，主循环逻辑散落在模板中，未来 Runtime 应接管更多主循环逻辑。

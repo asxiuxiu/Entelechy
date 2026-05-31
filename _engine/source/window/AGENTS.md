@@ -2,6 +2,7 @@
 > 路径：`_engine/source/window`
 
 ## 一句话职责
+
 窗口创建与生命周期管理、输入事件收集、显示器与 DPI 查询。
 
 ## 关键文件
@@ -25,10 +26,13 @@
 - 向上依赖：
   - 无（基础层）
 - 被依赖：
-  - SystemLib
-  - Runtime（主循环消费事件）
+  - [ImGui 模块](../imgui/AGENTS.md)
+  - [Render 模块](../render/AGENTS.md)
+  - [Runtime 模块](../../_game/source/runtime/AGENTS.md)
 
-## 架构决策 / 临时约束
+## 架构决策
 - `InputQueue` 使用 `DynamicArray<RawInputEvent>` 存储事件，已消除 `std::vector` 依赖
-- `IWindow` 目前只有 GLFW 实现，未来可能加入 SDL / Win32 后端
-- `getNativeDisplay()` 是 Vulkan 创建 Surface 的预留 stub
+
+## 技术债务
+
+> 统一维护于 [TODO.md](../../../../TODO.md)。本模块相关条目包括：Window/SingleBackend、Window/VulkanStub。

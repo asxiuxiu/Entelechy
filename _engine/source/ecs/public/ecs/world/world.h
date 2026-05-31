@@ -15,8 +15,8 @@ class CommandBuffer;
 
 class World {
 public:
-    World();
-    explicit World(EntityRegistry& registry);
+    explicit World(IAllocator* allocator = GetGlobalAllocator());
+    explicit World(EntityRegistry& registry, IAllocator* allocator = GetGlobalAllocator());
     ~World();
 
     void bindCommandBuffer(CommandBuffer* cmdBuffer) { m_cmd_buffer = cmdBuffer; }
@@ -39,6 +39,10 @@ public:
 
     void destroy(Entity e);
     void destroyImmediate(Entity e);
+
+    // Batch destroy all entities and clear all component arrays.
+    // Used by RenderWorld::clear() and other bulk-reset scenarios.
+    void clearAllEntities();
 
     [[nodiscard]] bool valid(Entity e) const {
         return m_registry && m_registry->isAlive(e);
@@ -150,12 +154,13 @@ private:
         if (v) {
             return static_cast<ComponentArray<T>*>(*v);
         }
-        auto* array = static_cast<ComponentArray<T>*>(DefaultAllocator::alloc(sizeof(ComponentArray<T>), alignof(ComponentArray<T>)));
-        std::construct_at(array);
+        void* mem = m_allocator->allocate(sizeof(ComponentArray<T>), alignof(ComponentArray<T>));
+        auto* array = new (mem) ComponentArray<T>();
         m_component_arrays.insert(typeID, array);
         return array;
     }
 
+    IAllocator* m_allocator = nullptr;
     EntityRegistry* m_registry = nullptr;
     bool m_owns_registry = false;
     CommandBuffer* m_cmd_buffer = nullptr;

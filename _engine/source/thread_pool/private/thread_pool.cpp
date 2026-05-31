@@ -14,13 +14,13 @@ WorkStealingQueue::WorkStealingQueue(usize capacity) {
     void* mem = DefaultAllocator::alloc(cap * sizeof(std::function<void()>), alignof(std::function<void()>));
     m_buffer = static_cast<std::function<void()>*>(mem);
     for (usize i = 0; i < cap; ++i) {
-        std::construct_at(&m_buffer[i]);
+        new (&m_buffer[i]) std::function<void()>();
     }
 }
 
 WorkStealingQueue::~WorkStealingQueue() {
     for (usize i = 0; i < m_capacity; ++i) {
-        std::destroy_at(&m_buffer[i]);
+        m_buffer[i].~function();
     }
     DefaultAllocator::free(m_buffer);
 }
@@ -93,8 +93,8 @@ std::function<void()> WorkStealingQueue::steal() {
 
 ThreadPool::ThreadPool(usize numThreads) : m_num_threads(numThreads) {
     for (usize i = 0; i < numThreads; ++i) {
-        Worker* w = static_cast<Worker*>(DefaultAllocator::alloc(sizeof(Worker), alignof(Worker)));
-        std::construct_at(w);
+        void* mem = DefaultAllocator::alloc(sizeof(Worker), alignof(Worker));
+        Worker* w = new (mem) Worker();
         w->thread = std::thread([this, w]() {
             runWorkerLoop(w);
         });
@@ -112,7 +112,7 @@ ThreadPool::~ThreadPool() {
     }
 
     for (usize i = 0; i < m_workers.size(); ++i) {
-        std::destroy_at(m_workers[i]);
+        m_workers[i]->~Worker();
         DefaultAllocator::free(m_workers[i]);
     }
     m_workers.clear();
@@ -133,7 +133,7 @@ void ThreadPool::submit(std::function<void()> task) {
 
     if (!m_workers[idx]->queue.push(std::move(wrapped))) {
         std::lock_guard<std::mutex> lock(m_overflow_mutex);
-        m_overflow_tasks.push_back(std::move(wrapped));
+        m_overflow_tasks.push(std::move(wrapped));
     }
 }
 
@@ -165,10 +165,7 @@ void ThreadPool::runWorkerLoop(Worker* self) {
 
         {
             std::lock_guard<std::mutex> lock(m_overflow_mutex);
-            if (!m_overflow_tasks.empty()) {
-                task = std::move(m_overflow_tasks.front());
-                m_overflow_tasks.pop_front();
-            }
+            m_overflow_tasks.pop(task);
         }
         if (task) {
             task();

@@ -27,7 +27,7 @@ public:
     void release() {
         if (m_ref_count.fetch_sub(1, std::memory_order_acq_rel) == 1) {
             onDestroy();
-            std::destroy_at(this);
+            this->~GPUResource();
             DefaultAllocator::free(this);
         }
     }

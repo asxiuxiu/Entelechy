@@ -10,22 +10,38 @@
 
 namespace Entelechy {
 
-World::World() : m_owns_registry(true) {
-    m_registry = static_cast<EntityRegistry*>(DefaultAllocator::alloc(sizeof(EntityRegistry), alignof(EntityRegistry)));
-    std::construct_at(m_registry);
+World::World(IAllocator* allocator)
+    : m_allocator(allocator)
+    , m_owns_registry(true) {
+    void* mem = m_allocator->allocate(sizeof(EntityRegistry), alignof(EntityRegistry));
+    m_registry = new (mem) EntityRegistry();
 }
 
-World::World(EntityRegistry& registry) : m_registry(&registry), m_owns_registry(false) {}
+World::World(EntityRegistry& registry, IAllocator* allocator)
+    : m_allocator(allocator)
+    , m_registry(&registry)
+    , m_owns_registry(false) {}
 
 World::~World() {
     for (auto pair : m_component_arrays) {
-        std::destroy_at(pair.second);
-        DefaultAllocator::free(pair.second);
+        pair.second->~IComponentArray();
+        m_allocator->free(pair.second);
     }
     if (m_owns_registry) {
-        std::destroy_at(m_registry);
-        DefaultAllocator::free(m_registry);
+        m_registry->~EntityRegistry();
+        m_allocator->free(m_registry);
     }
+}
+
+void World::clearAllEntities() {
+    if (m_owns_registry && m_registry) {
+        m_registry->clear();
+    }
+    for (auto pair : m_component_arrays) {
+        pair.second->removeAll();
+    }
+    m_entity_masks.resize(0);
+    m_entity_ranks.resize(0);
 }
 
 DynamicArray<Entity> World::spawnBatch(usize count) {

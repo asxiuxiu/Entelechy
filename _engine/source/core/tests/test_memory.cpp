@@ -1,4 +1,4 @@
-﻿#include "test/test_framework.h"
+#include "test/test_framework.h"
 #include "core/allocator/allocator.h"
 #include "core/memory/frame_arena.h"
 #include "core/memory/object_pool.h"
@@ -282,4 +282,12 @@ TEST(ObjectPool, InitialBlockCountZero) {
     ASSERT_EQ(pool.capacity(), 1024u);
     PoolHandle h = pool.alloc(42);
     ASSERT_TRUE(h.valid());
+}
+
+TEST(Memory, MimallocActive) {
+#if ENTELECHY_USE_MIMALLOC
+    void* p = mi_malloc(1024);
+    ASSERT_TRUE(p != nullptr);
+    mi_free(p);
+#endif
 }

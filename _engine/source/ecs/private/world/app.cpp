@@ -12,7 +12,7 @@ App::App() {
 App::~App() {
     teardown();
     for (IPlugin* plugin : m_plugins) {
-        std::destroy_at(plugin);
+        plugin->~IPlugin();
         DefaultAllocator::free(plugin);
     }
 }
@@ -27,7 +27,7 @@ void App::addPlugin(IPlugin* plugin) {
                 LOG_WARN(LogCategories::kEngine,
                     "Plugin '%s' is unique and already registered; ignoring duplicate add.",
                     plugin->name());
-                std::destroy_at(plugin);
+                plugin->~IPlugin();
                 DefaultAllocator::free(plugin);
                 return;
             }

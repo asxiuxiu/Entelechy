@@ -69,11 +69,44 @@ function(entelechy_module)
     target_compile_features(${MOD_NAME} PUBLIC cxx_std_20)
 
     # ---- Include directories ----
-    # Phase 3: public/private boundary
+    # Phase 3: public/private boundary with module-prefix includes via staging links.
+    # Physical layout: <module>/public/event/...
+    # Staging link:    build/include/<module>/ -> <module>/public/
+    # Include path:    build/include/
+    # Usage:           #include "<module>/event/..."
     if(_HAS_PUBLIC)
-        target_include_directories(${MOD_NAME} PUBLIC
-            ${CMAKE_CURRENT_LIST_DIR}/public
-        )
+        set(_STAGE_DIR ${CMAKE_BINARY_DIR}/include)
+        # Link name must match the directory name used in #include paths (e.g. "ecs/event/...")
+        # rather than the CMake target name (e.g. "EcsLib").
+        get_filename_component(_MODULE_DIR_NAME "${CMAKE_CURRENT_LIST_DIR}" NAME)
+        set(_MODULE_LINK ${_STAGE_DIR}/${_MODULE_DIR_NAME})
+        set(_PUBLIC_DIR "${CMAKE_CURRENT_LIST_DIR}/public")
+
+        file(MAKE_DIRECTORY ${_STAGE_DIR})
+
+        if(WIN32)
+            # Windows: use junction point (no admin privilege needed)
+            if(NOT EXISTS ${_MODULE_LINK})
+                file(TO_NATIVE_PATH "${_PUBLIC_DIR}" _TARGET_NATIVE)
+                file(TO_NATIVE_PATH "${_MODULE_LINK}" _LINK_NATIVE)
+                execute_process(
+                    COMMAND cmd /c mklink /J "${_LINK_NATIVE}" "${_TARGET_NATIVE}"
+                    RESULT_VARIABLE _link_result
+                    ERROR_VARIABLE _link_error
+                    OUTPUT_QUIET
+                )
+                if(NOT _link_result EQUAL 0)
+                    message(FATAL_ERROR "Failed to create junction for ${_MODULE_DIR_NAME}: ${_link_error}")
+                endif()
+            endif()
+        else()
+            # Unix-like: use symbolic link
+            if(NOT EXISTS ${_MODULE_LINK})
+                file(CREATE_LINK "${_PUBLIC_DIR}" "${_MODULE_LINK}" SYMBOLIC)
+            endif()
+        endif()
+
+        target_include_directories(${MOD_NAME} PUBLIC ${_STAGE_DIR})
     else()
         # Fallback: legacy layout — expose module root for un-migrated modules
         target_include_directories(${MOD_NAME} PUBLIC

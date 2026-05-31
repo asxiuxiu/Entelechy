@@ -79,7 +79,7 @@ python scripts/build/build.py --release --build
 ### Phase 2：清理模块边界（已完成）
 
 - `entelechy_module()` 中 `${CMAKE_CURRENT_LIST_DIR}/..` 从 **PUBLIC** 降为 **PRIVATE**，模块不再对外泄露父目录。
-- 所有跨模块 include 统一为**裸文件名风格**（如 `#include "log_macros.h"`、`#include "transform_component.h"`），依赖通过 `PUBLIC_DEPS` / `PRIVATE_DEPS` 的 include path 传递。
+- 所有跨模块 include 统一为**模块前缀风格**（如 `#include "log/log_macros.h"`、`#include "ecs/event/event_buffer.h"`）。CMake 在 `build/include/` 下为每个模块创建目录链接（Windows junction / Unix symlink），指向该模块的 `public/` 目录，全局 include 路径仅暴露 `build/include/`。
 - 修复了一批历史遗留的隐式依赖（如 `EcsLib` 未声明 `LogLib` / `ThreadPoolLib` 依赖）。
 
 ---
@@ -88,9 +88,9 @@ python scripts/build/build.py --release --build
 
 | 场景 | 示例 | 说明 |
 |------|------|------|
-| 模块内部子目录 | `#include "queue/PhaseItem.h"` | 合法，模块根目录在 include path 中 |
-| 跨模块头文件 | `#include "log_macros.h"` | ✅ 推荐，裸文件名，依赖模块的 PUBLIC include path 传递 |
-| 跨模块前缀 | `#include "log/log_macros.h"` | ❌ 已废弃，依赖 `..` 暴露 |
+| 模块内部子目录 | `#include "event/event_buffer.h"` | 合法，相对于模块 `public/` 目录 |
+| 跨模块头文件 | `#include "ecs/event/event_buffer.h"` | ✅ 推荐，带模块前缀，通过 `build/include/<module>/` 链接解析 |
+| 裸文件名 | `#include "event_buffer.h"` | ❌ 已废弃，多个模块可能有同名子目录（如 `type/`），易产生歧义 |
 
 ---
 

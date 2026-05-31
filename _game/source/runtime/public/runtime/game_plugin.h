@@ -22,6 +22,14 @@ namespace game {
 class GamePlugin : public Entelechy::IPlugin {
 public:
     const char* name() const override { return "GamePlugin"; }
+    Entelechy::LoadingPhase phase() const override {
+        return Entelechy::LoadingPhase::Gameplay;
+    }
+    Entelechy::DynamicArray<Entelechy::SmallString> dependencies() const override {
+        // Gameplay layer depends on core systems being registered first.
+        // In a multi-plugin setup, this would list plugins like "Render", "Input", etc.
+        return {};
+    }
     void build(Entelechy::App& app) override;
     void setup(Entelechy::App& app) override;
 

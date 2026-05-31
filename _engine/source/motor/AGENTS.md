@@ -3,6 +3,7 @@
 > 路径：`_engine/source/motor`
 
 ## 一句话职责
+
 引擎内置运动系统：基础运动学 System（速度积分）、未来扩展 Motor 驱动框架。
 
 ## 关键文件
@@ -21,7 +22,10 @@
   - [Bridge 模块](../bridge/AGENTS.md)（AgentBridge 注册 MovementSystem）
   - [ImGui 模块](../imgui/AGENTS.md)（Inspector 中观察运动状态）
 
-## 架构决策 / 约束
+## 架构决策
 - `MovementSystem` 是引擎**通用内置系统**，非某个特定游戏的定制逻辑
 - 遵循 "System 跟随它关注的领域走" 的分包原则：运动相关 System 集中在 `motor/`
-- 未来 Motor 框架（驱动器、输入映射、死亡推算、客户端预测）均在本模块扩展
+
+## 技术债务
+
+> 统一维护于 [TODO.md](../../../../TODO.md)。

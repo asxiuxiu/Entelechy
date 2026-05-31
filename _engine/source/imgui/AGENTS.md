@@ -2,6 +2,7 @@
 > 路径：`_engine/source/imgui`
 
 ## 一句话职责
+
 Dear ImGui 生命周期封装、面板构建、Docking 布局。
 
 ## 关键文件
@@ -33,7 +34,11 @@ Dear ImGui 生命周期封装、面板构建、Docking 布局。
 - 被依赖：
   - Runtime（主循环调用）
 
-## 架构决策 / 临时约束
+## 架构决策
 - 目前开启 `ImGuiConfigFlags_DockingEnable`，关闭 `ViewportsEnable`（面板限制在窗口内）
 - DPI 缩放通过 `glfwGetWindowContentScale` 自动适配
 - **Inspector 零硬编码**：`drawField` 优先查询 `AtomRegistry`，其次硬编码展开 `Vec3`/`Quat`/`Mat4`/`Entity`，最后递归 `ComponentDesc`；新增组件类型无需修改 ImGui 代码即可显示
+
+## 技术债务
+
+> 统一维护于 [TODO.md](../../../../TODO.md)。

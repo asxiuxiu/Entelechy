@@ -3,6 +3,7 @@
 > 路径：`_engine/source/log`
 
 ## 一句话职责
+
 多通道异步日志系统：控制台、文本文件、JSON Lines 文件输出，支持日志级别过滤、文件滚动，以及按会话独立命名日志文件（含毫秒级时间戳）。
 
 ## 关键文件
@@ -35,11 +36,13 @@
 - 被依赖：
   - 几乎所有模块（通过宏调用）
 
-## 架构决策 / 临时约束
+## 架构决策
 - 日志系统通过 header-only 风格宏被大量模块包含，改动 `log_macros.h` 会触发大规模重编译
-- `Logger` 目前是单线程模型，异步仅指缓冲队列，未来可能引入真正的后台刷写线程
-- FileOutput 和 JsonFileOutput 各自独立实现滚动逻辑，未来可提取公共基类
 - 崩溃 handler（`installCrashHandlers()`）在信号/终止路径中不拿锁、直接遍历双缓冲写所有设备。这是 UB 与实用性的权衡，所有主流引擎均如此
 - 每次 `Logger::init()` 会为文件输出生成带 `_YYYYMMDD_HHMMSS_mmm` 后缀的独立日志文件，避免多次启动混写
 - 文本与 JSON 时间戳均包含毫秒精度（如 `2026-05-06T18:01:55.464`）
 - `LogFileConfig` 与 `JsonFileOutput` 内部使用 `SmallString` 存储路径，避免栈指针悬垂且消除小字符串堆分配
+
+## 技术债务
+
+> 统一维护于 [TODO.md](../../../../TODO.md)。本模块相关条目包括：Log/LoggerThreading、Log/OutputRollingDuplication。

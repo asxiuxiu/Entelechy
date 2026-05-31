@@ -3,6 +3,7 @@
 > 路径：`_game/source/runtime`
 
 ## 一句话职责
+
 游戏运行时入口、主循环驱动、模块初始化调用。
 
 ## 关键文件
@@ -20,11 +21,13 @@
 
 ## 依赖关系
 - 向上依赖：
-  - 所有引擎模块（[Core](../core/AGENTS.md) / [System](../system/AGENTS.md) / [Window](../window/AGENTS.md) / [Render](../render/AGENTS.md) / [ImGui](../imgui/AGENTS.md) / [Log](../log/AGENTS.md)）
+  - 所有引擎模块（[Core](../core/AGENTS.md) / [ECS](../ecs/AGENTS.md) / [Window](../window/AGENTS.md) / [Render](../render/AGENTS.md) / [ImGui](../imgui/AGENTS.md) / [Log](../log/AGENTS.md)）
 - 被依赖：
   - 无（最顶层，被 main 调用）
 
-## 架构决策 / 临时约束
-- `main.cpp` 是构建时由 `launch/generator.py` 生成的模板，不在本模块目录内
-- 未来 Runtime 会接管更多主循环逻辑，把 `main.cpp` 中的引擎代码下沉到这里
+## 架构决策
 - `_game/` 模拟独立仓库，与 `_engine/` 物理分离，确保引擎核心不依赖游戏层
+
+## 技术债务
+
+> 统一维护于 [TODO.md](../../../../TODO.md)。本模块相关条目包括：Runtime/MainLoop。

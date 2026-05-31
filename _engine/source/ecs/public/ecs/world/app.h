@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "ecs/world/plugin.h"
 #include "ecs/world/world.h"
 #include "ecs/world/scheduler.h"
@@ -12,6 +12,14 @@ namespace Entelechy {
 // App -- top-level application container
 // ------------------------------------------------------------------
 // Owns World, Scheduler, and all registered plugins.
+// Plugin lifecycle:
+//   1. addPlugin()   -- register plugins (any order)
+//   2. build()       -- sort by LoadingPhase + dependency topology,
+//                       then call plugin->build(), poll ready(), call finish()
+//   3. setup()       -- call plugin->setup() in sorted order
+//   4. update(dt)    -- tick scheduler
+//   5. teardown()    -- call plugin->teardown() in reverse order
+//
 // Usage:
 //   App app;
 //   app.addPlugin(new MyPlugin());
@@ -39,10 +47,15 @@ public:
         return *ptr;
     }
 
-    // Build all plugins (calls plugin->build() in registration order).
+    // Build all plugins:
+    //   - Sort by LoadingPhase, then topological sort within each phase
+    //   - Call plugin->build() in sorted order
+    //   - Poll plugin->ready() until all report true
+    //   - Call plugin->finish() in sorted order
+    //   - Build scheduler dependency graph
     void build();
 
-    // Setup all plugins (calls plugin->setup() in registration order).
+    // Setup all plugins (calls plugin->setup() in sorted order).
     void setup();
 
     // Run one simulation tick. Internally calls scheduler.tick(world, dt).
@@ -65,7 +78,13 @@ public:
 
     [[nodiscard]] usize pluginCount() const { return m_plugins.size(); }
 
+    // Get sorted plugin manifests for AI observability.
+    [[nodiscard]] DynamicArray<PluginManifest> pluginManifests() const;
+
 private:
+    // Sort plugins by LoadingPhase, then topological sort within each phase.
+    void sortPlugins();
+
     World m_world;
     Scheduler m_scheduler;
     DynamicArray<IPlugin*> m_plugins;

@@ -86,11 +86,15 @@ python scripts/build/build.py --release --build
 
 ## Include 风格规范
 
+构建系统通过 `build/include/<module>/` → `<module>/public/` 的目录链接（junction / symlink）暴露公共头文件。因此代码中**永远不要在路径里写 `public`**，编译器看到的已经是 `public/` 下的内容。
+
 | 场景 | 示例 | 说明 |
 |------|------|------|
-| 模块内部子目录 | `#include "event/event_buffer.h"` | 合法，相对于模块 `public/` 目录 |
-| 跨模块头文件 | `#include "ecs/event/event_buffer.h"` | ✅ 推荐，带模块前缀，通过 `build/include/<module>/` 链接解析 |
-| 裸文件名 | `#include "event_buffer.h"` | ❌ 已废弃，多个模块可能有同名子目录（如 `type/`），易产生歧义 |
+| 跨模块头文件 | `#include "ecs/world/phase.h"` | ✅ 标准写法，带模块前缀 |
+| 模块内部 public 头文件 | `#include "ecs/world/phase.h"` | ✅ 同样使用模块前缀，与跨模块保持一致 |
+| 含 `public` 的路径 | `#include "ecs/public/world/phase.h"` | ❌ 错误，链接已抹掉 `public` 层，路径无法解析 |
+| 裸文件名 | `#include "phase.h"` | ❌ 已废弃，多个模块可能有同名子目录（如 `type/`），易产生歧义 |
+| 相对路径 `../` | `#include "../world/phase.h"` | ❌ 禁止，头文件必须自包含且路径稳定 |
 
 ---
 

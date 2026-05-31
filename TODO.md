@@ -84,7 +84,6 @@
 > 2026-05-25：基础功能已完成（设备抽象、JSONL、文件滚动、Once 宏、ImGui 面板）。
 > 架构原则：Logger 是底层基础设施，保持全局单例；ECS 通过桥接方式消费日志，而非反向依赖。
 
-- [x] Log / 日志系统 | `logger.cpp` 崩溃时未刷盘的日志会丢失 → 已实现 `installCrashHandlers()` + `emergencyFlush()`，注册 `std::set_terminate` 与平台信号/SEH handler，崩溃时无锁遍历双缓冲并强制写入所有输出设备。
 - [ ] Log / 日志系统 | `logger.cpp` 双缓冲队列在 >1000 条/帧时存在锁竞争，需引入 TLS 无锁写缓冲（UE TraceLog 模式），每个线程 `thread_local` 预分配 64KB 环形缓冲，三指针模型（Cursor/Committed/Reaped），后台 Worker 定期批量收集，消除锁竞争。
 - [ ] Log / 日志系统 | `log_entry.h` 当前日志为纯文本消息，AI 无法按字段过滤（如 `fps < 30`），需引入结构化字段日志（Bevy tracing 风格），`LOG_STRUCT("Render", "frame_stats", field("fps", fps), field("draw_calls", dc))`，JSON 输出增加 `fields` 对象。
 - [ ] Log / 日志系统 | `logger.cpp` 掉帧排查时日志与帧时间、实体数、内存用量未关联，需每帧自动注入 `DiagnosticSnapshot`（fps / frame_time_ms / entity_count / memory_used_mb），`LOG_STRUCT("Diagnostics", "frame_snapshot", ...)`。
@@ -94,11 +93,6 @@
 > 本章节完整融合 `plans/BaseLayer-Optimizations-Plan.md` 全部内容（已完成 + 未做 + 回探替换确认）。原 plan 文件可视为已归档。
 
 ### 已完成的简单优化（BaseLayer Plan 归档）
-
-- [x] Base Layer | `trivially_relocatable` 快速路径 — `grow()` 中对 `std::is_trivially_copyable_v<T>` 走 `std::memcpy` 而非逐个 move+destroy，ECS 组件数组扩容性能提升数倍。
-  - 文件：`base/dynamic_array.h`、`core/component_array.h`
-- [x] Base Layer | `AssertHandler` 预留接口 — 增加 `AssertHandler` 函数指针类型、`SetAssertHandler()`、`GetAssertHandlerRef()`，`CHECK`/`VERIFY` 失败时优先调用注册的处理函数，未来接入 Sentry/Backtrace 时无需改动所有 `CHECK` 调用点。
-  - 文件：`base/foundation_types.h`
 
 ### 回探替换时机确认（阶段 1/2 → 阶段 3）
 
@@ -134,8 +128,6 @@
 ## Module / 模块架构
 > 来自已完成的模块重构计划，以下拆分/扩展时机未到，但方向已明确。
 
-- [x] Module / 模块架构 | **模块重构（UE 风格 Core → Engine 分层）已完成**：`BaseLib` + `MemoryLib` + `MathLib`（纯数学）合并为 `CoreLib`，`CoreLib`（原 ECS）+ `MathLib`（ECS 内容）合并为 `EcsLib`，目录重命名为 `core/` 和 `ecs/`，`MathLib` / `MemoryLib` 已删除。构建验证通过，运行时正常。
-  - 文件：涉及全部模块 CMakeLists.txt、`launch/generator.py`、`launch/cmake_projects.json`、全局 include 路径。
 - [ ] Module / 模块架构 | `core/CMakeLists.txt` 为维持现有裸引 include 风格（如 `"frame_arena.h"`、`"vec.h"`），暴露了 `core/`、`core/memory/`、`core/math/`、`_engine/source/` 四个 include 路径，include 路径过于宽泛，弱化了模块边界。未来应逐步统一为完整路径风格（如 `"core/memory/frame_arena.h"`、`"core/math/vec.h"`），然后收紧 include 暴露。
 - [ ] Module / 模块架构 | `math/aabb.h` 曾包含 `#include "type_registry.h"` + `REFLECT_COMPONENT(AABB)`，`math_lib.h` 曾包含 `#include "transform_component.h"`，迫使纯数学库反向依赖 ECS。重构时已移除，但说明历史代码存在模块边界污染，未来需加强 Code Review 防止类似问题。
   - 文件：`core/math/aabb.h`（已修复）、`core/math/math_lib.h`（已修复）。
@@ -148,15 +140,6 @@
 
 ## Core Runtime / 阶段 4 优化（已完成的低成本项）
 > 2026-05-30：参照 SelfGameEngine 第四阶段知识库，执行了一批低成本直接优化，以下已落地。
-
-- [x] Core Runtime | `Query` 最短列表优化 — `QueryImpl` 构造时遍历所有组件类型，选 `count()` 最小的 `ComponentArray` 作为 primary array，多组件查询时减少 mask 检查次数。
-  - 文件：`core/query.h`
-- [x] Core Runtime | `Scheduler` 拓扑排序队列优化 — Kahn 算法中 `queue.removeAt(0)`（O(n)）改为 `front` 索引递增（O(1)）。
-  - 文件：`core/scheduler.cpp`
-- [x] Core Runtime | `TransformPropagationSystem` 子树脏标记剪枝 — 新增 Phase 1：收集 `Transform.dirty == 1` 的实体，沿 `ChildOf` 链向上传播 `TransformTreeChanged`；Phase 2~4 只更新带 dirty marker 的实体；Phase 5 清理 marker。静态场景下可跳过 80%+ 的冗余矩阵计算。
-  - 文件：`math/transform_propagation_system.cpp`、`game_plugin.cpp`（RotationSystem / WobbleSystem 补充 `dirty = 1`）
-- [x] Core Runtime | 组件类型上限从 32 扩到 64 — `TypeRegistry::allocateNextID()` 断言放宽，`getMask()` 返回 `u64`，`entity mask` 全链路（World/Query/AgentBridge）同步升级。
-  - 文件：`core/type_registry.h`、`core/type_registry.cpp`、`core/world.h`、`core/world.cpp`、`core/query.h`、`bridge/agent_bridge.h`、`bridge/agent_bridge.cpp`
 
 ## Core Runtime / 阶段 4 差距（尚未实施）
 > 以下项来自 SelfGameEngine 第四阶段知识库的「默认推荐」路径，当前代码已实现骨架但关键特性缺失。
@@ -181,12 +164,6 @@
 > 2026-05-30：完成 Phase 1 — 引入 `entelechy_module()` 宏、去掉代理层、统一模块声明、CMake 直接驱动模块发现。
 > 2026-05-30：完成 Phase 2 — 清理模块边界，去掉 `..` PUBLIC 暴露，统一跨模块 include 为裸文件名风格，修复隐式依赖。
 
-- [x] Build System | **Phase 1 完成**：`cmake/EntelechyModule.cmake` 提供统一模块宏，`CMakeLists.txt` 直接 `add_subdirectory` 真实路径，`main.cpp.in` 由 CMake `configure_file` 生成，构建验证通过。
-  - 文件：`cmake/EntelechyModule.cmake`、`CMakeLists.txt`、`launch/templates/main.cpp.in`、全部模块 `CMakeLists.txt`。
-- [x] Build System | **Phase 2 完成**：`entelechy_module()` 宏中 `${CMAKE_CURRENT_LIST_DIR}/..` 从 PUBLIC 降为 PRIVATE；所有跨模块 include 从模块前缀风格（如 `#include "ecs/app.h"`）改为裸文件名风格（如 `#include "app.h"`）；修复了 `EcsLib` 对 `LogLib` / `ThreadPoolLib` 的隐式依赖。构建与运行验证均通过。
-  - 文件：`cmake/EntelechyModule.cmake`、所有模块源码中跨模块 include 语句、`_engine/source/ecs/CMakeLists.txt`。
-- [x] Build System | **Phase 3 完成**：public/private 目录边界 + 模块前缀 include。所有模块文件迁移到 `public/module/`（头文件）和 `private/`（实现），跨模块 include 统一为模块前缀风格（如 `#include "log/log_macros.h"`、`#include "render/components/Camera.h"`）。`entelechy_module()` 宏自动发现 public/private 目录并配置 include 路径，支持显式 SOURCES + 自动发现的混合模式（如 imgui 的外部 backend 文件）。tests 目录添加 private include 访问。构建与运行验证均通过。
-  - 文件：`cmake/EntelechyModule.cmake`、全部模块目录结构、14 个模块 `CMakeLists.txt`、5 个 `tests/CMakeLists.txt`、`launch/templates/main.cpp.in`。
 - [ ] Build System | `test_runner/CMakeLists.txt` 使用 `$<TARGET_OBJECTS:*Tests>` 收集测试对象文件，该 generator expression 在部分 CMake 生成器或平台上行为不一致，若未来切换到 Ninja/Make 需验证兼容性。
   - 文件：`_engine/source/test_runner/CMakeLists.txt`
 - [ ] Build System | `launch/generator.py` 已标记弃用但尚未移除，作为 standalone `main.cpp` 生成的 fallback 保留。待团队完全切换到纯 CMake 流程后删除。

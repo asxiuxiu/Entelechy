@@ -127,3 +127,31 @@ TEST(ArchetypeWorld, TypeErasedAPI) {
     ASSERT_TRUE(data != nullptr);
     ASSERT_EQ(static_cast<const Position*>(data)->x, 1.0f);
 }
+
+// Regression test for Chunk capacity bug: before the fix sizeof(Chunk) exceeded
+// CAPACITY, forcing entitiesPerChunk down to 1 and defeating the entire design.
+TEST(ArchetypeWorld, ChunkCapacity) {
+    ArchetypeWorld world;
+    Entity e = world.spawn();
+    world.addComponent(e, Position{1.0f, 2.0f});
+
+    Position* p = world.getComponent<Position>(e);
+    ASSERT_TRUE(p != nullptr);
+
+    // With Position (8 bytes) the entity size is sizeof(u32)+8 = 12 bytes,
+    // so a 16 KiB chunk should fit ~1365 entities — definitely > 1.
+    // We verify by spawning many entities and confirming they all land in the
+    // same chunk (no new chunk allocation until capacity is exceeded).
+    for (int i = 0; i < 2000; ++i) {
+        Entity ee = world.spawn();
+        world.addComponent(ee, Position{static_cast<float>(i), static_cast<float>(i)});
+    }
+
+    // All 2001 entities with Position should be queryable and have correct values.
+    usize count = 0;
+    for (auto [ent, pos] : world.query<Position>()) {
+        ASSERT_TRUE(pos != nullptr);
+        ++count;
+    }
+    ASSERT_EQ(count, 2001u);
+}

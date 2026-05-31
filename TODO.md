@@ -210,3 +210,11 @@
 - [ ] Core / 基础库扩展缺口 | `std::deque<T>` 仍在 `thread_pool` 溢出队列与 `asset_server` 任务队列中使用。需实现支持头尾 O(1) push/pop 的 `Deque<T>`，或更直接地提供 lock-free `MPSCQueue<T>` 替换线程池/资源加载的回调队列。
 - [ ] Core / 基础库扩展缺口 | `std::sort` 仍在 `render/queue/SortedRenderPhase.cpp` 中使用。需引入 `algo::sort(begin, end, cmp)`（可考虑 introsort / timsort），并对 `DynamicArray` 提供 convenience 成员方法。
 - [ ] Core / 基础库扩展缺口 | `std::thread` / `std::mutex` / `std::atomic` / `std::condition_variable` 仍散落在线程池、asset_server、logger 中。需封装为 `Thread`、`Mutex`、`Atomic<T>`、`ConditionVariable` 等薄层，便于未来切换平台线程模型（如 Windows ThreadPool API、C++20 `std::jthread`）。
+
+## Allocator / ECS 存储优化（2026-05-31 完成阶段一至四基础实现，以下待后续细化）
+
+- [ ] Allocator / ECS 存储优化 | `ecs/storage/archetype_chunk.h` 中 `Chunk` 定义使用 `alignas(64) u8 storage[CAPACITY]` 作为内联数组，导致 `sizeof(Chunk) = 16448 > CAPACITY = 16384`，`chunkDataCapacity()` 被迫返回 0，每个 chunk 只能容纳 1 个实体（`entitiesPerChunk = 1`），丧失了 16 KiB chunk 设计的缓存局部性优势。需重构 `Chunk` 为「元数据 + 动态分配的数据区」或调整 `CAPACITY` 以匹配实际 `sizeof(Chunk)`。
+- [ ] Allocator / ECS 存储优化 | `ecs/private/archetype/archetype_world.cpp` `moveEntityToArchetypeRaw()` 使用 `std::memcpy` 在 chunk 间移动组件数据，对非 POD / 含析构函数的类型（如 `SmallString`、`DynamicArray`）是未定义行为。需引入组件类型的 `TypeRegistry` move/copy 函数指针，在 archetype 切换时调用正确的 move-construct / destroy 序列。
+- [ ] Allocator / ECS 存储优化 | `ecs/public/ecs/archetype/archetype_world.inl` `QueryArchetype::Iterator::operator*()` 每次解引用都通过 `archetypes` 哈希表线性查找匹配的 `Archetype*`，即使 archetype 数量少，cache miss 仍不可忽视。应在 `Iterator` 中直接缓存当前 chunk 所属的 `Archetype*`，消除查找开销。
+- [ ] Allocator / ECS 存储优化 | `ecs/public/ecs/archetype/archetype_world.h` `ArchetypeWorld` 目前与 `World`（SparseSet+Column）并存，未实现双轨迁移路径。`ArchetypeWorld` 缺少 `setParent`、批量 `spawn`、事件系统、`CommandBuffer` 等能力，无法直接替换现有 `World`。需在 `App` / `Scheduler` 中支持可选的 world 后端，逐步将 System 从 `World` 迁移到 `ArchetypeWorld`。
+- [ ] Allocator / ECS 存储优化 | `test_runner/CMakeLists.txt` 依赖 `entelechy_get_enabled_modules` 收集测试 OBJECT 库，但各模块 `tests/CMakeLists.txt` 使用裸 `add_library(... OBJECT)` 而非 `entelechy_module()`，导致测试目标无法被自动发现。当前 workaround 是在每个 `tests/CMakeLists.txt` 末尾手动 `set_property(GLOBAL APPEND PROPERTY ENTELECHY_ENABLED_MODULES ...)`，应统一改用 `entelechy_module(NAME XxxTests TYPE OBJECT NO_TESTS)`。

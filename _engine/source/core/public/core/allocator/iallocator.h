@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "core/foundation_types.h"
 
 namespace Entelechy {
@@ -19,6 +19,10 @@ struct IAllocator {
     virtual void* allocate(usize size, usize align) = 0;
     virtual void free(void* ptr) = 0;
     virtual AllocatorStats getStats() const { return {}; }
+
+    // Optional: return a quantized size suitable for the allocator's bucketing.
+    // Default implementation forwards to DefaultAllocator::quantizeSize.
+    virtual usize quantizeSize(usize size) const;
 };
 
 } // namespace Entelechy

@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 #include "ecs/world/world.h"
 #include "core/container/dynamic_array.h"
+#include "core/memory/frame_arena.h"
 #include <cstring>
 
 namespace Entelechy {
@@ -81,33 +82,34 @@ class CommandBuffer {
 public:
     using BatchID = u32;
 
-    CommandBuffer() = default;
+    explicit CommandBuffer(usize arenaCapacity = 64 * 1024)
+        : m_arena(arenaCapacity) {}
     ~CommandBuffer() { clear(); }
 
     template<typename T>
     void set(Entity e, const T& value) {
-        void* mem = DefaultAllocator::alloc(sizeof(SetCommand<T>), alignof(SetCommand<T>));
+        void* mem = m_arena.allocate(sizeof(SetCommand<T>), alignof(SetCommand<T>));
         m_commands.pushBack(new (mem) SetCommand<T>(e, value));
     }
 
     template<typename T>
     void remove(Entity e) {
-        void* mem = DefaultAllocator::alloc(sizeof(RemoveCommand<T>), alignof(RemoveCommand<T>));
+        void* mem = m_arena.allocate(sizeof(RemoveCommand<T>), alignof(RemoveCommand<T>));
         m_commands.pushBack(new (mem) RemoveCommand<T>(e));
     }
 
     void destroy(Entity e) {
-        void* mem = DefaultAllocator::alloc(sizeof(DestroyCommand), alignof(DestroyCommand));
+        void* mem = m_arena.allocate(sizeof(DestroyCommand), alignof(DestroyCommand));
         m_commands.pushBack(new (mem) DestroyCommand(e));
     }
 
     void destroyWithChildren(Entity e) {
-        void* mem = DefaultAllocator::alloc(sizeof(DestroyWithChildrenCommand), alignof(DestroyWithChildrenCommand));
+        void* mem = m_arena.allocate(sizeof(DestroyWithChildrenCommand), alignof(DestroyWithChildrenCommand));
         m_commands.pushBack(new (mem) DestroyWithChildrenCommand(e));
     }
 
     void setParent(Entity child, Entity parent) {
-        void* mem = DefaultAllocator::alloc(sizeof(SetParentCommand), alignof(SetParentCommand));
+        void* mem = m_arena.allocate(sizeof(SetParentCommand), alignof(SetParentCommand));
         m_commands.pushBack(new (mem) SetParentCommand(child, parent));
     }
 
@@ -127,19 +129,19 @@ public:
         for (auto* cmd : m_commands) {
             cmd->apply(world);
             cmd->~ICommand();
-            DefaultAllocator::free(cmd);
         }
         m_commands.clear();
         m_batches.clear();
+        m_arena.reset();
     }
 
     void clear() {
         for (auto* cmd : m_commands) {
             cmd->~ICommand();
-            DefaultAllocator::free(cmd);
         }
         m_commands.clear();
         m_batches.clear();
+        m_arena.reset();
     }
 
     [[nodiscard]] bool empty() const {
@@ -147,6 +149,7 @@ public:
     }
 
 private:
+    FrameArena m_arena;
     DynamicArray<ICommand*> m_commands;
     DynamicArray<BatchRange> m_batches;
 };

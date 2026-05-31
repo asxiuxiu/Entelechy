@@ -1,7 +1,8 @@
-﻿#pragma once
+#pragma once
 #include "ecs/world/world.h"
 #include "render/render_world/ExtractSchedule.h"
 #include "render/extract/MainWorldSync.h"
+#include "core/memory/frame_arena.h"
 
 namespace Entelechy {
 
@@ -29,6 +30,7 @@ private:
     World m_world;
     ExtractSchedule m_extract_schedule;
     MainWorldSync m_sync;
+    FrameArenaRing<2> m_arena_ring{1024 * 1024}; // 1 MiB double-buffered scratch
 };
 
 } // namespace Entelechy

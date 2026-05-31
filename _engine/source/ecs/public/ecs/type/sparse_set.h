@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "core/foundation_types.h"
 #include "core/container/dynamic_array.h"
 #include "core/allocator/allocator.h"
@@ -13,7 +13,7 @@ public:
     static constexpr u32 PAGE_SIZE = 1024;
     static constexpr u32 INVALID = 0xFFFFFFFFu;
 
-    SparseSet() = default;
+    explicit SparseSet(IAllocator* allocator = GetGlobalAllocator());
     ~SparseSet();
 
     SparseSet(const SparseSet&) = delete;
@@ -38,6 +38,7 @@ private:
     void ensurePage(u32 id);
     void freePages();
 
+    IAllocator* m_allocator = nullptr;
     DynamicArray<u32*> m_pages;
     DynamicArray<u32> m_dense; // compact entity IDs
 };

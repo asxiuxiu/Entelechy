@@ -1,19 +1,24 @@
-﻿#include "ecs/type/sparse_set.h"
+#include "ecs/type/sparse_set.h"
 
 namespace Entelechy {
+
+SparseSet::SparseSet(IAllocator* allocator)
+    : m_allocator(allocator) {}
 
 SparseSet::~SparseSet() {
     freePages();
 }
 
 SparseSet::SparseSet(SparseSet&& other) noexcept
-    : m_pages(std::move(other.m_pages))
+    : m_allocator(other.m_allocator)
+    , m_pages(std::move(other.m_pages))
     , m_dense(std::move(other.m_dense)) {
 }
 
 SparseSet& SparseSet::operator=(SparseSet&& other) noexcept {
     if (this != &other) {
         freePages();
+        m_allocator = other.m_allocator;
         m_pages = std::move(other.m_pages);
         m_dense = std::move(other.m_dense);
     }
@@ -68,7 +73,7 @@ void SparseSet::ensurePage(u32 id) {
         }
     }
     if (!m_pages[pageIdx]) {
-        u32* page = static_cast<u32*>(DefaultAllocator::alloc(PAGE_SIZE * sizeof(u32), alignof(u32)));
+        u32* page = static_cast<u32*>(m_allocator->allocate(PAGE_SIZE * sizeof(u32), alignof(u32)));
         for (u32 i = 0; i < PAGE_SIZE; ++i) {
             page[i] = INVALID;
         }
@@ -79,7 +84,7 @@ void SparseSet::ensurePage(u32 id) {
 void SparseSet::freePages() {
     for (usize i = 0; i < m_pages.size(); ++i) {
         if (m_pages[i]) {
-            DefaultAllocator::free(m_pages[i]);
+            m_allocator->free(m_pages[i]);
         }
     }
     m_pages.clear();

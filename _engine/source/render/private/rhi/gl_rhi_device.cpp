@@ -10,7 +10,7 @@ namespace {
     template<typename T, typename... Args>
     T* allocateResource(Args&&... args) {
         void* mem = DefaultAllocator::alloc(sizeof(T), alignof(T));
-        return std::construct_at(static_cast<T*>(mem), std::forward<Args>(args)...);
+        return new (mem) T(std::forward<Args>(args)...);
     }
 } // namespace
 

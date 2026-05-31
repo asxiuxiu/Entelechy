@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "core/allocator/allocator.h"
 #include <initializer_list>
 #include <memory>
@@ -207,6 +207,10 @@ public:
 
 private:
     void grow(usize newCapacity) {
+        usize quantizedBytes = DefaultAllocator::quantizeSize(newCapacity * sizeof(T));
+        newCapacity = quantizedBytes / sizeof(T);
+        if (newCapacity < 4) newCapacity = 4;
+
         T* newData = static_cast<T*>(AllocatorT::alloc(newCapacity * sizeof(T), alignof(T)));
         if constexpr (std::is_trivially_copyable_v<T>) {
             std::memcpy(newData, m_data, m_count * sizeof(T));

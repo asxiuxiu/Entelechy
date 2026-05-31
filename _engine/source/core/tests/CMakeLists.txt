@@ -15,3 +15,6 @@ target_link_libraries(CoreTests PUBLIC CoreLib TestFrameworkLib)
 target_include_directories(CoreTests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../private)
 
 target_compile_features(CoreTests PUBLIC cxx_std_20)
+
+# Register with the global module list so test_runner can discover us
+set_property(GLOBAL APPEND PROPERTY ENTELECHY_ENABLED_MODULES CoreTests)

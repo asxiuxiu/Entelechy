@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "ecs/type/types.h"
 #include "ecs/type/sparse_set.h"
 #include "core/allocator/allocator.h"
@@ -18,6 +18,7 @@ class IComponentArray {
 public:
     virtual ~IComponentArray() = default;
     virtual void remove(Entity e) = 0;
+    virtual void removeAll() = 0;
     virtual void setRaw(Entity e, const void* data) = 0;
     [[nodiscard]] virtual bool has(Entity e) const = 0;
     [[nodiscard]] virtual usize count() const = 0;
@@ -32,14 +33,19 @@ public:
 template <typename T>
 class Column {
 public:
-    Column() : m_data(nullptr), m_count(0), m_capacity(0) {}
+    explicit Column(IAllocator* allocator = GetGlobalAllocator())
+        : m_allocator(allocator)
+        , m_data(nullptr)
+        , m_count(0)
+        , m_capacity(0) {}
     ~Column() { clear(); }
 
     Column(const Column&) = delete;
     Column& operator=(const Column&) = delete;
 
     Column(Column&& other) noexcept
-        : m_data(other.m_data)
+        : m_allocator(other.m_allocator)
+        , m_data(other.m_data)
         , m_count(other.m_count)
         , m_capacity(other.m_capacity) {
         other.m_data = nullptr;
@@ -50,6 +56,7 @@ public:
     Column& operator=(Column&& other) noexcept {
         if (this != &other) {
             clear();
+            m_allocator = other.m_allocator;
             m_data = other.m_data;
             m_count = other.m_count;
             m_capacity = other.m_capacity;
@@ -86,7 +93,7 @@ public:
             std::destroy_at(&m_data[i - 1]);
         }
         if (m_data) {
-            DefaultAllocator::free(m_data);
+            m_allocator->free(m_data);
             m_data = nullptr;
         }
         m_count = 0;
@@ -104,8 +111,12 @@ public:
 private:
     void grow() {
         usize newCap = m_capacity == 0 ? 4 : m_capacity * 2;
+        usize quantizedBytes = m_allocator->quantizeSize(newCap * sizeof(T));
+        newCap = quantizedBytes / sizeof(T);
+        if (newCap < 4) newCap = 4;
+
         constexpr usize ALIGN = (alignof(T) > 16) ? alignof(T) : 16;
-        T* newData = static_cast<T*>(DefaultAllocator::alloc(newCap * sizeof(T), ALIGN));
+        T* newData = static_cast<T*>(m_allocator->allocate(newCap * sizeof(T), ALIGN));
         if constexpr (std::is_trivially_copyable_v<T>) {
             std::memcpy(newData, m_data, m_count * sizeof(T));
         } else {
@@ -115,12 +126,13 @@ private:
             }
         }
         if (m_data) {
-            DefaultAllocator::free(m_data);
+            m_allocator->free(m_data);
         }
         m_data = newData;
         m_capacity = newCap;
     }
 
+    IAllocator* m_allocator;
     T* m_data;
     usize m_count;
     usize m_capacity;
@@ -154,6 +166,16 @@ public:
         u32 idx = m_sparse_set.indexOf(e.id);
         m_column.swapAndPop(idx);
         m_sparse_set.remove(e.id);
+    }
+
+    void removeAll() override {
+        if (m_hooks && m_hooks->onDrop) {
+            for (usize i = 0; i < m_column.count(); ++i) {
+                m_hooks->onDrop(&m_column[i]);
+            }
+        }
+        m_sparse_set = SparseSet();
+        m_column.clear();
     }
 
     bool has(Entity e) const override {

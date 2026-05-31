@@ -4,6 +4,11 @@ entelechy_module(
     NAME CoreLib
 )
 
+if(ENTELECHY_USE_MIMALLOC)
+    target_compile_definitions(CoreLib PUBLIC ENTELECHY_USE_MIMALLOC=1)
+    target_link_libraries(CoreLib PUBLIC mimalloc-static)
+endif()
+
 
 # Additional include paths for subdirectories inside CoreLib
 # Float determinism: avoid aggressive fast-math that breaks cross-platform consistency

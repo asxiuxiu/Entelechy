@@ -1,13 +1,54 @@
-﻿#pragma once
+#pragma once
 #include "core/foundation_types.h"
 #include "core/container/dynamic_array.h"
 #include <atomic>
 #include <thread>
 #include <functional>
 #include <mutex>
-#include <deque>
 
 namespace Entelechy {
+
+// Simple FIFO overflow queue based on DynamicArray.
+// Replaces std::deque to avoid bypassing the engine allocator system.
+class OverflowQueue {
+public:
+    void push(std::function<void()> task) {
+        m_tasks.pushBack(std::move(task));
+    }
+
+    bool pop(std::function<void()>& out) {
+        if (m_head >= m_tasks.size()) return false;
+        out = std::move(m_tasks[m_head]);
+        ++m_head;
+        // Compact if we've consumed more than half the array
+        if (m_head > m_tasks.size() / 2) {
+            compact();
+        }
+        return true;
+    }
+
+    bool empty() const {
+        return m_head >= m_tasks.size();
+    }
+
+    void clear() {
+        m_tasks.clear();
+        m_head = 0;
+    }
+
+private:
+    void compact() {
+        usize newSize = m_tasks.size() - m_head;
+        for (usize i = 0; i < newSize; ++i) {
+            m_tasks[i] = std::move(m_tasks[m_head + i]);
+        }
+        m_tasks.resize(newSize);
+        m_head = 0;
+    }
+
+    DynamicArray<std::function<void()>> m_tasks;
+    usize m_head = 0;
+};
 
 // Fixed-capacity Chase-Lev Work-Stealing Deque.
 // No dynamic resizing — this avoids the use-after-free race condition
@@ -70,7 +111,7 @@ private:
 
     // Thread-safe overflow for when a local queue is full.
     std::mutex m_overflow_mutex;
-    std::deque<std::function<void()>> m_overflow_tasks;
+    OverflowQueue m_overflow_tasks;
 };
 
 // ---------- Template implementation ----------

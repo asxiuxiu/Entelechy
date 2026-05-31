@@ -11,6 +11,9 @@ if(MSVC)
     add_compile_options(/utf-8)
 endif()
 
+# ---- Global allocator switch ----
+option(ENTELECHY_USE_MIMALLOC "Use mimalloc as global allocator" ON)
+
 # Shipping build: strip debug/info logs for minimal binary size
 if(SHIPPING_BUILD)
     add_compile_definitions(SHIPPING_BUILD)
@@ -38,6 +41,7 @@ include(EntelechyModule)
 find_package(glad REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(imgui REQUIRED)
+find_package(mimalloc REQUIRED)
 
 # ---- Parse config and add modules directly ----
 set(CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/configs/full_build.json")

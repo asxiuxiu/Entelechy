@@ -19,7 +19,7 @@ namespace Entelechy {
 // flush() intended to be called once per frame from the main thread.
 //
 // Design:
-// - Two vectors act as a double buffer: m_write_queue (producer) and
+// - Two DynamicArrays act as a double buffer: m_write_queue (producer) and
 //   m_read_queue (consumer). Swap happens under mutex in flush().
 // - A deque stores the last MAX_HISTORY entries as a ring buffer for
 //   the ImGui log panel.

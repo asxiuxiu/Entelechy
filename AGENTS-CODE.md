@@ -1,5 +1,22 @@
 # 代码规范
 
+## 基础库优先
+
+项目已封装的基础库（`core/` 模块）必须优先使用，禁止在基础库已覆盖的领域重复引入 STL 或自行实现：
+
+| 基础库设施 | 替代目标 | 说明 |
+|---|---|---|
+| `DynamicArray<T>` | `std::vector<T>` | 带可插拔分配器的动态数组 |
+| `HashMap<K,V>` / `HashSet<K>` | `std::unordered_map` / `std::unordered_set` | 开放寻址哈希表 |
+| `SmallString` | `std::string` | SSO 小字符串 |
+| `formatString` | `std::format` / `snprintf` | 零堆分配格式化 |
+| `Vec2/Vec3/Vec4/Mat4/Quat` 等 | `glm::` | 数学库 |
+| `DefaultAllocator` / `IAllocator` | 裸 `new/delete` / `malloc/free` | 对齐分配器 |
+| `ObjectPool<T>` | 裸 `new/delete`（对象池场景） | 带代际安全检查的对象池 |
+| `FrameArena` | 临时/帧级堆分配 | O(1) 重置的帧分配器 |
+
+**底线**：基础库已有对应实现时，不允许以"习惯""省事"为由绕回 STL 或裸分配。若基础库接口确实不满足需求，先讨论扩展基础库，而非在业务代码里开例外。
+
 ## 命名空间
 
 - **引擎层**：`namespace Entelechy { ... }`（大驼峰，与引擎同名）

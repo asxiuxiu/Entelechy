@@ -1,6 +1,8 @@
 #include "ecs/world/app.h"
 #include "log/core/log_macros.h"
 #include "core/container/hash_map.h"
+#include "core/allocator/allocator.h"
+#include <memory>
 
 namespace Entelechy {
 
@@ -10,7 +12,8 @@ App::App() {
 App::~App() {
     teardown();
     for (IPlugin* plugin : m_plugins) {
-        delete plugin;
+        std::destroy_at(plugin);
+        DefaultAllocator::free(plugin);
     }
 }
 
@@ -24,7 +27,8 @@ void App::addPlugin(IPlugin* plugin) {
                 LOG_WARN(LogCategories::kEngine,
                     "Plugin '%s' is unique and already registered; ignoring duplicate add.",
                     plugin->name());
-                delete plugin;
+                std::destroy_at(plugin);
+                DefaultAllocator::free(plugin);
                 return;
             }
         }

@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "core/foundation_types.h"
+#include "core/allocator/allocator.h"
 #include <cstring>
 #include <functional>
 
@@ -35,7 +36,7 @@ public:
             std::memcpy(m_inline, str, m_len + 1);
         } else {
             m_heap.m_capacity = m_len + 1;
-            m_heap.m_data = new char[m_heap.m_capacity];
+            m_heap.m_data = static_cast<char*>(DefaultAllocator::alloc(m_heap.m_capacity, alignof(char)));
             std::memcpy(m_heap.m_data, str, m_len + 1);
         }
     }
@@ -52,7 +53,7 @@ public:
             m_inline[m_len] = '\0';
         } else {
             m_heap.m_capacity = m_len + 1;
-            m_heap.m_data = new char[m_heap.m_capacity];
+            m_heap.m_data = static_cast<char*>(DefaultAllocator::alloc(m_heap.m_capacity, alignof(char)));
             std::memcpy(m_heap.m_data, str, m_len);
             m_heap.m_data[m_len] = '\0';
         }
@@ -64,7 +65,7 @@ public:
             std::memcpy(m_inline, other.m_inline, m_len + 1);
         } else {
             m_heap.m_capacity = other.m_heap.m_capacity;
-            m_heap.m_data = new char[m_heap.m_capacity];
+            m_heap.m_data = static_cast<char*>(DefaultAllocator::alloc(m_heap.m_capacity, alignof(char)));
             std::memcpy(m_heap.m_data, other.m_heap.m_data, m_len + 1);
         }
     }
@@ -83,7 +84,7 @@ public:
 
     ~SmallString() {
         if (m_len > SSO_CAPACITY) {
-            delete[] m_heap.m_data;
+            DefaultAllocator::free(m_heap.m_data);
         }
     }
 
@@ -92,14 +93,14 @@ public:
             return *this;
         }
         if (m_len > SSO_CAPACITY) {
-            delete[] m_heap.m_data;
+            DefaultAllocator::free(m_heap.m_data);
         }
         m_len = other.m_len;
         if (m_len <= SSO_CAPACITY) {
             std::memcpy(m_inline, other.m_inline, m_len + 1);
         } else {
             m_heap.m_capacity = other.m_heap.m_capacity;
-            m_heap.m_data = new char[m_heap.m_capacity];
+            m_heap.m_data = static_cast<char*>(DefaultAllocator::alloc(m_heap.m_capacity, alignof(char)));
             std::memcpy(m_heap.m_data, other.m_heap.m_data, m_len + 1);
         }
         return *this;
@@ -110,7 +111,7 @@ public:
             return *this;
         }
         if (m_len > SSO_CAPACITY) {
-            delete[] m_heap.m_data;
+            DefaultAllocator::free(m_heap.m_data);
         }
         m_len = other.m_len;
         if (other.m_len <= SSO_CAPACITY) {
@@ -126,7 +127,7 @@ public:
 
     SmallString& operator=(const char* str) {
         if (m_len > SSO_CAPACITY) {
-            delete[] m_heap.m_data;
+            DefaultAllocator::free(m_heap.m_data);
         }
         if (!str) {
             m_inline[0] = '\0';
@@ -138,7 +139,7 @@ public:
             std::memcpy(m_inline, str, m_len + 1);
         } else {
             m_heap.m_capacity = m_len + 1;
-            m_heap.m_data = new char[m_heap.m_capacity];
+            m_heap.m_data = static_cast<char*>(DefaultAllocator::alloc(m_heap.m_capacity, alignof(char)));
             std::memcpy(m_heap.m_data, str, m_len + 1);
         }
         return *this;
@@ -146,7 +147,7 @@ public:
 
     SmallString& assign(const char* str, usize len) {
         if (m_len > SSO_CAPACITY) {
-            delete[] m_heap.m_data;
+            DefaultAllocator::free(m_heap.m_data);
         }
         if (!str || len == 0) {
             m_inline[0] = '\0';
@@ -159,7 +160,7 @@ public:
             m_inline[m_len] = '\0';
         } else {
             m_heap.m_capacity = m_len + 1;
-            m_heap.m_data = new char[m_heap.m_capacity];
+            m_heap.m_data = static_cast<char*>(DefaultAllocator::alloc(m_heap.m_capacity, alignof(char)));
             std::memcpy(m_heap.m_data, str, m_len);
             m_heap.m_data[m_len] = '\0';
         }
@@ -178,7 +179,7 @@ public:
 
     void clear() {
         if (m_len > SSO_CAPACITY) {
-            delete[] m_heap.m_data;
+            DefaultAllocator::free(m_heap.m_data);
         }
         m_inline[0] = '\0';
         m_len = 0;
@@ -194,11 +195,11 @@ public:
             std::memcpy(m_inline + m_len, str, add_len + 1);
         } else {
             usize new_cap = new_len + 1;
-            char* new_data = new char[new_cap];
+            char* new_data = static_cast<char*>(DefaultAllocator::alloc(new_cap, alignof(char)));
             std::memcpy(new_data, c_str(), m_len);
             std::memcpy(new_data + m_len, str, add_len + 1);
             if (m_len > SSO_CAPACITY) {
-                delete[] m_heap.m_data;
+                DefaultAllocator::free(m_heap.m_data);
             }
             m_heap.m_data = new_data;
             m_heap.m_capacity = new_cap;

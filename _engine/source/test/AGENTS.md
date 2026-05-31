@@ -29,7 +29,8 @@
 
 TEST(VFS, FileSystemMountPointReadWrite) {
     Entelechy::VFS vfs;
-    auto* fsMount = new Entelechy::FileSystemMountPoint("build/test_vfs");
+    void* mem = Entelechy::DefaultAllocator::alloc(sizeof(Entelechy::FileSystemMountPoint), alignof(Entelechy::FileSystemMountPoint));
+    auto* fsMount = std::construct_at(static_cast<Entelechy::FileSystemMountPoint*>(mem), "build/test_vfs");
     vfs.mount("/test", fsMount);
 
     const char* data = "Hello from VFS!";

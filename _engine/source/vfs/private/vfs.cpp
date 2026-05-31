@@ -1,5 +1,7 @@
-﻿#include "vfs/vfs.h"
+#include "vfs/vfs.h"
 #include "core/string/string_intern_pool.h"
+#include "core/allocator/allocator.h"
+#include <memory>
 
 namespace Entelechy {
 
@@ -19,7 +21,8 @@ void VFS::unmount(const char* logicalPath) {
     StringId target(logicalPath);
     for (usize i = 0; i < m_mounts.size(); ++i) {
         if (m_mounts[i].name == target) {
-            delete m_mounts[i].backend;
+            std::destroy_at(m_mounts[i].backend);
+            DefaultAllocator::free(m_mounts[i].backend);
             m_mounts.removeAt(i);
             return;
         }
@@ -60,7 +63,8 @@ bool VFS::writeFile(const Path& path, const u8* data, usize size) {
 
 void VFS::clear() {
     for (usize i = 0; i < m_mounts.size(); ++i) {
-        delete m_mounts[i].backend;
+        std::destroy_at(m_mounts[i].backend);
+        DefaultAllocator::free(m_mounts[i].backend);
     }
     m_mounts.clear();
 }

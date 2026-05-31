@@ -1,7 +1,10 @@
-﻿#pragma once
+#pragma once
 #include "core/foundation_types.h"
+#include "core/string/small_string.h"
+#include "core/allocator/allocator.h"
 #include "render/rhi/rhi_types.h"
 #include <atomic>
+#include <memory>
 
 namespace Entelechy {
 
@@ -24,13 +27,18 @@ public:
     void release() {
         if (m_ref_count.fetch_sub(1, std::memory_order_acq_rel) == 1) {
             onDestroy();
-            delete this;
+            std::destroy_at(this);
+            DefaultAllocator::free(this);
         }
     }
 
     u32 refCount() const {
         return m_ref_count.load(std::memory_order_relaxed);
     }
+
+    // Debug name for GPU debugging tools (RenderDoc, Nsight, PIX).
+    // Backends map this to platform-specific object labeling.
+    virtual void setDebugName(const SmallString& /*name*/) {}
 
 protected:
     virtual void onDestroy() {}

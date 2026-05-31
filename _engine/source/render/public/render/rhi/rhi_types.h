@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "core/foundation_types.h"
 
 namespace Entelechy {
@@ -251,6 +251,18 @@ enum class ResourceBarrierType : u32 {
 
 struct BarrierDesc {
     ResourceBarrierType type;
+};
+
+// ------------------------------------------------------------------
+// Unified error codes for cross-backend diagnostics
+// ------------------------------------------------------------------
+enum class RHIErrorCode : u32 {
+    Success,
+    InvalidArgument,
+    OutOfMemory,
+    DeviceLost,
+    ShaderCompilationFailed,
+    UnsupportedFeature,
 };
 
 } // namespace Entelechy

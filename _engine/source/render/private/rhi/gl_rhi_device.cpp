@@ -1,8 +1,18 @@
 #include "render/rhi/gl_rhi_device.h"
 #include "log/core/log_macros.h"
+#include "core/allocator/allocator.h"
 #include <cstring>
+#include <memory>
 
 namespace Entelechy {
+
+namespace {
+    template<typename T, typename... Args>
+    T* allocateResource(Args&&... args) {
+        void* mem = DefaultAllocator::alloc(sizeof(T), alignof(T));
+        return std::construct_at(static_cast<T*>(mem), std::forward<Args>(args)...);
+    }
+} // namespace
 
 // ==================================================================
 // Helper: TextureFormat -> OpenGL format mapping
@@ -131,6 +141,18 @@ void GLBuffer::onDestroy() {
     }
 }
 
+void GLBuffer::setDebugName(const SmallString& name) {
+#if defined(GLAD_GL_KHR_debug)
+    if (m_vbo && !name.empty()) {
+        glObjectLabelKHR(GL_BUFFER_KHR, m_vbo, static_cast<GLsizei>(name.length()), name.c_str());
+    }
+#elif defined(GLAD_GL_VERSION_4_3)
+    if (m_vbo && !name.empty()) {
+        glObjectLabel(GL_BUFFER, m_vbo, static_cast<GLsizei>(name.length()), name.c_str());
+    }
+#endif
+}
+
 // ==================================================================
 // GLTexture
 // ==================================================================
@@ -147,6 +169,18 @@ void GLTexture::onDestroy() {
         glDeleteTextures(1, &m_texture);
         m_texture = 0;
     }
+}
+
+void GLTexture::setDebugName(const SmallString& name) {
+#if defined(GLAD_GL_KHR_debug)
+    if (m_texture && !name.empty()) {
+        glObjectLabelKHR(GL_TEXTURE_KHR, m_texture, static_cast<GLsizei>(name.length()), name.c_str());
+    }
+#elif defined(GLAD_GL_VERSION_4_3)
+    if (m_texture && !name.empty()) {
+        glObjectLabel(GL_TEXTURE, m_texture, static_cast<GLsizei>(name.length()), name.c_str());
+    }
+#endif
 }
 
 // ==================================================================
@@ -167,6 +201,18 @@ void GLShader::onDestroy() {
     }
 }
 
+void GLShader::setDebugName(const SmallString& name) {
+#if defined(GLAD_GL_KHR_debug)
+    if (m_shader && !name.empty()) {
+        glObjectLabelKHR(GL_SHADER_KHR, m_shader, static_cast<GLsizei>(name.length()), name.c_str());
+    }
+#elif defined(GLAD_GL_VERSION_4_3)
+    if (m_shader && !name.empty()) {
+        glObjectLabel(GL_SHADER, m_shader, static_cast<GLsizei>(name.length()), name.c_str());
+    }
+#endif
+}
+
 // ==================================================================
 // GLPipelineState
 // ==================================================================
@@ -185,6 +231,18 @@ void GLPipelineState::onDestroy() {
     }
 }
 
+void GLPipelineState::setDebugName(const SmallString& name) {
+#if defined(GLAD_GL_KHR_debug)
+    if (m_program && !name.empty()) {
+        glObjectLabelKHR(GL_PROGRAM_KHR, m_program, static_cast<GLsizei>(name.length()), name.c_str());
+    }
+#elif defined(GLAD_GL_VERSION_4_3)
+    if (m_program && !name.empty()) {
+        glObjectLabel(GL_PROGRAM, m_program, static_cast<GLsizei>(name.length()), name.c_str());
+    }
+#endif
+}
+
 // ==================================================================
 // GLCommandList
 // ==================================================================
@@ -195,6 +253,23 @@ void GLCommandList::begin() {
     m_bound_vao = 0;
     m_bound_ebo = 0;
     m_ebo_offset = 0;
+    m_uniform_cache.clear();
+    m_debug_group_depth = 0;
+}
+
+// ------------------------------------------------------------------
+// Uniform location cache
+// ------------------------------------------------------------------
+GLint GLCommandList::getUniformLocation(const char* name) {
+    if (!m_bound_program || !name) return -1;
+    StringId sid(name);
+    UniformLocKey key{m_bound_program, sid};
+    if (auto* cached = m_uniform_cache.find(key)) {
+        return *cached;
+    }
+    GLint loc = glGetUniformLocation(m_bound_program, name);
+    m_uniform_cache.insert(key, loc);
+    return loc;
 }
 
 void GLCommandList::end() {
@@ -392,7 +467,7 @@ RHIBufferRef GLRHIDevice::createBuffer(const BufferDesc& desc, const void* initi
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    return RHIBufferRef(new GLBuffer(desc.size, desc.usage, bufferObj, vao));
+    return RHIBufferRef(allocateResource<GLBuffer>(desc.size, desc.usage, bufferObj, vao));
 }
 
 RHITextureRef GLRHIDevice::createTexture(const TextureDesc& desc, const void* initialData) {
@@ -423,7 +498,7 @@ RHITextureRef GLRHIDevice::createTexture(const TextureDesc& desc, const void* in
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
         glBindTexture(GL_TEXTURE_2D, 0);
-        return RHITextureRef(new GLTexture(desc, tex, GL_TEXTURE_2D));
+        return RHITextureRef(allocateResource<GLTexture>(desc, tex, GL_TEXTURE_2D));
     } else {
         // 3D texture (simplified path)
         glBindTexture(GL_TEXTURE_3D, tex);
@@ -432,7 +507,7 @@ RHITextureRef GLRHIDevice::createTexture(const TextureDesc& desc, const void* in
                      static_cast<GLsizei>(desc.depth),
                      0, info.format, info.type, initialData);
         glBindTexture(GL_TEXTURE_3D, 0);
-        return RHITextureRef(new GLTexture(desc, tex, GL_TEXTURE_3D));
+        return RHITextureRef(allocateResource<GLTexture>(desc, tex, GL_TEXTURE_3D));
     }
 }
 
@@ -459,7 +534,7 @@ RHIShaderRef GLRHIDevice::createShader(ShaderStage stage, const void* bytecode, 
         return nullptr;
     }
 
-    return RHIShaderRef(new GLShader(stage, shader));
+    return RHIShaderRef(allocateResource<GLShader>(stage, shader));
 }
 
 RHIPipelineStateRef GLRHIDevice::createPipelineState(const PipelineStateDesc& desc) {
@@ -490,7 +565,7 @@ RHIPipelineStateRef GLRHIDevice::createPipelineState(const PipelineStateDesc& de
         return nullptr;
     }
 
-    return RHIPipelineStateRef(new GLPipelineState(desc, program));
+    return RHIPipelineStateRef(allocateResource<GLPipelineState>(desc, program));
 }
 
 IRHICommandList* GLRHIDevice::createCommandList() {
@@ -546,38 +621,36 @@ usize PSOManager::getCacheSize() const {
 // ==================================================================
 
 void GLCommandList::setUniformFloat(const char* name, f32 value) {
-    if (!m_bound_program || !name) return;
-    GLint loc = glGetUniformLocation(m_bound_program, name);
+    GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniform1f(loc, value);
 }
 
 void GLCommandList::setUniformInt(const char* name, i32 value) {
-    if (!m_bound_program || !name) return;
-    GLint loc = glGetUniformLocation(m_bound_program, name);
+    GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniform1i(loc, value);
 }
 
 void GLCommandList::setUniformVec2(const char* name, const f32* value) {
-    if (!m_bound_program || !name || !value) return;
-    GLint loc = glGetUniformLocation(m_bound_program, name);
+    if (!value) return;
+    GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniform2fv(loc, 1, value);
 }
 
 void GLCommandList::setUniformVec3(const char* name, const f32* value) {
-    if (!m_bound_program || !name || !value) return;
-    GLint loc = glGetUniformLocation(m_bound_program, name);
+    if (!value) return;
+    GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniform3fv(loc, 1, value);
 }
 
 void GLCommandList::setUniformVec4(const char* name, const f32* value) {
-    if (!m_bound_program || !name || !value) return;
-    GLint loc = glGetUniformLocation(m_bound_program, name);
+    if (!value) return;
+    GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniform4fv(loc, 1, value);
 }
 
 void GLCommandList::setUniformMat4(const char* name, const f32* value, bool transpose) {
-    if (!m_bound_program || !name || !value) return;
-    GLint loc = glGetUniformLocation(m_bound_program, name);
+    if (!value) return;
+    GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniformMatrix4fv(loc, 1, transpose ? GL_TRUE : GL_FALSE, value);
 }
 
@@ -586,6 +659,51 @@ void GLCommandList::bindTexture(u32 slot, RHITexture* texture) {
     auto* glTex = static_cast<GLTexture*>(texture);
     glActiveTexture(GL_TEXTURE0 + slot);
     glBindTexture(glTex->getTarget(), glTex->getTexture());
+}
+
+// ------------------------------------------------------------------
+// Debug markers
+// ------------------------------------------------------------------
+void GLCommandList::pushDebugGroup(const char* name) {
+#if defined(GLAD_GL_KHR_debug)
+    if (name) {
+        glPushDebugGroupKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, 0, -1, name);
+    }
+#elif defined(GLAD_GL_VERSION_4_3)
+    if (name) {
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, name);
+    }
+#endif
+    ++m_debug_group_depth;
+}
+
+void GLCommandList::popDebugGroup() {
+#if defined(GLAD_GL_KHR_debug)
+    if (m_debug_group_depth > 0) {
+        glPopDebugGroupKHR();
+    }
+#elif defined(GLAD_GL_VERSION_4_3)
+    if (m_debug_group_depth > 0) {
+        glPopDebugGroup();
+    }
+#endif
+    if (m_debug_group_depth > 0) {
+        --m_debug_group_depth;
+    }
+}
+
+void GLCommandList::insertDebugMarker(const char* name) {
+#if defined(GLAD_GL_KHR_debug)
+    if (name) {
+        glDebugMessageInsertKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, GL_DEBUG_TYPE_MARKER_KHR,
+                                0, GL_DEBUG_SEVERITY_NOTIFICATION_KHR, -1, name);
+    }
+#elif defined(GLAD_GL_VERSION_4_3)
+    if (name) {
+        glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER,
+                             0, GL_DEBUG_SEVERITY_NOTIFICATION, -1, name);
+    }
+#endif
 }
 
 } // namespace Entelechy

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "core/foundation_types.h"
 #include "render/rhi/rhi_types.h"
 #include "render/rhi/rhi_resources.h"
@@ -97,6 +97,12 @@ public:
     virtual void setUniformVec4(const char* name, const f32* value) = 0;
     virtual void setUniformMat4(const char* name, const f32* value, bool transpose = false) = 0;
     virtual void bindTexture(u32 slot, RHITexture* texture) = 0;
+
+    // -- Debug markers -----------------------------------------------------
+    // Map to platform debug groups (PIX events, RenderDoc labels, etc.)
+    virtual void pushDebugGroup(const char* name) = 0;
+    virtual void popDebugGroup() = 0;
+    virtual void insertDebugMarker(const char* name) = 0;
 };
 
 } // namespace Entelechy

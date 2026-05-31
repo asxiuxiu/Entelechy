@@ -1,13 +1,15 @@
-﻿#include "ecs/prefab/scene_serializer.h"
+#include "ecs/prefab/scene_serializer.h"
 #include "ecs/world/world.h"
 #include "ecs/type/type_registry.h"
 #include "ecs/component/component_array.h"
 #include "ecs/type/atom_registry.h"
 #include "core/string/string_intern_pool.h"
+#include "core/allocator/allocator.h"
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 #include <cctype>
+#include <memory>
 
 namespace Entelechy {
 
@@ -499,12 +501,12 @@ bool SceneSerializer::loadFromFile(World& world, const Path& path) const {
         std::fclose(f);
         return false;
     }
-    char* buf = new char[size + 1];
+    char* buf = static_cast<char*>(DefaultAllocator::alloc(size + 1, alignof(char)));
     std::fread(buf, 1, size, f);
     buf[size] = '\0';
     std::fclose(f);
     SmallString json(buf);
-    delete[] buf;
+    DefaultAllocator::free(buf);
     return deserialize(world, json);
 }
 

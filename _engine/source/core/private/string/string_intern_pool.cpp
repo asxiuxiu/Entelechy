@@ -1,4 +1,5 @@
-﻿#include "core/string/string_intern_pool.h"
+#include "core/string/string_intern_pool.h"
+#include "core/allocator/allocator.h"
 
 namespace Entelechy {
 
@@ -22,7 +23,7 @@ StringId StringInternPool::intern(const char* str) {
         return StringId(h);
     }
     usize len = std::strlen(str);
-    char* copy = new char[len + 1];
+    char* copy = static_cast<char*>(DefaultAllocator::alloc(len + 1, alignof(char)));
     std::memcpy(copy, str, len + 1);
     m_pool.insert(h, copy);
     return StringId(h);

@@ -3,6 +3,7 @@
 #include "core/container/dynamic_array.h"
 #include "core/string/small_string.h"
 #include "ecs/type/type_registry.h"
+#include "ecs/world/phase.h"
 
 namespace Entelechy {
 

@@ -1,11 +1,13 @@
-﻿{
+{
     "name": "EntelechyGame",
     "root_path": "_game",
     "modules": [
         {
             "name": "runtime",
             "path": "source/runtime",
-            "enabled": true
+            "enabled": true,
+            "init_function": "initRuntime",
+            "namespace": "game"
         }
     ]
 }

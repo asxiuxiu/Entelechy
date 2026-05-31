@@ -1,59 +1,33 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(POSSIBLE_TEST_TARGETS
-    BaseTests
-    CoreTests
-    MotorTests
-    BridgeTests
-    MathTests
-    MemoryTests
-    WindowTests
-    LogTests
-    RenderTests
-    ImGuiTests
-    VFSTests
-    AssetTests
-    ThreadPoolTests
-    RuntimeTests
-)
+entelechy_get_enabled_modules(ALL_MODULES)
 
-set(test_objects "")
-foreach(target ${POSSIBLE_TEST_TARGETS})
-    if(TARGET ${target})
-        list(APPEND test_objects "$<TARGET_OBJECTS:${target}>")
+set(TEST_OBJECTS "")
+set(TEST_TARGETS "")
+foreach(TARGET_NAME ${ALL_MODULES})
+    if(TARGET_NAME MATCHES "Tests$")
+        list(APPEND TEST_OBJECTS "$<TARGET_OBJECTS:${TARGET_NAME}>")
+        list(APPEND TEST_TARGETS ${TARGET_NAME})
     endif()
 endforeach()
 
-add_executable(EntelechyTests
-    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
-    ${test_objects}
+# Collect all non-test libraries
+set(TEST_LIBS "")
+foreach(TARGET_NAME ${ALL_MODULES})
+    if(NOT TARGET_NAME MATCHES "Tests$" AND NOT TARGET_NAME STREQUAL "Entelechy")
+        list(APPEND TEST_LIBS ${TARGET_NAME})
+    endif()
+endforeach()
+
+entelechy_module(
+    NAME EntelechyTests
+    TYPE EXECUTABLE
+    SOURCES
+        ${CMAKE_CURRENT_LIST_DIR}/private/main.cpp
+        ${TEST_OBJECTS}
+    PRIVATE_DEPS
+        ${TEST_LIBS}
+        ${TEST_TARGETS}
+    NO_TESTS
 )
 
-target_include_directories(EntelechyTests PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/..
-)
-
-set(ENTELECHY_TEST_LIBS
-    TestFrameworkLib
-    BaseLib
-    CoreLib
-    MotorLib
-    BridgeLib
-    MathLib
-    MemoryLib
-    WindowLib
-    LogLib
-    RenderLib
-    ImGuiLib
-    VFSLib
-    AssetLib
-    ThreadPoolLib
-)
-
-if(TARGET RuntimeLib)
-    list(APPEND ENTELECHY_TEST_LIBS RuntimeLib)
-endif()
-
-target_link_libraries(EntelechyTests PRIVATE ${ENTELECHY_TEST_LIBS})
-
-target_compile_features(EntelechyTests PUBLIC cxx_std_20)

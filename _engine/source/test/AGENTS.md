@@ -11,7 +11,7 @@
 |------|------|
 | `test_framework.h` | `TestRegistry` 单例、`TEST(Suite,Name)` 宏、`ASSERT_TRUE` / `ASSERT_FALSE` / `ASSERT_EQ` / `ASSERT_NE` 宏 |
 | `test_framework.cpp` | `TestRegistry::runAll()` 实现：遍历注册表、按 Suite 分组输出、统计 PASS/FAIL |
-| `CMakeLists.txt` | `TestFrameworkLib` 静态库定义，依赖 `BaseLib` |
+| `CMakeLists.txt` | `TestFrameworkLib` 静态库定义，依赖 `CoreLib` |
 
 ## 设计原则
 

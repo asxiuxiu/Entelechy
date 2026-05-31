@@ -134,6 +134,12 @@
 ## Module / 模块架构
 > 来自已完成的模块重构计划，以下拆分/扩展时机未到，但方向已明确。
 
+- [x] Module / 模块架构 | **模块重构（UE 风格 Core → Engine 分层）已完成**：`BaseLib` + `MemoryLib` + `MathLib`（纯数学）合并为 `CoreLib`，`CoreLib`（原 ECS）+ `MathLib`（ECS 内容）合并为 `EcsLib`，目录重命名为 `core/` 和 `ecs/`，`MathLib` / `MemoryLib` 已删除。构建验证通过，运行时正常。
+  - 文件：涉及全部模块 CMakeLists.txt、`launch/generator.py`、`launch/cmake_projects.json`、全局 include 路径。
+- [ ] Module / 模块架构 | `core/CMakeLists.txt` 为维持现有裸引 include 风格（如 `"frame_arena.h"`、`"vec.h"`），暴露了 `core/`、`core/memory/`、`core/math/`、`_engine/source/` 四个 include 路径，include 路径过于宽泛，弱化了模块边界。未来应逐步统一为完整路径风格（如 `"core/memory/frame_arena.h"`、`"core/math/vec.h"`），然后收紧 include 暴露。
+- [ ] Module / 模块架构 | `math/aabb.h` 曾包含 `#include "type_registry.h"` + `REFLECT_COMPONENT(AABB)`，`math_lib.h` 曾包含 `#include "transform_component.h"`，迫使纯数学库反向依赖 ECS。重构时已移除，但说明历史代码存在模块边界污染，未来需加强 Code Review 防止类似问题。
+  - 文件：`core/math/aabb.h`（已修复）、`core/math/math_lib.h`（已修复）。
+
 - [ ] Module / 模块架构 | 当前 `window/` 只含窗口和输入，未来需加入线程池抽象、文件 IO 底层、网络 Socket、CPU/SIMD 硬件检测、动态库加载，需扩展为 `platform/` 下设 `window/`、`input/`、`thread/`、`filesystem/`、`network/` 子目录。
 - [ ] Module / 模块架构 | 反射系统（atom_registry、type_registry、inspector_reflection）与资源管理（prefab、scene_serializer）已独立为多个文件，文件数 > 5，值得独立，需从 `core/` 拆分出 `reflect/` 和 `asset/`，`reflect/` 负责类型注册/属性遍历/序列化/Inspector 自动生成，`asset/` 负责 Handle/异步加载/引用计数/热重载。
 - [ ] Module / 模块架构 | `core/` 与具体业务之间缺少"比 core 更业务、比 gameplay 更通用"的层，需引入 `common/` 通用中间件层，包含场景图（Transform 层级脏标记传播）、Prefab 资产结构、序列化框架、状态机基础、调试绘制接口。
@@ -170,3 +176,20 @@
 - [ ] Core Runtime | `imgui_panels.cpp` 中仍有 `Fallback: legacy ComponentDesc recursive lookup` 分支，新增组件若未走新反射路径会静默回退到旧逻辑，需补全 `AtomRegistry::registerBuiltinAtoms()` 覆盖所有引擎内置原子类型，`imgui_panels.cpp` 中删除 legacy 分支，强制走 `inspectorDrawComponent()` 递归绘制。
 - [ ] Core Runtime | `App::addPlugin()` 只有唯一性检查，无依赖声明与拓扑排序，若 Plugin A 依赖 Plugin B 但 B 未注册只能在运行时才发现功能缺失，需在 `IPlugin` 中增加 `dependencies()` 虚函数返回依赖名称列表，`App` 在 `build()` 前做拓扑排序，循环依赖或未满足依赖时 `LOG_FATAL`。
 - [ ] Core Runtime | `ViewBinnedPhases` / `ViewSortedPhases` / `ViewVisibleList`（`render/RenderResources.h`、`render/culling/ViewVisibleList.h`）未注册 `REFLECT_COMPONENT`，Inspector 和序列化系统无法遍历字段，需补全注册，并确认 `ViewVisibleList` 中的 `DynamicArray<Entity>` 反射系统是否支持容器字段（当前可能只支持 Atom/Composite）。
+
+## Build System / 构建体系重构
+> 2026-05-30：完成 Phase 1 — 引入 `entelechy_module()` 宏、去掉代理层、统一模块声明、CMake 直接驱动模块发现。
+> 2026-05-30：完成 Phase 2 — 清理模块边界，去掉 `..` PUBLIC 暴露，统一跨模块 include 为裸文件名风格，修复隐式依赖。
+
+- [x] Build System | **Phase 1 完成**：`cmake/EntelechyModule.cmake` 提供统一模块宏，`CMakeLists.txt` 直接 `add_subdirectory` 真实路径，`main.cpp.in` 由 CMake `configure_file` 生成，构建验证通过。
+  - 文件：`cmake/EntelechyModule.cmake`、`CMakeLists.txt`、`launch/templates/main.cpp.in`、全部模块 `CMakeLists.txt`。
+- [x] Build System | **Phase 2 完成**：`entelechy_module()` 宏中 `${CMAKE_CURRENT_LIST_DIR}/..` 从 PUBLIC 降为 PRIVATE；所有跨模块 include 从模块前缀风格（如 `#include "ecs/app.h"`）改为裸文件名风格（如 `#include "app.h"`）；修复了 `EcsLib` 对 `LogLib` / `ThreadPoolLib` 的隐式依赖。构建与运行验证均通过。
+  - 文件：`cmake/EntelechyModule.cmake`、所有模块源码中跨模块 include 语句、`_engine/source/ecs/CMakeLists.txt`。
+- [x] Build System | **Phase 3 完成**：public/private 目录边界 + 模块前缀 include。所有模块文件迁移到 `public/module/`（头文件）和 `private/`（实现），跨模块 include 统一为模块前缀风格（如 `#include "log/log_macros.h"`、`#include "render/components/Camera.h"`）。`entelechy_module()` 宏自动发现 public/private 目录并配置 include 路径，支持显式 SOURCES + 自动发现的混合模式（如 imgui 的外部 backend 文件）。tests 目录添加 private include 访问。构建与运行验证均通过。
+  - 文件：`cmake/EntelechyModule.cmake`、全部模块目录结构、14 个模块 `CMakeLists.txt`、5 个 `tests/CMakeLists.txt`、`launch/templates/main.cpp.in`。
+- [ ] Build System | `test_runner/CMakeLists.txt` 使用 `$<TARGET_OBJECTS:*Tests>` 收集测试对象文件，该 generator expression 在部分 CMake 生成器或平台上行为不一致，若未来切换到 Ninja/Make 需验证兼容性。
+  - 文件：`_engine/source/test_runner/CMakeLists.txt`
+- [ ] Build System | `launch/generator.py` 已标记弃用但尚未移除，作为 standalone `main.cpp` 生成的 fallback 保留。待团队完全切换到纯 CMake 流程后删除。
+  - 文件：`launch/generator.py`
+- [ ] Build System | `main.cpp.in` 模板中硬编码了大量跨模块 include（如 `#include "glfw_window.h"`、`#include "render/opengl_backend.h"`），未通过模块依赖自动推导。未来应让各模块在 `entelechy_module()` 中声明「需要暴露给 main 的头文件」，或由 CMake 自动生成 include 列表。
+  - 文件：`launch/templates/main.cpp.in`

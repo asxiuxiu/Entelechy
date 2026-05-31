@@ -386,9 +386,12 @@ def check_file_encoding(ctx: LintContext, file: Path, content: bytes, in_third_p
         return
 
     # Check for BOM
-    if not content.startswith(b'\xef\xbb\xbf'):
+    # Project uses /utf-8 on MSVC; files must be valid UTF-8 (BOM optional)
+    try:
+        content.decode('utf-8')
+    except UnicodeDecodeError:
         ctx.add(file, 1, 1, "format.encoding",
-                "File must use UTF-8 with BOM encoding", severity="warning")
+                "File must use valid UTF-8 encoding", severity="warning")
 
 
 def check_cmake_relative_paths(ctx: LintContext, file: Path, lines: List[str]):

@@ -1,6 +1,6 @@
 # Entelechy — Agent 入口
 
-**Entelechy** 是一个渐进式自研游戏引擎，当前处于 Phase 0（最小可运行 ECS 骨架）。技术栈：C++20、CMake、Python。
+**Entelechy** 是一个渐进式自研游戏引擎。技术栈：C++20、CMake、Python。
 
 ## 构建入口
 

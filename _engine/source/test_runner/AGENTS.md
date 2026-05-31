@@ -22,7 +22,7 @@
 
 - 向上依赖：
   - [Test 框架模块](../test/AGENTS.md)（`TestFrameworkLib`）
-  - 所有引擎模块库（`BaseLib`、`CoreLib`、`VFSLib`、`ThreadPoolLib` 等）
+  - 所有引擎模块库（`CoreLib`、`EcsLib`、`VFSLib`、`ThreadPoolLib` 等）
   - 所有存在 `tests/` 的模块的 OBJECT 测试库
 - 被依赖：
   - 无（叶子节点，可执行文件）

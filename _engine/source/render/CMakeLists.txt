@@ -2,31 +2,13 @@ cmake_minimum_required(VERSION 3.20)
 
 find_package(glad REQUIRED)
 
-add_library(RenderLib STATIC
-    ${CMAKE_CURRENT_LIST_DIR}/opengl_backend.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/simple_cube_renderer.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/gl_rhi_device.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/shader_cache.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/material.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/render_world/RenderWorld.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/render_world/ExtractSchedule.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/extract/ExtractRenderablesSystem.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/extract/ExtractCameraSystem.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/culling/FrustumCullSystem.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/queue/BinnedRenderPhase.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/queue/SortedRenderPhase.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/queue/QueueDrawsSystem.cpp
+entelechy_module(
+    NAME RenderLib
+    PUBLIC_DEPS
+        glad::glad
+        WindowLib
+        LogLib
+        CoreLib
+        EcsLib
 )
 
-target_include_directories(RenderLib PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/..
-)
-
-target_compile_features(RenderLib PUBLIC cxx_std_20)
-
-target_link_libraries(RenderLib PUBLIC
-    glad::glad
-    WindowLib
-    LogLib
-)

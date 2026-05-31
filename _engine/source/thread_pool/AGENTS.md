@@ -11,7 +11,7 @@
 |------|------|
 | `thread_pool.h` | `ThreadPool` 类 + `WorkStealingQueue` 类；任务提交、`parallelFor` 模板、工作窃取逻辑 |
 | `thread_pool.cpp` | 线程池主循环、队列 push/pop/steal 实现、溢出队列处理 |
-| `CMakeLists.txt` | `ThreadPoolLib` 静态库定义，依赖 `BaseLib` |
+| `CMakeLists.txt` | `ThreadPoolLib` 静态库定义，依赖 `CoreLib` |
 
 ## 重要入口
 

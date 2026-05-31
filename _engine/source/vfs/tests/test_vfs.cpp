@@ -1,10 +1,13 @@
-﻿#include "test/test_framework.h"
+#include "test/test_framework.h"
 #include "vfs/vfs.h"
 #include "vfs/mount_point.h"
+#include "core/allocator/allocator.h"
+#include <memory>
 
 TEST(VFS, FileSystemMountPointReadWrite) {
     Entelechy::VFS vfs;
-    auto* fsMount = new Entelechy::FileSystemMountPoint("build/test_vfs");
+    void* fsMem = Entelechy::DefaultAllocator::alloc(sizeof(Entelechy::FileSystemMountPoint), alignof(Entelechy::FileSystemMountPoint));
+    auto* fsMount = std::construct_at(static_cast<Entelechy::FileSystemMountPoint*>(fsMem), "build/test_vfs");
     vfs.mount("/test", fsMount);
 
     const char* testData = "Hello from VFS!";
@@ -25,7 +28,8 @@ TEST(VFS, FileSystemMountPointReadWrite) {
 
 TEST(VFS, MemoryMountPoint) {
     Entelechy::VFS vfs;
-    auto* memMount = new Entelechy::MemoryMountPoint();
+    void* memMem = Entelechy::DefaultAllocator::alloc(sizeof(Entelechy::MemoryMountPoint), alignof(Entelechy::MemoryMountPoint));
+    auto* memMount = std::construct_at(static_cast<Entelechy::MemoryMountPoint*>(memMem));
     const char* memData = "Memory file content";
     memMount->registerFile("mem/test.txt", reinterpret_cast<const u8*>(memData), 19);
     vfs.mount("/mem", memMount);

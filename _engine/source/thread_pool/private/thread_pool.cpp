@@ -1,4 +1,6 @@
-﻿#include "thread_pool/thread_pool.h"
+#include "thread_pool/thread_pool.h"
+#include "core/allocator/allocator.h"
+#include <memory>
 
 namespace Entelechy {
 
@@ -9,11 +11,18 @@ WorkStealingQueue::WorkStealingQueue(usize capacity) {
     while (cap < capacity) cap <<= 1;
     m_capacity = cap;
     m_mask = cap - 1;
-    m_buffer = new std::function<void()>[cap];
+    void* mem = DefaultAllocator::alloc(cap * sizeof(std::function<void()>), alignof(std::function<void()>));
+    m_buffer = static_cast<std::function<void()>*>(mem);
+    for (usize i = 0; i < cap; ++i) {
+        std::construct_at(&m_buffer[i]);
+    }
 }
 
 WorkStealingQueue::~WorkStealingQueue() {
-    delete[] m_buffer;
+    for (usize i = 0; i < m_capacity; ++i) {
+        std::destroy_at(&m_buffer[i]);
+    }
+    DefaultAllocator::free(m_buffer);
 }
 
 bool WorkStealingQueue::push(std::function<void()> task) {
@@ -84,7 +93,8 @@ std::function<void()> WorkStealingQueue::steal() {
 
 ThreadPool::ThreadPool(usize numThreads) : m_num_threads(numThreads) {
     for (usize i = 0; i < numThreads; ++i) {
-        Worker* w = new Worker();
+        Worker* w = static_cast<Worker*>(DefaultAllocator::alloc(sizeof(Worker), alignof(Worker)));
+        std::construct_at(w);
         w->thread = std::thread([this, w]() {
             runWorkerLoop(w);
         });
@@ -102,7 +112,8 @@ ThreadPool::~ThreadPool() {
     }
 
     for (usize i = 0; i < m_workers.size(); ++i) {
-        delete m_workers[i];
+        std::destroy_at(m_workers[i]);
+        DefaultAllocator::free(m_workers[i]);
     }
     m_workers.clear();
 }

@@ -10,8 +10,9 @@
 |------|------|
 | `rhi_types.h` | RHI 基础类型：Buffer/Texture/Shader 枚举、资源描述结构、渲染通道描述 |
 | `rhi_resources.h` | GPUResource 基类（引用计数）、RHIRef 智能句柄、具体资源类型声明 |
-| `rhi_device.h` | `IRHIDevice`（资源工厂 + 提交）与 `IRHICommandList`（命令录制）纯虚接口 |
+| `rhi_device.h` | `IRHIDevice`（资源工厂 + 提交）与 `IRHICommandList`（命令录制 + 调试标注）纯虚接口 |
 | `rhi_pipeline.h` | `PipelineStateDesc`（完整 PSO 描述，含哈希支持）、`PSOManager`（全局缓存） |
+| `rhi_types.h` | RHI 基础类型 + 统一错误码 `RHIErrorCode` |
 | `gl_rhi_device.h` / `.cpp` | OpenGL 后端对 RHI 接口的实现：`GLRHIDevice`、`GLCommandList`、GL 资源对象 |
 | `opengl_backend.cpp` | OpenGL 初始化、视口管理、清除与呈现（SwapChain 层，保留兼容） |
 | `opengl_backend.h` | `OpenGLBackend` 类声明 |
@@ -72,3 +73,9 @@
 ## 技术债务
 
 > 统一维护于 [TODO.md](../../../../TODO.md)。本模块相关条目包括：Render/RHIImmediateExecution、Render/UniformBinding、Render/MaterialNoVariant、Render/ShaderSyncCompile、Render/SingleBackend。
+
+### 2026-05-31 已完成（级别 1 轻量优化）
+- ✅ `IRHICommandList::pushDebugGroup` / `popDebugGroup` / `insertDebugMarker` — GPU 调试标注接口（映射到 GL_KHR_debug / GL 4.3+）
+- ✅ `GPUResource::setDebugName` — 资源对象命名（RenderDoc/PIX 可识别）
+- ✅ `GLCommandList` Uniform Location 缓存 — `HashMap<(program, StringId), GLint>`，消除每 Draw Call 的 `glGetUniformLocation` 字符串查询
+- ✅ `RHIErrorCode` 统一错误码枚举 — 为跨后端错误分类预留骨架

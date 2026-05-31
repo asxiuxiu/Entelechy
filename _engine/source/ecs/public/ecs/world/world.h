@@ -4,8 +4,10 @@
 #include "ecs/type/type_registry.h"
 #include "core/container/dynamic_array.h"
 #include "core/container/hash_map.h"
+#include "core/allocator/allocator.h"
 #include <cstdio>
 #include <tuple>
+#include <memory>
 
 namespace Entelechy {
 
@@ -148,7 +150,8 @@ private:
         if (v) {
             return static_cast<ComponentArray<T>*>(*v);
         }
-        auto* array = new ComponentArray<T>();
+        auto* array = static_cast<ComponentArray<T>*>(DefaultAllocator::alloc(sizeof(ComponentArray<T>), alignof(ComponentArray<T>)));
+        std::construct_at(array);
         m_component_arrays.insert(typeID, array);
         return array;
     }

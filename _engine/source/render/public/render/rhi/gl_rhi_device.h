@@ -1,6 +1,8 @@
-﻿#pragma once
+#pragma once
 #include "render/rhi/rhi_device.h"
 #include "render/rhi/rhi_pipeline.h"
+#include "core/container/hash_map.h"
+#include "core/string/string_id.h"
 #include <glad/glad.h>
 
 namespace Entelechy {
@@ -19,6 +21,8 @@ public:
 
     GLuint getVBO() const { return m_vbo; }
     GLuint getVAO() const { return m_vao; }
+
+    void setDebugName(const SmallString& name) override;
 
 protected:
     void onDestroy() override;
@@ -39,6 +43,8 @@ public:
     GLuint getTexture() const { return m_texture; }
     GLenum getTarget() const { return m_target; }
 
+    void setDebugName(const SmallString& name) override;
+
 protected:
     void onDestroy() override;
 
@@ -56,6 +62,8 @@ public:
     ShaderStage getStage() const override { return m_stage; }
     GLuint getShader() const { return m_shader; }
 
+    void setDebugName(const SmallString& name) override;
+
 protected:
     void onDestroy() override;
 
@@ -72,12 +80,34 @@ public:
     GLuint getProgram() const { return m_program; }
     const PipelineStateDesc& getDesc() const { return m_desc; }
 
+    void setDebugName(const SmallString& name) override;
+
 protected:
     void onDestroy() override;
 
 private:
     PipelineStateDesc m_desc;
     GLuint m_program = 0;
+};
+
+// ==================================================================
+// Uniform location cache key
+// ==================================================================
+struct UniformLocKey {
+    GLuint program = 0;
+    StringId name;
+
+    bool operator==(const UniformLocKey& other) const {
+        return program == other.program && name == other.name;
+    }
+};
+
+struct UniformLocKeyHash {
+    u64 operator()(const UniformLocKey& key) const {
+        u64 h = static_cast<u64>(key.program);
+        h ^= key.name.value() + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+        return h;
+    }
 };
 
 // ==================================================================
@@ -116,12 +146,24 @@ public:
     void setUniformMat4(const char* name, const f32* value, bool transpose = false) override;
     void bindTexture(u32 slot, RHITexture* texture) override;
 
+    // Debug markers
+    void pushDebugGroup(const char* name) override;
+    void popDebugGroup() override;
+    void insertDebugMarker(const char* name) override;
+
 private:
+    // Cached uniform location lookup (program + name) -> location.
+    // Eliminates per-draw-call string hashing inside the GL driver.
+    GLint getUniformLocation(const char* name);
+
     bool m_inside_render_pass = false;
     GLuint m_bound_program = 0;
     GLuint m_bound_vao = 0;
     GLuint m_bound_ebo = 0;
     u32 m_ebo_offset = 0;
+
+    HashMap<UniformLocKey, GLint, UniformLocKeyHash> m_uniform_cache;
+    u32 m_debug_group_depth = 0;
 };
 
 // ==================================================================

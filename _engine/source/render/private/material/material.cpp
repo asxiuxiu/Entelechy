@@ -1,6 +1,8 @@
 #include "render/material/material.h"
 #include "log/core/log_macros.h"
+#include "core/allocator/allocator.h"
 #include <cstring>
+#include <memory>
 
 namespace Entelechy {
 
@@ -146,7 +148,7 @@ bool Material::init(IRHIDevice* device, ShaderCache* shaderCache,
 
         if (uniformOffset > 0) {
             m_uniform_data_size = alignOffset(uniformOffset, 16);
-            m_uniform_data = new u8[m_uniform_data_size];
+            m_uniform_data = static_cast<u8*>(DefaultAllocator::alloc(m_uniform_data_size, alignof(u8)));
             std::memset(m_uniform_data, 0, m_uniform_data_size);
         }
     }
@@ -161,7 +163,7 @@ void Material::shutdown() {
     m_vertex_shader.reset();
     m_fragment_shader.reset();
     if (m_uniform_data) {
-        delete[] m_uniform_data;
+        DefaultAllocator::free(m_uniform_data);
         m_uniform_data = nullptr;
     }
     m_uniform_data_size = 0;

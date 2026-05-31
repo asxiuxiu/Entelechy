@@ -4,20 +4,27 @@
 #include "core/math/mat4.h"
 #include "ecs/component/transform_component.h"
 #include "ecs/hierarchy/hierarchy.h"
+#include "core/allocator/allocator.h"
 #include <cstdio>
+#include <memory>
 
 namespace Entelechy {
 
-World::World() : m_registry(new EntityRegistry()), m_owns_registry(true) {}
+World::World() : m_owns_registry(true) {
+    m_registry = static_cast<EntityRegistry*>(DefaultAllocator::alloc(sizeof(EntityRegistry), alignof(EntityRegistry)));
+    std::construct_at(m_registry);
+}
 
 World::World(EntityRegistry& registry) : m_registry(&registry), m_owns_registry(false) {}
 
 World::~World() {
     for (auto pair : m_component_arrays) {
-        delete pair.second;
+        std::destroy_at(pair.second);
+        DefaultAllocator::free(pair.second);
     }
     if (m_owns_registry) {
-        delete m_registry;
+        std::destroy_at(m_registry);
+        DefaultAllocator::free(m_registry);
     }
 }
 

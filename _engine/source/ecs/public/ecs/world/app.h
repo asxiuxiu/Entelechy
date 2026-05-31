@@ -3,8 +3,10 @@
 #include "ecs/world/world.h"
 #include "ecs/world/scheduler.h"
 #include "core/container/dynamic_array.h"
+#include "core/allocator/allocator.h"
 #include <type_traits>
 #include <utility>
+#include <memory>
 
 namespace Entelechy {
 
@@ -22,7 +24,7 @@ namespace Entelechy {
 //
 // Usage:
 //   App app;
-//   app.addPlugin(new MyPlugin());
+//   app.emplacePlugin<MyPlugin>();
 //   app.build();
 //   app.setup();
 //   while (app.isRunning()) {
@@ -42,7 +44,8 @@ public:
     template<typename T, typename... Args>
     T& emplacePlugin(Args&&... args) {
         static_assert(std::is_base_of_v<IPlugin, T>, "T must derive from IPlugin");
-        T* ptr = new T(std::forward<Args>(args)...);
+        T* ptr = static_cast<T*>(DefaultAllocator::alloc(sizeof(T), alignof(T)));
+        std::construct_at(ptr, std::forward<Args>(args)...);
         addPlugin(ptr);
         return *ptr;
     }

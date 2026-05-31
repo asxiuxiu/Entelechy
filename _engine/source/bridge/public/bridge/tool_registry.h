@@ -32,7 +32,7 @@ private:
 
 // Helper macro for auto-registering a tool to ToolRegistry
 // Usage:
-//   REFLECT_TOOL(my_tool_name, "description", "{}", true, [](const std::string&) -> std::string { return "{}"; })
+//   REFLECT_TOOL(my_tool_name, "description", "{}", true, [](const SmallString&) -> SmallString { return "{}"; })
 #define REFLECT_TOOL(Name, Desc, Schema, ReadOnly, Func) \
     namespace { \
     struct _AutoToolReg_##Name { \

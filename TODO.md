@@ -28,6 +28,11 @@
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/资源管理.md` 问题 8。
 
 ## Render / RHI
+> 2026-05-31：已完成级别 1 轻量优化（调试标注 + Uniform Cache + 错误码骨架）。
+
+- [x] Render / RHI | **级别 1 — 调试标注与诊断**：`IRHICommandList` 新增 `pushDebugGroup` / `popDebugGroup` / `insertDebugMarker`；`GPUResource` 新增 `setDebugName`；GL 后端映射到 `GL_KHR_debug` / OpenGL 4.3+ 的 `glPushDebugGroup` / `glObjectLabel`。
+- [x] Render / RHI | **级别 1 — Uniform Location 缓存**：`GLCommandList` 内部维护 `HashMap<(program, StringId), GLint>`，消除每 Draw Call 的 `glGetUniformLocation` 字符串查询开销。
+- [x] Render / RHI | **级别 1 — 统一错误码骨架**：`rhi_types.h` 新增 `RHIErrorCode` 枚举（`Success/InvalidArgument/OutOfMemory/DeviceLost/ShaderCompilationFailed/UnsupportedFeature`），为跨后端错误分类预留基础。
 - [ ] Render / RHI | `GLRHIDevice` 未包装为 ECS `Resource`，`MeshRenderSystem` 仍直接调用 GL 裸接口，需让渲染系统通过 `IRHICommandList` 录制命令。
   - 参考：`_engine/source/render/rhi_device.h`
 - [ ] Render / RHI | 当 Draw Call > 2000 且 Profiling 确认 CPU 瓶颈时，`GLCommandList` 的即时执行模式无法扩展，需引入简化版延迟命令缓冲（`LinearAllocator` + 引擎级命令枚举 + `switch-case` 翻译执行），单线程录制 → 多线程并行生成 `DrawPacket` → 单线程排序 → 单线程翻译。
@@ -48,7 +53,7 @@
 - [ ] Render / RHI | Culling 与 Queue 系统仅处理第一个 `ExtractedView`，`ViewVisibleList`、`ViewBinnedPhases`、`ViewSortedPhases` 在设计上应每 view 一份，需将 View-level Resource 改为与 view 实体绑定（`Entity viewEntity` 作为 key），Culling 和 Queue 系统遍历所有含 `ExtractedView` 的实体，为每个 view 生成独立的可见列表和 phase 容器。
 - [ ] Render / RHI | `PhaseItem::instance_count`（`render/queue/PhaseItem.h`、`render/queue/QueueDrawsSystem.cpp`）字段已预留为 1 但未实现 instancing 合并，`QueueDrawsSystem` 未检测同 material + 同 mesh 的连续实体，需在 `BinnedRenderPhase::addItem` 中检测并合并为同一 `PhaseItem` 且累加 `instance_count`，并配合 Prepare 步骤生成 instance buffer。
 - [ ] Render / RHI | `ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:23`）每帧对静态 AABB 全量拷贝，大多数模型的本地 AABB 是静态的但每帧都通过 `mainWorld.getComponent<AABB>(entity)` 提取到 render world，需在 `MainWorldSync` 中记录「上一帧是否有 AABB」或引入脏标记机制，仅当 AABB 组件被修改时才重新提取。
-- [ ] Render / RHI | `render/public/render/rhi/rhi_device.h` `IRHICommandList::setUniform*` 直接上传（OpenGL immediate mode），每 draw call 遍历参数调用 `glUniform*`，CPU 开销大且无法合批，未来应迁移到 UBO / PushConstants / Bindless。
+- [ ] Render / RHI | `IRHICommandList::setUniform*` 仍为 OpenGL immediate mode（`glUniform*`），虽已引入 Uniform Location 缓存消除字符串查询，但每 Draw Call 仍单独调用驱动，无法合批。未来应迁移到 UBO / PushConstants / Bindless。
 
 ## Material / Shader
 > 2026-05-25：当前实现为同步编译 + CPU uniform 块 + `glUniform*` 即时上传 + 无模板分层。以下为与工业级方案的差额，后续逐步补齐。
@@ -195,3 +200,13 @@
 ## Runtime / 游戏运行时
 
 - [ ] Runtime / 游戏运行时 | `_game/source/runtime/private/game_runtime.cpp` `main.cpp` 由 `launch/generator.py` 构建时生成，主循环逻辑散落在模板中，未来 Runtime 应接管更多主循环逻辑。
+
+## Core / 基础库扩展缺口
+
+> 2026-05-31：当前代码已按「基础库优先」规则消除了所有可替换的 STL/裸分配依赖。以下设施因基础库尚未提供对应实现，暂时保留 STL，待扩展后统一迁移。
+
+- [ ] Core / 基础库扩展缺口 | `std::unique_ptr<T>` 仍在 `log/core/logger.h`（`addOutputDevice` / `m_devices`）与 `render/example/simple_cube_renderer.h`（`m_device`、`m_shader_cache`）中使用。需引入引擎级 `UniquePtr<T, Deleter>`（支持自定义 `DefaultAllocator` 释放），并迁移所有所有权语义场景。
+- [ ] Core / 基础库扩展缺口 | `std::function<void()>` 仍在 `thread_pool/thread_pool.h`、`asset/loader/asset_server.h`、`bridge/tool_registry.h` 中使用。需设计零分配或固定缓冲的 `Function<Ret(Args...)>` / `Delegate`（参考 `ue::TFunction` / `bevy::Func`），避免 `std::function` 的类型擦除堆分配与不可拷贝约束。
+- [ ] Core / 基础库扩展缺口 | `std::deque<T>` 仍在 `thread_pool` 溢出队列与 `asset_server` 任务队列中使用。需实现支持头尾 O(1) push/pop 的 `Deque<T>`，或更直接地提供 lock-free `MPSCQueue<T>` 替换线程池/资源加载的回调队列。
+- [ ] Core / 基础库扩展缺口 | `std::sort` 仍在 `render/queue/SortedRenderPhase.cpp` 中使用。需引入 `algo::sort(begin, end, cmp)`（可考虑 introsort / timsort），并对 `DynamicArray` 提供 convenience 成员方法。
+- [ ] Core / 基础库扩展缺口 | `std::thread` / `std::mutex` / `std::atomic` / `std::condition_variable` 仍散落在线程池、asset_server、logger 中。需封装为 `Thread`、`Mutex`、`Atomic<T>`、`ConditionVariable` 等薄层，便于未来切换平台线程模型（如 Windows ThreadPool API、C++20 `std::jthread`）。

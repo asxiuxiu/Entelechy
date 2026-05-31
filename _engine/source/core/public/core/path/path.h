@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 #include "core/string/small_string.h"
 #include "core/foundation_types.h"
+#include "core/allocator/allocator.h"
 #include <cstring>
 
 namespace Entelechy {
@@ -19,17 +20,8 @@ class Path {
         usize len = str.length();
         if (len == 0) return;
 
-        // Replace all '\' with '/'
-        char* buf = nullptr;
-        bool needsHeap = len > SmallString::inlineCapacity();
-        if (needsHeap) {
-            buf = new char[len + 1];
-            std::memcpy(buf, s, len + 1);
-        } else {
-            // For inline strings, we can modify in-place via a temporary buffer
-            buf = new char[len + 1];
-            std::memcpy(buf, s, len + 1);
-        }
+        char* buf = static_cast<char*>(DefaultAllocator::alloc(len + 1, alignof(char)));
+        std::memcpy(buf, s, len + 1);
 
         for (usize i = 0; i < len; ++i) {
             if (buf[i] == '\\') buf[i] = '/';
@@ -42,7 +34,7 @@ class Path {
         buf[len] = '\0';
 
         str.assign(buf, len);
-        delete[] buf;
+        DefaultAllocator::free(buf);
     }
 
 public:

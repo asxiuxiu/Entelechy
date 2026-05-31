@@ -17,6 +17,15 @@ ArchetypeWorld::~ArchetypeWorld() {
         Chunk* chunk = archetype->firstChunk;
         while (chunk) {
             Chunk* next = chunk->next;
+            // Destroy all remaining component instances before freeing memory
+            for (u16 i = 0; i < chunk->entityCount; ++i) {
+                for (usize c = 0; c < archetype->componentTypes.size(); ++c) {
+                    if (archetype->componentDtors[c]) {
+                        u8* base = chunkData(*chunk) + archetype->componentOffsets[c];
+                        archetype->componentDtors[c](base + i * archetype->componentSizes[c]);
+                    }
+                }
+            }
             freeChunk(chunk);
             chunk = next;
         }
@@ -43,19 +52,39 @@ void ArchetypeWorld::destroy(Entity e) {
         u16 last = chunk->entityCount - 1;
 
         if (idx != last) {
-            // Swap with last entity in chunk
             u32* entityIds = reinterpret_cast<u32*>(chunkData(*chunk));
             Entity moved{entityIds[last], m_registry.getGeneration(entityIds[last])};
 
-            // Move all component data for the last entity to idx
             for (usize c = 0; c < rec.archetype->componentTypes.size(); ++c) {
                 usize size = rec.archetype->componentSizes[c];
                 usize offset = rec.archetype->componentOffsets[c];
                 u8* base = chunkData(*chunk) + offset;
-                std::memcpy(base + idx * size, base + last * size, size);
+                u8* dest = base + idx * size;
+                u8* src  = base + last * size;
+
+                if (rec.archetype->componentDtors[c]) {
+                    rec.archetype->componentDtors[c](dest);
+                }
+                if (rec.archetype->componentMoveCtors[c]) {
+                    rec.archetype->componentMoveCtors[c](dest, src);
+                } else {
+                    std::memcpy(dest, src, size);
+                }
+                if (rec.archetype->componentDtors[c]) {
+                    rec.archetype->componentDtors[c](src);
+                }
             }
             entityIds[idx] = entityIds[last];
             m_entity_records[moved.id].indexInChunk = idx;
+        } else {
+            for (usize c = 0; c < rec.archetype->componentTypes.size(); ++c) {
+                if (rec.archetype->componentDtors[c]) {
+                    usize size = rec.archetype->componentSizes[c];
+                    usize offset = rec.archetype->componentOffsets[c];
+                    u8* base = chunkData(*chunk) + offset;
+                    rec.archetype->componentDtors[c](base + idx * size);
+                }
+            }
         }
         --chunk->entityCount;
         --rec.archetype->entityCount;
@@ -93,10 +122,16 @@ Archetype* ArchetypeWorld::createArchetype(ArchetypeID id) {
             const ComponentDesc* desc = TypeRegistry::instance().findComponent(i);
             if (desc) {
                 archetype->componentSizes.pushBack(desc->size);
-                archetype->componentAlignments.pushBack(alignof(std::max_align_t)); // conservative
+                archetype->componentAlignments.pushBack(desc->alignment);
+                archetype->componentDtors.pushBack(desc->dtor);
+                archetype->componentMoveCtors.pushBack(desc->moveCtor);
+                archetype->componentCopyCtors.pushBack(desc->copyCtor);
             } else {
                 archetype->componentSizes.pushBack(0);
                 archetype->componentAlignments.pushBack(1);
+                archetype->componentDtors.pushBack(nullptr);
+                archetype->componentMoveCtors.pushBack(nullptr);
+                archetype->componentCopyCtors.pushBack(nullptr);
             }
         }
     }
@@ -135,9 +170,10 @@ Archetype* ArchetypeWorld::createArchetype(ArchetypeID id) {
 }
 
 Chunk* ArchetypeWorld::allocateChunk(Archetype& archetype) {
-    void* mem = m_allocator->allocate(sizeof(Chunk), alignof(Chunk));
+    void* mem = m_allocator->allocate(sizeof(Chunk) + Chunk::CAPACITY, alignof(Chunk));
     Chunk* chunk = new (mem) Chunk();
     chunk->archetype = archetype.id;
+    chunk->archetypePtr = &archetype;
     chunk->entityCapacity = archetype.entitiesPerChunk;
     chunk->entityCount = 0;
     chunk->next = nullptr;
@@ -177,7 +213,7 @@ void ArchetypeWorld::moveEntityToArchetypeRaw(Entity e, const ArchetypeRecord& o
 
     u16 newIdx = newChunk ? newChunk->entityCount : 0;
 
-    // Copy component data from old archetype
+    // Move shared component data from old archetype to new archetype
     if (oldRec.archetype && oldRec.chunk && newArchetype) {
         for (usize i = 0; i < oldRec.archetype->componentTypes.size(); ++i) {
             ComponentTypeID type = oldRec.archetype->componentTypes[i];
@@ -185,19 +221,24 @@ void ArchetypeWorld::moveEntityToArchetypeRaw(Entity e, const ArchetypeRecord& o
             usize oldOffset = oldRec.archetype->componentOffsets[i];
             u8* oldBase = chunkData(*oldRec.chunk) + oldOffset;
 
-            // Find matching component in new archetype
             usize newCompIdx = findComponentIndex(*newArchetype, type);
             if (newCompIdx != static_cast<usize>(-1)) {
                 usize newSize = newArchetype->componentSizes[newCompIdx];
                 usize newOffset = newArchetype->componentOffsets[newCompIdx];
                 u8* newBase = chunkData(*newChunk) + newOffset;
-                std::memcpy(newBase + newIdx * newSize, oldBase + oldRec.indexInChunk * oldSize,
-                            oldSize < newSize ? oldSize : newSize);
+                u8* dest = newBase + newIdx * newSize;
+                u8* src  = oldBase + oldRec.indexInChunk * oldSize;
+
+                if (newArchetype->componentMoveCtors[newCompIdx]) {
+                    newArchetype->componentMoveCtors[newCompIdx](dest, src);
+                } else {
+                    std::memcpy(dest, src, oldSize < newSize ? oldSize : newSize);
+                }
             }
         }
     }
 
-    // Write new component if provided
+    // Write new component if provided (copy-construct from external data)
     if (newComp != INVALID_COMPONENT_TYPE_ID && newData && newArchetype) {
         usize newCompIdx = findComponentIndex(*newArchetype, newComp);
         if (newCompIdx != static_cast<usize>(-1)) {
@@ -205,7 +246,12 @@ void ArchetypeWorld::moveEntityToArchetypeRaw(Entity e, const ArchetypeRecord& o
             usize newOffset = newArchetype->componentOffsets[newCompIdx];
             u8* newBase = chunkData(*newChunk) + newOffset;
             u8* dest = newBase + newIdx * newSize;
-            std::memcpy(dest, newData, newSize);
+
+            if (newArchetype->componentCopyCtors[newCompIdx]) {
+                newArchetype->componentCopyCtors[newCompIdx](dest, newData);
+            } else {
+                std::memcpy(dest, newData, newSize);
+            }
         }
     }
 
@@ -229,10 +275,32 @@ void ArchetypeWorld::moveEntityToArchetypeRaw(Entity e, const ArchetypeRecord& o
                 usize size = oldRec.archetype->componentSizes[i];
                 usize offset = oldRec.archetype->componentOffsets[i];
                 u8* base = chunkData(*oldChunk) + offset;
-                std::memcpy(base + idx * size, base + last * size, size);
+                u8* dest = base + idx * size;
+                u8* src  = base + last * size;
+
+                if (oldRec.archetype->componentDtors[i]) {
+                    oldRec.archetype->componentDtors[i](dest);
+                }
+                if (oldRec.archetype->componentMoveCtors[i]) {
+                    oldRec.archetype->componentMoveCtors[i](dest, src);
+                } else {
+                    std::memcpy(dest, src, size);
+                }
+                if (oldRec.archetype->componentDtors[i]) {
+                    oldRec.archetype->componentDtors[i](src);
+                }
             }
             oldEntityIds[idx] = oldEntityIds[last];
             m_entity_records[moved.id].indexInChunk = idx;
+        } else {
+            for (usize i = 0; i < oldRec.archetype->componentTypes.size(); ++i) {
+                if (oldRec.archetype->componentDtors[i]) {
+                    usize size = oldRec.archetype->componentSizes[i];
+                    usize offset = oldRec.archetype->componentOffsets[i];
+                    u8* base = chunkData(*oldChunk) + offset;
+                    oldRec.archetype->componentDtors[i](base + idx * size);
+                }
+            }
         }
         --oldChunk->entityCount;
         --oldRec.archetype->entityCount;

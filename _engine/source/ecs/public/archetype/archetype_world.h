@@ -33,6 +33,9 @@ struct Archetype {
     DynamicArray<usize> componentSizes;
     DynamicArray<usize> componentAlignments;
     DynamicArray<usize> componentOffsets; // byte offsets inside chunk storage (per entity)
+    DynamicArray<ComponentDtor> componentDtors;
+    DynamicArray<ComponentMoveCtor> componentMoveCtors;
+    DynamicArray<ComponentCopyCtor> componentCopyCtors;
     usize entitySize = 0;       // total bytes per entity inside chunk
     u16 entitiesPerChunk = 0;   // derived from chunk capacity
     Chunk* firstChunk = nullptr;
@@ -41,11 +44,15 @@ struct Archetype {
 };
 
 // Chunk is defined in ecs/storage/archetype_chunk.h.
-// We add helper methods via free functions to avoid redefinition.
-inline u8* chunkData(Chunk& chunk) { return chunk.storage; }
-inline const u8* chunkData(const Chunk& chunk) { return chunk.storage; }
+// The payload storage lives immediately after the header in the same allocation.
+inline u8* chunkData(Chunk& chunk) {
+    return reinterpret_cast<u8*>(&chunk) + sizeof(Chunk);
+}
+inline const u8* chunkData(const Chunk& chunk) {
+    return reinterpret_cast<const u8*>(&chunk) + sizeof(Chunk);
+}
 inline constexpr usize chunkDataCapacity() {
-    return Chunk::CAPACITY > sizeof(Chunk) ? Chunk::CAPACITY - sizeof(Chunk) : 0;
+    return Chunk::CAPACITY;
 }
 
 // ------------------------------------------------------------------
@@ -153,14 +160,7 @@ private:
 
     template<typename T>
     [[nodiscard]] T* getComponentData(Chunk& chunk, u16 indexInChunk, usize compIndex) {
-        Archetype* archetype = nullptr;
-        // Find archetype via hashmap (linear search for now — archetype count is small)
-        for (auto pair : m_archetypes) {
-            if (pair.second->id == chunk.archetype) {
-                archetype = pair.second;
-                break;
-            }
-        }
+        Archetype* archetype = chunk.archetypePtr;
         CHECK(archetype != nullptr);
         u8* base = chunkData(chunk) + archetype->componentOffsets[compIndex];
         return reinterpret_cast<T*>(base + indexInChunk * archetype->componentSizes[compIndex]);
@@ -188,9 +188,9 @@ public:
 
     struct Iterator {
         ArchetypeWorld* world;
-        const HashMap<ArchetypeID, Archetype*>* archetypes;
         DynamicArray<Archetype*> matching;
         usize archetypeIndex;
+        Archetype* currentArchetype;
         Chunk* currentChunk;
         u16 slotIndex;
         u64 requiredMask;

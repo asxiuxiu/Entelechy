@@ -19,19 +19,17 @@ namespace Entelechy {
 
 using ArchetypeID = u64;
 
-struct Chunk {
-    static constexpr usize CAPACITY = 16 * 1024; // 16 KiB
+// Chunk header — 64-byte aligned so that the payload area after it is also
+// cache-line aligned.  The payload is NOT a struct member; it lives in the
+// same allocation immediately after the header.
+struct alignas(64) Chunk {
+    static constexpr usize CAPACITY = 16 * 1024; // 16 KiB payload
 
     ArchetypeID archetype = 0;
+    struct Archetype* archetypePtr = nullptr; // fast reverse lookup
     Chunk* next = nullptr;           // intrusive linked list
     u16 entityCount = 0;             // how many entities currently live here
     u16 entityCapacity = 0;          // derived from component sizes
-
-    // Layout (SoA):
-    //   u32 entityIds[entityCapacity];       // sparse -> dense mapping
-    //   alignas(16) u8 componentData[...];   // packed columns per component
-    // Actual offsets computed at chunk allocation time based on Archetype.
-    alignas(64) u8 storage[CAPACITY];
 };
 
 // Helper: derive ArchetypeID from a set of ComponentTypeIDs.

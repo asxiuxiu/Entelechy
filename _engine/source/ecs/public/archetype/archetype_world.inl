@@ -18,20 +18,21 @@ void QueryArchetype<Cs...>::Iterator::advanceToNextValid() {
         if (!currentChunk) {
             // Move to next archetype
             while (archetypeIndex < matching.size()) {
-                Archetype* archetype = matching[archetypeIndex];
-                currentChunk = archetype->firstChunk;
+                currentArchetype = matching[archetypeIndex];
+                currentChunk = currentArchetype->firstChunk;
                 slotIndex = 0;
                 ++archetypeIndex;
                 if (currentChunk && currentChunk->entityCount > 0) {
                     return;
                 }
             }
+            currentArchetype = nullptr;
             return; // end
         }
         if (slotIndex < currentChunk->entityCount) {
             return;
         }
-        // Move to next chunk
+        // Move to next chunk (same archetype)
         currentChunk = currentChunk->next;
         slotIndex = 0;
     }
@@ -58,17 +59,12 @@ auto QueryArchetype<Cs...>::Iterator::operator*() const -> value_type {
     u32* entityIds = reinterpret_cast<u32*>(chunkData(*currentChunk));
     Entity e{entityIds[slotIndex], world->getEntityGeneration(entityIds[slotIndex])};
 
-    // Find archetype for this chunk
-    Archetype* archetype = nullptr;
-    for (auto pair : *archetypes) {
-        if (pair.second->id == currentChunk->archetype) {
-            archetype = pair.second;
-            break;
-        }
-    }
+    Archetype* archetype = currentArchetype;
     CHECK(archetype != nullptr);
 
-    // Build component pointers
+    // Build component pointers — pre-compute component indices in begin() if desired.
+    // For now we keep the per-archetype linear search (archetype->componentTypes
+    // is tiny) but avoid the hashmap lookup entirely.
     auto getPtr = [&]<typename C>() -> C* {
         ComponentTypeID type = TypeRegistry::instance().getTypeID<C>();
         usize compIndex = static_cast<usize>(-1);
@@ -91,9 +87,9 @@ template<typename... Cs>
 auto QueryArchetype<Cs...>::begin() -> Iterator {
     Iterator it;
     it.world = m_world;
-    it.archetypes = &m_world->m_archetypes;
     it.requiredMask = m_requiredMask;
     it.archetypeIndex = 0;
+    it.currentArchetype = nullptr;
     it.currentChunk = nullptr;
     it.slotIndex = 0;
 
@@ -113,9 +109,9 @@ template<typename... Cs>
 auto QueryArchetype<Cs...>::end() -> Iterator {
     Iterator it;
     it.world = m_world;
-    it.archetypes = &m_world->m_archetypes;
     it.requiredMask = m_requiredMask;
     it.archetypeIndex = static_cast<usize>(-1);
+    it.currentArchetype = nullptr;
     it.currentChunk = nullptr;
     it.slotIndex = 0;
     return it;

@@ -6,6 +6,8 @@
 #include "core/container/dynamic_array.h"
 #include "core/string/string_id.h"
 #include <cstddef>
+#include <type_traits>
+#include <utility>
 
 namespace Entelechy {
 
@@ -40,14 +42,51 @@ struct TypeDesc {
     DynamicArray<FieldDesc> fields;
 };
 
+using ComponentDtor    = void (*)(void*);
+using ComponentMoveCtor = void (*)(void* dest, void* src);
+using ComponentCopyCtor = void (*)(void* dest, const void* src);
+
 // ------------------------------------------------------------------
-// Legacy ComponentDesc (kept for binary compatibility during transition)
+// ComponentDesc — runtime description of an ECS component type
 // ------------------------------------------------------------------
 struct ComponentDesc {
     SmallString name;
     usize size = 0;
+    usize alignment = 0;
+    ComponentDtor dtor = nullptr;
+    ComponentMoveCtor moveCtor = nullptr;
+    ComponentCopyCtor copyCtor = nullptr;
+    bool isTriviallyCopyable = true;
     DynamicArray<FieldDesc> fields;
 };
+
+template<typename T>
+ComponentDesc makeComponentDesc(const char* name, DynamicArray<FieldDesc> fields) {
+    ComponentDesc desc;
+    desc.name = name;
+    desc.size = sizeof(T);
+    desc.alignment = alignof(T);
+    desc.isTriviallyCopyable = std::is_trivially_copyable_v<T>;
+    desc.fields = fields;
+
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+        desc.dtor = [](void* p) { static_cast<T*>(p)->~T(); };
+    }
+
+    if constexpr (!std::is_trivially_copyable_v<T>) {
+        if constexpr (std::is_move_constructible_v<T>) {
+            desc.moveCtor = [](void* dest, void* src) {
+                new (dest) T(std::move(*static_cast<T*>(src)));
+            };
+        }
+        if constexpr (std::is_copy_constructible_v<T>) {
+            desc.copyCtor = [](void* dest, const void* src) {
+                new (dest) T(*static_cast<const T*>(src));
+            };
+        }
+    }
+    return desc;
+}
 
 // Cross-translation-unit type ID storage (C++17 inline static).
 template<typename T>
@@ -134,9 +173,8 @@ private:
         _AutoReg_##Name() { \
             Entelechy::ComponentTypeID id = Entelechy::TypeRegistry::instance().getOrAllocateTypeID<Name>(); \
             u64 mask = (1ull << id); \
-            Entelechy::TypeRegistry::instance().registerComponent(id, mask, Entelechy::ComponentDesc{ \
-                #Name, sizeof(Name), { __VA_ARGS__ } \
-            }); \
+            Entelechy::TypeRegistry::instance().registerComponent(id, mask, \
+                Entelechy::makeComponentDesc<Name>(#Name, { __VA_ARGS__ })); \
         } \
     } _auto_reg_##Name##_instance; \
     }

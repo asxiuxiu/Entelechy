@@ -1,5 +1,5 @@
 #include "render/rhi/opengl_backend.h"
-#include "window/window/window.h"
+#include "window/window.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include "log/core/log_macros.h"

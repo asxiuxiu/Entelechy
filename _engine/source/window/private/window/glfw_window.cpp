@@ -1,4 +1,4 @@
-﻿#include "window/window/glfw_window.h"
+#include "window/glfw_window.h"
 #include "window/input/input_queue.h"
 #include "window/input/input_event.h"
 #if defined(_WIN32)

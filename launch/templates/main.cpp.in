@@ -2,7 +2,7 @@
 #include <chrono>
 #include <memory>
 #include <algorithm>
-#include "window/window/glfw_window.h"
+#include "window/glfw_window.h"
 #include "window/input/input_queue.h"
 #include "window/input/input_event.h"
 #include "log/core/log_macros.h"

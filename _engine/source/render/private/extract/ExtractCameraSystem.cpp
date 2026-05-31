@@ -1,5 +1,5 @@
 #include "render/extract/ExtractCameraSystem.h"
-#include "window/window/window.h"
+#include "window/window.h"
 #include "render/components/Camera.h"
 #include "ecs/component/transform_component.h"
 #include "render/components/RenderCamera.h"

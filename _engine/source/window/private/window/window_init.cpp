@@ -1,4 +1,4 @@
-#include "window/window/window_init.h"
+#include "window/window_init.h"
 #include "log/core/log_macros.h"
 #include <GLFW/glfw3.h>
 #include <cstdio>

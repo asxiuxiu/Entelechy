@@ -1,5 +1,5 @@
-﻿#pragma once
-#include "window/window/window.h"
+#pragma once
+#include "window/window.h"
 #include "core/foundation_types.h"
 
 struct GLFWwindow;

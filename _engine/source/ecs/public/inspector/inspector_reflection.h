@@ -11,6 +11,6 @@ void inspectorDrawComponent(const char* componentName, void* componentPtr, const
 
 // Draw a single atom or composite field.
 // Returns true if the field was recognised and drawn.
-bool inspectorDrawField(const SmallString& typeName, const char* label, void* fieldPtr);
+bool inspectorDrawField(const String& typeName, const char* label, void* fieldPtr);
 
 } // namespace Entelechy

@@ -9,34 +9,34 @@
 namespace Entelechy {
 
 namespace {
-    inline SmallString toSmallString(u32 v) {
+    inline String toString(u32 v) {
         char buf[32];
         toStringBuf(buf, sizeof(buf), v);
-        return SmallString(buf);
+        return String(buf);
     }
-    inline SmallString toSmallString(usize v) {
+    inline String toString(usize v) {
         char buf[32];
         toStringBuf(buf, sizeof(buf), static_cast<u64>(v));
-        return SmallString(buf);
+        return String(buf);
     }
-    inline SmallString toSmallString(f32 v) {
+    inline String toString(f32 v) {
         char buf[32];
         toStringBuf(buf, sizeof(buf), v);
-        return SmallString(buf);
+        return String(buf);
     }
 
-    bool jsonHasKey(const SmallString& json, const SmallString& key) {
-        SmallString pattern = "\"" + key + "\"";
-        return json.find(pattern) != SmallString::npos;
+    bool jsonHasKey(const String& json, const String& key) {
+        String pattern = "\"" + key + "\"";
+        return json.find(pattern) != String::npos;
     }
 
-    bool jsonParseFloat(const SmallString& json, const SmallString& key, f32& out) {
-        SmallString pattern = "\"" + key + "\"";
+    bool jsonParseFloat(const String& json, const String& key, f32& out) {
+        String pattern = "\"" + key + "\"";
         usize pos = json.find(pattern);
-        if (pos == SmallString::npos) return false;
+        if (pos == String::npos) return false;
 
         pos = json.find(':', pos + pattern.length());
-        if (pos == SmallString::npos) return false;
+        if (pos == String::npos) return false;
 
         ++pos;
         while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '"')) ++pos;
@@ -50,13 +50,13 @@ namespace {
         return true;
     }
 
-    bool jsonParseUint32(const SmallString& json, const SmallString& key, u32& out) {
-        SmallString pattern = "\"" + key + "\"";
+    bool jsonParseUint32(const String& json, const String& key, u32& out) {
+        String pattern = "\"" + key + "\"";
         usize pos = json.find(pattern);
-        if (pos == SmallString::npos) return false;
+        if (pos == String::npos) return false;
 
         pos = json.find(':', pos + pattern.length());
-        if (pos == SmallString::npos) return false;
+        if (pos == String::npos) return false;
 
         ++pos;
         while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) ++pos;
@@ -70,13 +70,13 @@ namespace {
         return true;
     }
 
-    bool jsonParseString(const SmallString& json, const SmallString& key, SmallString& out) {
-        SmallString pattern = "\"" + key + "\"";
+    bool jsonParseString(const String& json, const String& key, String& out) {
+        String pattern = "\"" + key + "\"";
         usize pos = json.find(pattern);
-        if (pos == SmallString::npos) return false;
+        if (pos == String::npos) return false;
 
         pos = json.find(':', pos + pattern.length());
-        if (pos == SmallString::npos) return false;
+        if (pos == String::npos) return false;
 
         ++pos;
         while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) ++pos;
@@ -103,12 +103,12 @@ void AgentBridge::init() {
         "Query all alive entities that have a given component",
         "{\"comp_name\": \"string\"}",
         true,
-        [self](const SmallString& json_args) -> SmallString {
-            SmallString comp_name;
+        [self](const String& json_args) -> String {
+            String comp_name;
             usize pos = json_args.find("\"comp_name\"");
-            if (pos != SmallString::npos) {
+            if (pos != String::npos) {
                 pos = json_args.find(':', pos + 11);
-                if (pos != SmallString::npos) {
+                if (pos != String::npos) {
                     ++pos;
                     while (pos < json_args.size() && (json_args[pos] == ' ' || json_args[pos] == '\t' || json_args[pos] == '"')) ++pos;
                     usize end = pos;
@@ -125,14 +125,14 @@ void AgentBridge::init() {
         "Get component data for a specific entity",
         "{\"entity\": uint32, \"comp_name\": \"string\"}",
         true,
-        [self](const SmallString& json_args) -> SmallString {
+        [self](const String& json_args) -> String {
             u32 entity_id = 0;
-            SmallString comp_name;
+            String comp_name;
             jsonParseUint32(json_args, "entity", entity_id);
             usize pos = json_args.find("\"comp_name\"");
-            if (pos != SmallString::npos) {
+            if (pos != String::npos) {
                 pos = json_args.find(':', pos + 11);
-                if (pos != SmallString::npos) {
+                if (pos != String::npos) {
                     ++pos;
                     while (pos < json_args.size() && (json_args[pos] == ' ' || json_args[pos] == '\t' || json_args[pos] == '"')) ++pos;
                     usize end = pos;
@@ -150,15 +150,15 @@ void AgentBridge::init() {
         "Set component data for a specific entity",
         "{\"entity\": uint32, \"comp_name\": \"string\", \"values\": {...}}",
         false,
-        [self](const SmallString& json_args) -> SmallString {
+        [self](const String& json_args) -> String {
             u32 entity_id = 0;
-            SmallString comp_name;
-            SmallString values_json;
+            String comp_name;
+            String values_json;
             jsonParseUint32(json_args, "entity", entity_id);
             usize pos = json_args.find("\"comp_name\"");
-            if (pos != SmallString::npos) {
+            if (pos != String::npos) {
                 pos = json_args.find(':', pos + 11);
-                if (pos != SmallString::npos) {
+                if (pos != String::npos) {
                     ++pos;
                     while (pos < json_args.size() && (json_args[pos] == ' ' || json_args[pos] == '\t' || json_args[pos] == '"')) ++pos;
                     usize end = pos;
@@ -167,9 +167,9 @@ void AgentBridge::init() {
                 }
             }
             pos = json_args.find("\"values\"");
-            if (pos != SmallString::npos) {
+            if (pos != String::npos) {
                 pos = json_args.find(':', pos + 8);
-                if (pos != SmallString::npos) {
+                if (pos != String::npos) {
                     ++pos;
                     while (pos < json_args.size() && (json_args[pos] == ' ' || json_args[pos] == '\t')) ++pos;
                     if (pos < json_args.size() && json_args[pos] == '{') {
@@ -194,7 +194,7 @@ void AgentBridge::init() {
         "Advance the simulation by one frame with given dt",
         "{\"dt\": float}",
         false,
-        [self](const SmallString& json_args) -> SmallString {
+        [self](const String& json_args) -> String {
             f32 dt = 1.0f;
             jsonParseFloat(json_args, "dt", dt);
             self->step(dt);
@@ -207,7 +207,7 @@ void AgentBridge::init() {
         "Query all alive entities that match a component mask",
         "{\"mask\": uint32}",
         true,
-        [self](const SmallString& json_args) -> SmallString {
+        [self](const String& json_args) -> String {
             u32 mask = 0;
             jsonParseUint32(json_args, "mask", mask);
             return self->queryEntitiesByMask(mask);
@@ -219,7 +219,7 @@ void AgentBridge::init() {
         "Get a summary of the current world state",
         "{}",
         true,
-        [self](const SmallString& json_args) -> SmallString {
+        [self](const String& json_args) -> String {
             (void)json_args;
             return self->getWorldSummary();
         }
@@ -230,7 +230,7 @@ void AgentBridge::step(f32 dt) {
     m_scheduler.tick(m_world, dt);
 }
 
-SmallString AgentBridge::queryEntities(const SmallString& comp_name) const {
+String AgentBridge::queryEntities(const String& comp_name) const {
     u32 mask = TypeRegistry::instance().getComponentMask(comp_name.c_str());
     if (mask == 0) {
         return "{\"error\":\"component not found\"}";
@@ -238,24 +238,24 @@ SmallString AgentBridge::queryEntities(const SmallString& comp_name) const {
     return queryEntitiesByMask(mask);
 }
 
-SmallString AgentBridge::queryEntitiesByMask(u64 mask) const {
-    SmallString json = "[";
+String AgentBridge::queryEntitiesByMask(u64 mask) const {
+    String json = "[";
     bool first = true;
     for (u32 id = 0; id < m_world.maxEntityID(); ++id) {
         Entity e{id, m_world.getEntityGeneration(id)};
         if (m_world.valid(e) && (m_world.getEntityMask(id) & mask) == mask) {
             if (!first) json += ",";
             first = false;
-            json += toSmallString(id);
+            json += toString(id);
         }
     }
     json += "]";
     return json;
 }
 
-SmallString AgentBridge::getWorldSummary() const {
-    SmallString json = "{";
-    json += "\"entityCount\":" + toSmallString(m_world.entityCount()) + ",";
+String AgentBridge::getWorldSummary() const {
+    String json = "{";
+    json += "\"entityCount\":" + toString(m_world.entityCount()) + ",";
     json += "\"componentArrays\":[";
     bool first = true;
     for (const auto& pair : m_world.componentArrays()) {
@@ -263,8 +263,8 @@ SmallString AgentBridge::getWorldSummary() const {
         first = false;
         const auto* desc = TypeRegistry::instance().findComponent(pair.first);
         json += "{";
-        json += "\"name\":\"" + SmallString(desc ? desc->name.c_str() : "unknown") + "\",";
-        json += "\"count\":" + toSmallString(pair.second->count());
+        json += "\"name\":\"" + String(desc ? desc->name.c_str() : "unknown") + "\",";
+        json += "\"count\":" + toString(pair.second->count());
         json += "}";
     }
     json += "]";
@@ -272,7 +272,7 @@ SmallString AgentBridge::getWorldSummary() const {
     return json;
 }
 
-SmallString AgentBridge::getComponent(Entity e, const SmallString& comp_name) const {
+String AgentBridge::getComponent(Entity e, const String& comp_name) const {
     if (!m_world.valid(e)) {
         return "{\"error\":\"invalid entity\"}";
     }
@@ -294,18 +294,18 @@ SmallString AgentBridge::getComponent(Entity e, const SmallString& comp_name) co
         return "{\"error\":\"component descriptor missing\"}";
     }
 
-    SmallString json = "{";
+    String json = "{";
     bool first = true;
     for (const auto& field : desc->fields) {
         if (!first) json += ",";
         first = false;
-        json += "\"" + SmallString(field.name.c_str()) + "\":";
+        json += "\"" + String(field.name.c_str()) + "\":";
         if (field.type == "float") {
             f32 val = *reinterpret_cast<const f32*>(static_cast<const char*>(comp_ptr) + field.offset);
-            json += toSmallString(val);
-        } else if (field.type == "SmallString") {
-            const SmallString* str = reinterpret_cast<const SmallString*>(static_cast<const char*>(comp_ptr) + field.offset);
-            json += "\"" + SmallString(str->c_str()) + "\"";
+            json += toString(val);
+        } else if (field.type == "String") {
+            const String* str = reinterpret_cast<const String*>(static_cast<const char*>(comp_ptr) + field.offset);
+            json += "\"" + String(str->c_str()) + "\"";
         } else if (field.type == "StringId") {
             const StringId* id = reinterpret_cast<const StringId*>(static_cast<const char*>(comp_ptr) + field.offset);
             const char* resolved = StringInternPool::instance().resolve(*id);
@@ -320,7 +320,7 @@ SmallString AgentBridge::getComponent(Entity e, const SmallString& comp_name) co
     return json;
 }
 
-SmallString AgentBridge::setComponent(Entity e, const SmallString& comp_name, const SmallString& json) {
+String AgentBridge::setComponent(Entity e, const String& comp_name, const String& json) {
     if (!m_world.valid(e)) {
         return "{\"error\":\"invalid entity\"}";
     }
@@ -348,13 +348,13 @@ SmallString AgentBridge::setComponent(Entity e, const SmallString& comp_name, co
             if (jsonParseFloat(json, field.name.c_str(), val)) {
                 *reinterpret_cast<f32*>(static_cast<char*>(comp_ptr) + field.offset) = val;
             }
-        } else if (field.type == "SmallString") {
-            SmallString val;
+        } else if (field.type == "String") {
+            String val;
             if (jsonParseString(json, field.name.c_str(), val)) {
-                *reinterpret_cast<SmallString*>(static_cast<char*>(comp_ptr) + field.offset) = val.c_str();
+                *reinterpret_cast<String*>(static_cast<char*>(comp_ptr) + field.offset) = val.c_str();
             }
         } else if (field.type == "StringId") {
-            SmallString val;
+            String val;
             if (jsonParseString(json, field.name.c_str(), val)) {
                 StringId id = StringInternPool::instance().intern(val.c_str());
                 *reinterpret_cast<StringId*>(static_cast<char*>(comp_ptr) + field.offset) = id;
@@ -365,7 +365,7 @@ SmallString AgentBridge::setComponent(Entity e, const SmallString& comp_name, co
     return "{\"ok\":true}";
 }
 
-SmallString AgentBridge::callTool(const SmallString& name, const SmallString& json_args) const {
+String AgentBridge::callTool(const String& name, const String& json_args) const {
     return ToolRegistry::instance().callTool(name, json_args);
 }
 

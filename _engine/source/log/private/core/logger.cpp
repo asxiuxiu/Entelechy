@@ -41,13 +41,13 @@ bool Logger::init(const char* filePath) {
 
     char timeSuffixBuf[64];
     std::strftime(timeSuffixBuf, sizeof(timeSuffixBuf), "_%Y%m%d_%H%M%S", tm);
-    SmallString timeSuffix = timeSuffixBuf;
+    String timeSuffix = timeSuffixBuf;
     char msBuf[8];
     std::snprintf(msBuf, sizeof(msBuf), "_%03d", static_cast<int>(ms.count()));
     timeSuffix += msBuf;
 
     // Build timestamped text path
-    SmallString textPath;
+    String textPath;
     const char* dot = std::strrchr(filePath, '.');
     if (dot) {
         textPath.assign(filePath, dot - filePath);
@@ -59,7 +59,7 @@ bool Logger::init(const char* filePath) {
     }
 
     // Derive json path from text path
-    SmallString jsonPath;
+    String jsonPath;
     usize pathLen = textPath.size();
     if (pathLen > 4 && textPath.endsWith(".log")) {
         jsonPath = textPath.substr(0, pathLen - 4) + ".jsonl";

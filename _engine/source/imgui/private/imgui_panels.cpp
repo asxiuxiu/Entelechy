@@ -43,7 +43,7 @@ bool drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
     void* fieldPtr = static_cast<u8*>(componentRaw) + field.offset;
     bool changed = false;
 
-    // 1. Try AtomRegistry for true atoms (f32, bool, i32, u32, StringId, SmallString)
+    // 1. Try AtomRegistry for true atoms (f32, bool, i32, u32, StringId, String)
     if (Entelechy::AtomRegistry::instance().tryDraw(field.type, field.name.c_str(), fieldPtr)) {
         changed = true;
         return changed;
@@ -286,7 +286,7 @@ void buildECSInspector(World& world, Scheduler& scheduler, f32 dt, bool& autoRun
         Entity e{id, world.getEntityGeneration(id)};
         if (!world.valid(e)) continue;
 
-        SmallString label = formatString("Entity {0}", static_cast<int>(e.id));
+        String label = formatString("Entity {0}", static_cast<int>(e.id));
         bool hasAny = false;
         for (const auto& pair : world.componentArrays()) {
             if (pair.second->has(e)) {

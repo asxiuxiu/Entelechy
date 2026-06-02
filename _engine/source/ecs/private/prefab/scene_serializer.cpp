@@ -17,7 +17,7 @@ namespace Entelechy {
 // JSON writing helpers
 // ------------------------------------------------------------------
 
-static void writeJsonString(SmallString& out, const char* str) {
+static void writeJsonString(String& out, const char* str) {
     out += '"';
     for (const char* p = str; *p; ++p) {
         switch (*p) {
@@ -34,27 +34,27 @@ static void writeJsonString(SmallString& out, const char* str) {
     out += '"';
 }
 
-static void writeF32(SmallString& out, f32 v) {
+static void writeF32(String& out, f32 v) {
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%g", v);
     out += buf;
 }
 
-static void writeI32(SmallString& out, i32 v) {
+static void writeI32(String& out, i32 v) {
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%d", v);
     out += buf;
 }
 
-static void writeU32(SmallString& out, u32 v) {
+static void writeU32(String& out, u32 v) {
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%u", v);
     out += buf;
 }
 
-static void serializeField(const FieldDesc& field, const void* componentPtr, SmallString& out);
+static void serializeField(const FieldDesc& field, const void* componentPtr, String& out);
 
-static void serializeValue(const SmallString& typeName, const void* ptr, SmallString& out) {
+static void serializeValue(const String& typeName, const void* ptr, String& out) {
     // Try atom registry first
     const AtomType* atom = AtomRegistry::instance().find(typeName);
     if (atom && atom->serialize) {
@@ -71,8 +71,8 @@ static void serializeValue(const SmallString& typeName, const void* ptr, SmallSt
         writeU32(out, *reinterpret_cast<const u32*>(ptr));
     } else if (typeName == "bool") {
         out += *reinterpret_cast<const bool*>(ptr) ? "true" : "false";
-    } else if (typeName == "SmallString") {
-        writeJsonString(out, reinterpret_cast<const SmallString*>(ptr)->c_str());
+    } else if (typeName == "String") {
+        writeJsonString(out, reinterpret_cast<const String*>(ptr)->c_str());
     } else if (typeName == "StringId") {
         StringId id = *reinterpret_cast<const StringId*>(ptr);
         const char* resolved = StringInternPool::instance().resolve(id);
@@ -98,13 +98,13 @@ static void serializeValue(const SmallString& typeName, const void* ptr, SmallSt
     }
 }
 
-static void serializeField(const FieldDesc& field, const void* componentPtr, SmallString& out) {
+static void serializeField(const FieldDesc& field, const void* componentPtr, String& out) {
     const void* fieldPtr = static_cast<const u8*>(componentPtr) + field.offset;
     serializeValue(field.type, fieldPtr, out);
 }
 
-static SmallString serializeComponent(const ComponentDesc& desc, const void* componentPtr) {
-    SmallString out = "{";
+static String serializeComponent(const ComponentDesc& desc, const void* componentPtr) {
+    String out = "{";
     bool first = true;
     for (const auto& field : desc.fields) {
         if (!first) out += ",";
@@ -148,7 +148,7 @@ struct JsonCursor {
         return false;
     }
 
-    bool parseString(SmallString& out) {
+    bool parseString(String& out) {
         skipWs();
         if (pos >= len || s[pos] != '"') return false;
         ++pos;
@@ -203,14 +203,14 @@ struct JsonCursor {
     }
 };
 
-static bool deserializeAtom(const SmallString& typeName, void* ptr, JsonCursor& cur);
+static bool deserializeAtom(const String& typeName, void* ptr, JsonCursor& cur);
 static bool deserializeComposite(const TypeDesc* typeDesc, void* ptr, JsonCursor& cur);
 
-static bool deserializeValue(const SmallString& typeName, void* ptr, JsonCursor& cur) {
+static bool deserializeValue(const String& typeName, void* ptr, JsonCursor& cur) {
     // Try atom registry
     const AtomType* atom = AtomRegistry::instance().find(typeName);
     if (atom && atom->deserialize) {
-        SmallString jsonFragment;
+        String jsonFragment;
         // For atom deserialize, we need to extract the raw value as string.
         // This is tricky without a full parser. For now, handle basic types directly.
     }
@@ -223,13 +223,13 @@ static bool deserializeValue(const SmallString& typeName, void* ptr, JsonCursor&
         return cur.parseUint32(*reinterpret_cast<u32*>(ptr));
     } else if (typeName == "bool") {
         return cur.parseBool(*reinterpret_cast<bool*>(ptr));
-    } else if (typeName == "SmallString") {
-        SmallString val;
+    } else if (typeName == "String") {
+        String val;
         if (!cur.parseString(val)) return false;
-        *reinterpret_cast<SmallString*>(ptr) = val.c_str();
+        *reinterpret_cast<String*>(ptr) = val.c_str();
         return true;
     } else if (typeName == "StringId") {
-        SmallString val;
+        String val;
         if (!cur.parseString(val)) return false;
         *reinterpret_cast<StringId*>(ptr) = StringInternPool::instance().intern(val.c_str());
         return true;
@@ -253,7 +253,7 @@ static bool deserializeComposite(const TypeDesc* typeDesc, void* ptr, JsonCursor
         cur.skipWs();
         if (cur.consume('}')) break;
 
-        SmallString fieldName;
+        String fieldName;
         if (!cur.parseString(fieldName)) return false;
         if (!cur.consume(':')) return false;
 
@@ -300,8 +300,8 @@ static bool deserializeComposite(const TypeDesc* typeDesc, void* ptr, JsonCursor
 // SceneSerializer implementation
 // ------------------------------------------------------------------
 
-SmallString SceneSerializer::serialize(const World& world) const {
-    SmallString json = "{\"entities\":[";
+String SceneSerializer::serialize(const World& world) const {
+    String json = "{\"entities\":[";
     bool firstEntity = true;
 
     for (u32 id = 0; id < world.maxEntityID(); ++id) {
@@ -337,11 +337,11 @@ SmallString SceneSerializer::serialize(const World& world) const {
     return json;
 }
 
-bool SceneSerializer::deserialize(World& world, const SmallString& jsonStr) const {
+bool SceneSerializer::deserialize(World& world, const String& jsonStr) const {
     JsonCursor cur{jsonStr.c_str(), 0, jsonStr.length()};
 
     if (!cur.consume('{')) return false;
-    SmallString entitiesKey;
+    String entitiesKey;
     if (!cur.parseString(entitiesKey)) return false;
     if (!cur.consume(':')) return false;
     if (!cur.consume('[')) return false;
@@ -356,7 +356,7 @@ bool SceneSerializer::deserialize(World& world, const SmallString& jsonStr) cons
         if (!cur.consume('{')) return false;
 
         // Parse "id":N
-        SmallString key;
+        String key;
         if (!cur.parseString(key) || key != "id") return false;
         if (!cur.consume(':')) return false;
         u32 entityId = 0;
@@ -376,7 +376,7 @@ bool SceneSerializer::deserialize(World& world, const SmallString& jsonStr) cons
             cur.skipWs();
             if (cur.consume('}')) break;
 
-            SmallString compName;
+            String compName;
             if (!cur.parseString(compName)) return false;
             if (!cur.consume(':')) return false;
 
@@ -473,7 +473,7 @@ bool SceneSerializer::deserialize(World& world, const SmallString& jsonStr) cons
 }
 
 bool SceneSerializer::saveToFile(const World& world, const Path& path) const {
-    SmallString json = serialize(world);
+    String json = serialize(world);
     FILE* f = nullptr;
 #if PLATFORM_WINDOWS
     fopen_s(&f, path.c_str(), "wb");
@@ -505,7 +505,7 @@ bool SceneSerializer::loadFromFile(World& world, const Path& path) const {
     std::fread(buf, 1, size, f);
     buf[size] = '\0';
     std::fclose(f);
-    SmallString json(buf);
+    String json(buf);
     DefaultAllocator::free(buf);
     return deserialize(world, json);
 }

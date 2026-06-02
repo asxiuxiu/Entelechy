@@ -1,6 +1,6 @@
 #pragma once
 #include "core/foundation_types.h"
-#include "core/string/small_string.h"
+#include "core/string/string.h"
 #include "core/string/string_format.h"
 #include "core/container/hash_map.h"
 #include "core/container/dynamic_array.h"
@@ -23,19 +23,19 @@ enum class TypeKind { Atom, Composite, Array };
 // FieldDesc — one field inside a composite type
 // ------------------------------------------------------------------
 struct FieldDesc {
-    SmallString name;
-    SmallString type;   // original type name (e.g. "Vec3", "f32")
+    String name;
+    String type;   // original type name (e.g. "Vec3", "f32")
     usize offset = 0;
     usize size = 0;
     TypeKind kind = TypeKind::Atom;
-    SmallString subtype; // when kind == Composite: name of the composite type in TypeRegistry
+    String subtype; // when kind == Composite: name of the composite type in TypeRegistry
 };
 
 // ------------------------------------------------------------------
 // TypeDesc — runtime description of any type (component or composite)
 // ------------------------------------------------------------------
 struct TypeDesc {
-    SmallString name;
+    String name;
     usize size = 0;
     usize alignment = 0;
     TypeKind kind = TypeKind::Composite;
@@ -50,7 +50,7 @@ using ComponentCopyCtor = void (*)(void* dest, const void* src);
 // ComponentDesc — runtime description of an ECS component type
 // ------------------------------------------------------------------
 struct ComponentDesc {
-    SmallString name;
+    String name;
     usize size = 0;
     usize alignment = 0;
     ComponentDtor dtor = nullptr;
@@ -125,17 +125,17 @@ public:
 
     void registerComponent(ComponentTypeID id, u64 mask, const ComponentDesc& desc);
     const ComponentDesc* findComponent(ComponentTypeID id) const;
-    const ComponentDesc* findComponent(const SmallString& name) const;
-    ComponentTypeID findComponentID(const SmallString& name) const;
-    u64 getComponentMask(const SmallString& name) const;
+    const ComponentDesc* findComponent(const String& name) const;
+    ComponentTypeID findComponentID(const String& name) const;
+    u64 getComponentMask(const String& name) const;
 
     // ----- General type descriptions (new) -----
     void registerType(const TypeDesc& desc);
-    const TypeDesc* findType(const SmallString& name) const;
+    const TypeDesc* findType(const String& name) const;
     const TypeDesc* findType(StringId name) const;
 
-    SmallString listComponents() const;
-    SmallString describeComponent(const SmallString& name) const;
+    String listComponents() const;
+    String describeComponent(const String& name) const;
     usize componentCount() const;
 
     void registerBuiltinTypes();
@@ -149,13 +149,13 @@ private:
 
     // ECS component tables
     HashMap<ComponentTypeID, ComponentDesc> m_components;
-    HashMap<SmallString, ComponentTypeID> m_name_to_id;
-    HashMap<ComponentTypeID, SmallString> m_id_to_name;
-    HashMap<SmallString, u64> m_name_to_mask;
+    HashMap<String, ComponentTypeID> m_name_to_id;
+    HashMap<ComponentTypeID, String> m_id_to_name;
+    HashMap<String, u64> m_name_to_mask;
     ComponentTypeID m_next_id = 0;
 
     // General type table
-    HashMap<SmallString, TypeDesc> m_types;
+    HashMap<String, TypeDesc> m_types;
 };
 
 // ------------------------------------------------------------------

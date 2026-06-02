@@ -54,7 +54,7 @@ void Scheduler::build() {
         if (n <= 1) continue;
 
         // Name -> index map for this group.
-        HashMap<SmallString, usize> nameToIndex;
+        HashMap<String, usize> nameToIndex;
         for (usize i = 0; i < n; ++i) {
             if (!sys[i]->name.empty()) {
                 nameToIndex.insert(sys[i]->name, i);

@@ -86,7 +86,7 @@ def generate_serialization(components):
     lines.append('#include "type_registry.h"')
     lines.append('#include "world.h"')
     lines.append('#include "component_array.h"')
-    lines.append('#include "core/small_string.h"')
+    lines.append('#include "core/string/string.h"')
     lines.append('#include "core/string_format.h"')
     lines.append('#include "core/string_intern_pool.h"')
     lines.append('#include <cstdio>')

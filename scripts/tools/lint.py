@@ -216,7 +216,7 @@ FUNCTION_NAME_BAD = re.compile(
 CLASS_NAME_BAD = re.compile(
     r'\b(?:class|struct)\s+([a-z][a-z0-9_]*[a-z0-9])\b'
 )
-CLASS_NAME_SKIP = {'hash', 'alignas'}
+CLASS_NAME_SKIP = {'hash', 'alignas', 'rebind'}
 
 # Enum values: must be PascalCase (not UPPER_SNAKE_CASE)
 ENUM_VALUE_BAD = re.compile(

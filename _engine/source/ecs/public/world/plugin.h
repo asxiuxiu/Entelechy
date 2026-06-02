@@ -1,7 +1,7 @@
 #pragma once
 #include "core/foundation_types.h"
 #include "core/container/dynamic_array.h"
-#include "core/string/small_string.h"
+#include "core/string/string.h"
 
 namespace Entelechy {
 
@@ -24,9 +24,9 @@ enum class LoadingPhase : u8 {
 // PluginManifest -- AI-observable metadata of what a plugin registered
 // ------------------------------------------------------------------
 struct PluginManifest {
-    SmallString name;
+    String name;
     LoadingPhase phase = LoadingPhase::Systems;
-    DynamicArray<SmallString> dependencies;
+    DynamicArray<String> dependencies;
     // Future: registered_components, registered_systems, registered_resources
 };
 
@@ -78,7 +78,7 @@ public:
     // Declare plugin dependencies by name.
     // Plugins named here will be guaranteed to build() before this one
     // (if they are in the same LoadingPhase; cross-phase ordering is implicit).
-    virtual DynamicArray<SmallString> dependencies() const { return {}; }
+    virtual DynamicArray<String> dependencies() const { return {}; }
 
     // Declare which loading phase this plugin belongs to.
     virtual LoadingPhase phase() const { return LoadingPhase::Systems; }

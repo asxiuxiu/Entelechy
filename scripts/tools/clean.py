@@ -9,15 +9,26 @@
 """
 
 import argparse
+import os
 import shutil
+import stat
 import sys
 from pathlib import Path
+
+
+def _handle_remove_error(func, path, exc_info):
+    """Windows 上处理被占用/只读文件的删除错误。"""
+    try:
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    except OSError as e:
+        print(f"Warning: could not remove '{path}': {e}")
 
 
 def remove_dir(path: Path):
     if path.exists():
         print(f"Removing: {path}")
-        shutil.rmtree(path)
+        shutil.rmtree(path, onexc=_handle_remove_error)
     else:
         print(f"Already clean: {path} does not exist.")
 

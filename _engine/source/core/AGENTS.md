@@ -14,8 +14,9 @@
 |------|------|
 | `foundation_types.h` | 标量别名、平台宏、断言层级、导出辅助宏 |
 | `string_id.h` | `StringId` 编译期哈希标识 |
-| `small_string.h` | `SmallString` SSO 小字符串优化（支持 find/substr/startsWith/endsWith/operator+） |
-| `string_format.h` | 类型安全的零分配栈格式化器 |
+| `string.h` | `BasicString<AllocatorT>` SSO 小字符串优化模板；默认别名 `String`。支持 `reserve`/`capacity`、`StringView` 交互、分配器参数化 |
+| `string_view.h` | `StringView` 零拷贝只读字符串引用（`data`/`length`/`substr`/`find`/`startsWith`/`endsWith`） |
+| `string_format.h` | 类型安全的零分配栈格式化器（支持 `StringView` 参数） |
 | `string_intern_pool.h/.cpp` | `StringInternPool` 运行时字符串池与冲突检测 |
 | `dynamic_array.h` | `DynamicArray<T, AllocatorT>` 动态数组模板 |
 | `hash_map.h` | `HashMap<K,V,Hash,Allocator>` 开放寻址哈希表 |

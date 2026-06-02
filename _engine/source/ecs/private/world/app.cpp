@@ -43,9 +43,9 @@ void App::sortPlugins() {
     if (n <= 1) return;
 
     // Build name -> original index map for dependency resolution.
-    HashMap<SmallString, usize> nameToIndex;
+    HashMap<String, usize> nameToIndex;
     for (usize i = 0; i < n; ++i) {
-        nameToIndex.insert(SmallString(m_plugins[i]->name()), i);
+        nameToIndex.insert(String(m_plugins[i]->name()), i);
     }
 
     // Group plugins by LoadingPhase.

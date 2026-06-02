@@ -2,7 +2,7 @@
 #include "core/foundation_types.h"
 #include <cstdio>
 #include <type_traits>
-#include "core/string/small_string.h"
+#include "core/string/string.h"
 
 namespace Entelechy {
 
@@ -82,9 +82,14 @@ inline void toStringBuf(char* buf, usize n, bool v) {
     snprintf(buf, n, "%s", v ? "true" : "false");
 }
 
-// SmallString (non-template overload: matches lvalue, rvalue, and temporaries)
-inline void toStringBuf(char* buf, usize n, const SmallString& v) {
+// String (non-template overload: matches lvalue, rvalue, and temporaries)
+inline void toStringBuf(char* buf, usize n, const String& v) {
     snprintf(buf, n, "%s", v.c_str());
+}
+
+// StringView
+inline void toStringBuf(char* buf, usize n, StringView v) {
+    snprintf(buf, n, "%.*s", static_cast<int>(v.length()), v.data());
 }
 
 // ------------------------------------------------------------------
@@ -121,12 +126,12 @@ int formatString(char* out, usize outSize, const char* fmt, Args&&... args) {
     return static_cast<int>(pos);
 }
 
-// Convenience overload: returns a SmallString instead of writing to a buffer
+// Convenience overload: returns a String instead of writing to a buffer
 template<typename... Args>
-SmallString formatString(const char* fmt, Args&&... args) {
+String formatString(const char* fmt, Args&&... args) {
     char buf[512];
     formatString(buf, sizeof(buf), fmt, std::forward<Args>(args)...);
-    return SmallString(buf);
+    return String(buf);
 }
 
 } // namespace Entelechy

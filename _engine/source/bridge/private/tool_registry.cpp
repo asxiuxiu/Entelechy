@@ -6,12 +6,12 @@
 namespace Entelechy {
 
 namespace {
-    bool jsonExtractString(const SmallString& json, const SmallString& key, SmallString& out) {
-        SmallString pattern = SmallString("\"") + key + "\"";
+    bool jsonExtractString(const String& json, const String& key, String& out) {
+        String pattern = String("\"") + key + "\"";
         usize pos = json.find(pattern.c_str());
-        if (pos == SmallString::npos) return false;
+        if (pos == String::npos) return false;
         pos = json.find(':', pos + pattern.size());
-        if (pos == SmallString::npos) return false;
+        if (pos == String::npos) return false;
         ++pos;
         while (pos < json.size() && (json.c_str()[pos] == ' ' || json.c_str()[pos] == '\t' || json.c_str()[pos] == '"')) ++pos;
         usize end = pos;
@@ -26,7 +26,7 @@ REFLECT_TOOL(listTools,
     "List all registered tools",
     "{}",
     true,
-    [](const SmallString&) -> SmallString {
+    [](const String&) -> String {
         return Entelechy::ToolRegistry::instance().listTools();
     }
 )
@@ -35,8 +35,8 @@ REFLECT_TOOL(describeTool,
     "Describe a tool by name",
     "{\"name\": \"string\"}",
     true,
-    [](const SmallString& json) -> SmallString {
-        SmallString name;
+    [](const String& json) -> String {
+        String name;
         if (!jsonExtractString(json, "name", name)) {
             return "{\"error\":\"missing name\"}";
         }
@@ -48,7 +48,7 @@ REFLECT_TOOL(listComponents,
     "List all registered component types",
     "{}",
     true,
-    [](const SmallString&) -> SmallString {
+    [](const String&) -> String {
         return Entelechy::TypeRegistry::instance().listComponents().c_str();
     }
 )
@@ -57,8 +57,8 @@ REFLECT_TOOL(describeComponent,
     "Describe a component type by name",
     "{\"name\": \"string\"}",
     true,
-    [](const SmallString& json) -> SmallString {
-        SmallString name;
+    [](const String& json) -> String {
+        String name;
         if (!jsonExtractString(json, "name", name)) {
             return "{\"error\":\"missing name\"}";
         }
@@ -75,7 +75,7 @@ void ToolRegistry::registerTool(ToolDesc desc) {
     m_tools.insert(desc.name, std::move(desc));
 }
 
-const ToolDesc* ToolRegistry::findTool(const SmallString& name) const {
+const ToolDesc* ToolRegistry::findTool(const String& name) const {
     auto* v = m_tools.find(name);
     return v ? v : nullptr;
 }
@@ -84,8 +84,8 @@ usize ToolRegistry::toolCount() const {
     return m_tools.size();
 }
 
-SmallString ToolRegistry::listTools() const {
-    SmallString json = "[\n";
+String ToolRegistry::listTools() const {
+    String json = "[\n";
     bool first = true;
     for (const auto& kv : m_tools) {
         if (!first) json += ",\n";
@@ -93,29 +93,29 @@ SmallString ToolRegistry::listTools() const {
         json += "  {\n";
         json += "    \"name\": \"" + kv.first + "\",\n";
         json += "    \"description\": \"" + kv.second.description + "\",\n";
-        json += "    \"isReadOnly\": " + SmallString(kv.second.isReadOnly ? "true" : "false") + "\n";
+        json += "    \"isReadOnly\": " + String(kv.second.isReadOnly ? "true" : "false") + "\n";
         json += "  }";
     }
     json += "\n]";
     return json;
 }
 
-SmallString ToolRegistry::describeTool(const SmallString& name) const {
+String ToolRegistry::describeTool(const String& name) const {
     const ToolDesc* desc = findTool(name);
     if (!desc) {
         return "{\"error\":\"tool not found\"}";
     }
 
-    SmallString json = "{\n";
+    String json = "{\n";
     json += "  \"name\": \"" + desc->name + "\",\n";
     json += "  \"description\": \"" + desc->description + "\",\n";
     json += "  \"inputSchema\": \"" + desc->inputSchema + "\",\n";
-    json += "  \"isReadOnly\": " + SmallString(desc->isReadOnly ? "true" : "false") + "\n";
+    json += "  \"isReadOnly\": " + String(desc->isReadOnly ? "true" : "false") + "\n";
     json += "}";
     return json;
 }
 
-SmallString ToolRegistry::callTool(const SmallString& name, const SmallString& json_args) const {
+String ToolRegistry::callTool(const String& name, const String& json_args) const {
     const ToolDesc* desc = findTool(name);
     if (!desc) {
         return "{\"error\":\"tool not found\"}";

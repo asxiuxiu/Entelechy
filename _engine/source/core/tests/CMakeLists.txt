@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 add_library(CoreTests OBJECT
-    ${CMAKE_CURRENT_LIST_DIR}/test_small_string.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_string.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_memory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_vec.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_mat4.cpp

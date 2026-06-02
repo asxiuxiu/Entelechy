@@ -25,7 +25,7 @@ struct PrefabEntityEntry {
 };
 
 struct PrefabAsset {
-    SmallString name;
+    String name;
     DynamicArray<PrefabEntityEntry> entities;
 
     // The root entity is always at index 0.

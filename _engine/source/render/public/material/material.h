@@ -6,7 +6,7 @@
 #include "render/material/material_types.h"
 #include "render/material/shader_cache.h"
 #include "core/container/hash_map.h"
-#include "core/string/small_string.h"
+#include "core/string/string.h"
 #include "core/math/vec.h"
 #include "core/math/mat4.h"
 
@@ -80,8 +80,8 @@ private:
     u8* m_uniform_data = nullptr;
     u32 m_uniform_data_size = 0;
 
-    HashMap<SmallString, ParamSlot> m_params;
-    HashMap<SmallString, RHITextureRef> m_textures;
+    HashMap<String, ParamSlot> m_params;
+    HashMap<String, RHITextureRef> m_textures;
 };
 
 } // namespace Entelechy

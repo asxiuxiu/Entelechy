@@ -24,7 +24,7 @@ public:
     void flush() override;
 
 private:
-    SmallString m_base_path;
+    String m_base_path;
     u32 m_max_size_mb;
     u32 m_max_files;
     std::ofstream m_file_stream;

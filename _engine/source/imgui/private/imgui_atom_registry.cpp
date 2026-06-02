@@ -31,8 +31,8 @@ static void drawStringId(const char* label, void* ptr) {
     ImGui::Text("%s: %s", label, resolved ? resolved : "<unresolved>");
 }
 
-static void drawSmallString(const char* label, void* ptr) {
-    SmallString* str = static_cast<SmallString*>(ptr);
+static void drawString(const char* label, void* ptr) {
+    String* str = static_cast<String*>(ptr);
     ImGui::Text("%s: %s", label, str->c_str());
 }
 
@@ -46,7 +46,7 @@ void AtomRegistry::registerBuiltinAtoms() {
     registerAtom({"u32",     sizeof(u32),    drawU32});
     registerAtom({"uint32_t",sizeof(u32),    drawU32});
     registerAtom({"StringId",sizeof(StringId), drawStringId});
-    registerAtom({"SmallString",sizeof(SmallString), drawSmallString});
+    registerAtom({"String",sizeof(String), drawString});
 }
 
 } // namespace Entelechy

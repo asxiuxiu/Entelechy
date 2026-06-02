@@ -141,7 +141,7 @@ void GLBuffer::onDestroy() {
     }
 }
 
-void GLBuffer::setDebugName(const SmallString& name) {
+void GLBuffer::setDebugName(const String& name) {
 #if defined(GLAD_GL_KHR_debug)
     if (m_vbo && !name.empty()) {
         glObjectLabelKHR(GL_BUFFER_KHR, m_vbo, static_cast<GLsizei>(name.length()), name.c_str());
@@ -171,7 +171,7 @@ void GLTexture::onDestroy() {
     }
 }
 
-void GLTexture::setDebugName(const SmallString& name) {
+void GLTexture::setDebugName(const String& name) {
 #if defined(GLAD_GL_KHR_debug)
     if (m_texture && !name.empty()) {
         glObjectLabelKHR(GL_TEXTURE_KHR, m_texture, static_cast<GLsizei>(name.length()), name.c_str());
@@ -201,7 +201,7 @@ void GLShader::onDestroy() {
     }
 }
 
-void GLShader::setDebugName(const SmallString& name) {
+void GLShader::setDebugName(const String& name) {
 #if defined(GLAD_GL_KHR_debug)
     if (m_shader && !name.empty()) {
         glObjectLabelKHR(GL_SHADER_KHR, m_shader, static_cast<GLsizei>(name.length()), name.c_str());
@@ -231,7 +231,7 @@ void GLPipelineState::onDestroy() {
     }
 }
 
-void GLPipelineState::setDebugName(const SmallString& name) {
+void GLPipelineState::setDebugName(const String& name) {
 #if defined(GLAD_GL_KHR_debug)
     if (m_program && !name.empty()) {
         glObjectLabelKHR(GL_PROGRAM_KHR, m_program, static_cast<GLsizei>(name.length()), name.c_str());

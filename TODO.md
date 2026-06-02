@@ -132,8 +132,8 @@
   - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — Intern 池全局状态应以 ECS Resource 形式存在
 - [ ] Base Layer | `StringId` 增加 intern 池索引。当前字符串碰撞概率极低，与 StringInternPool Resource 化一起改。
   - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — `u64 m_hash` + `u32 m_index` 二次校验
-- [ ] Base Layer | `SmallString` strict aliasing 修正。当前 union 用法在主流编译器上工作正常，基础层稳定后修正。
-  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — 工业级实现用 `std::aligned_storage` 或手动指针运算
+- [x] Base Layer | `BasicString` union-SSO → `std::basic_string` thin wrapper（chaos route）。已完成，消除 strict aliasing UB，利用工业级 std::string SSO。
+  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — 工业级实现用 `std::aligned_storage` 或手动指针运算；`可变字符串与 SSO.md` — chaos route 推荐
 - [ ] Base Layer | 日志 `flush()` devices 锁竞争优化。初版日志量小，锁竞争不显著，高并发日志场景前实施。
   - 参考：知识库 `Notes/SelfGameEngine/Hello-Engine-Window/可视化日志系统.md` — 未来替换为 TLS 无锁环形缓冲
 

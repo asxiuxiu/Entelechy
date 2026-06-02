@@ -1,6 +1,6 @@
 #pragma once
 #include "core/foundation_types.h"
-#include "core/string/small_string.h"
+#include "core/string/string.h"
 #include "core/allocator/allocator.h"
 #include "render/rhi/rhi_types.h"
 #include <atomic>
@@ -38,7 +38,7 @@ public:
 
     // Debug name for GPU debugging tools (RenderDoc, Nsight, PIX).
     // Backends map this to platform-specific object labeling.
-    virtual void setDebugName(const SmallString& /*name*/) {}
+    virtual void setDebugName(const String& /*name*/) {}
 
 protected:
     virtual void onDestroy() {}

@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "core/foundation_types.h"
-#include "core/string/small_string.h"
+#include "core/string/string.h"
 #include "core/string/string_id.h"
 #include "core/container/dynamic_array.h"
 #include "core/container/hash_map.h"
@@ -13,12 +13,12 @@ namespace Entelechy {
 // ------------------------------------------------------------------
 
 using AtomInspectorFn = void(*)(const char* label, void* ptr);
-using AtomSerializeFn = void(*)(void* ptr, SmallString& outJson);
+using AtomSerializeFn = void(*)(void* ptr, String& outJson);
 using AtomDeserializeFn = void(*)(void* ptr, const char* json);
 using AtomCopyFn = void(*)(void* dst, const void* src);
 
 struct AtomType {
-    SmallString name;
+    String name;
     usize size = 0;
     AtomInspectorFn inspectorDraw = nullptr;
     AtomSerializeFn serialize = nullptr;
@@ -31,17 +31,17 @@ public:
     static AtomRegistry& instance();
 
     void registerAtom(const AtomType& type);
-    const AtomType* find(const SmallString& name) const;
+    const AtomType* find(const String& name) const;
     const AtomType* find(StringId name) const;
 
     // Convenience: draw a field if its type is registered as an atom
-    bool tryDraw(const SmallString& typeName, const char* label, void* ptr) const;
+    bool tryDraw(const String& typeName, const char* label, void* ptr) const;
 
     void registerBuiltinAtoms();
 
 private:
     AtomRegistry() = default;
-    HashMap<SmallString, AtomType> m_atoms;
+    HashMap<String, AtomType> m_atoms;
 };
 
 } // namespace Entelechy

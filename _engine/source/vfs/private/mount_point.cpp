@@ -143,15 +143,15 @@ void MemoryMountPoint::registerFile(const char* path, const u8* data, usize size
             copy[i] = data[i];
         }
     }
-    m_files.insert(SmallString(path), std::move(copy));
+    m_files.insert(String(path), std::move(copy));
 }
 
 bool MemoryMountPoint::exists(const char* path) {
-    return m_files.find(SmallString(path)) != nullptr;
+    return m_files.find(String(path)) != nullptr;
 }
 
 FileData MemoryMountPoint::readFile(const char* path) {
-    auto* entry = m_files.find(SmallString(path));
+    auto* entry = m_files.find(String(path));
     if (!entry) {
         return FileData{};
     }
@@ -170,7 +170,7 @@ bool MemoryMountPoint::writeFile(const char* path, const u8* data, usize size) {
             copy[i] = data[i];
         }
     }
-    m_files.insert(SmallString(path), std::move(copy));
+    m_files.insert(String(path), std::move(copy));
     return true;
 }
 

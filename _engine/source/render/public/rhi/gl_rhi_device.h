@@ -22,7 +22,7 @@ public:
     GLuint getVBO() const { return m_vbo; }
     GLuint getVAO() const { return m_vao; }
 
-    void setDebugName(const SmallString& name) override;
+    void setDebugName(const String& name) override;
 
 protected:
     void onDestroy() override;
@@ -43,7 +43,7 @@ public:
     GLuint getTexture() const { return m_texture; }
     GLenum getTarget() const { return m_target; }
 
-    void setDebugName(const SmallString& name) override;
+    void setDebugName(const String& name) override;
 
 protected:
     void onDestroy() override;
@@ -62,7 +62,7 @@ public:
     ShaderStage getStage() const override { return m_stage; }
     GLuint getShader() const { return m_shader; }
 
-    void setDebugName(const SmallString& name) override;
+    void setDebugName(const String& name) override;
 
 protected:
     void onDestroy() override;
@@ -80,7 +80,7 @@ public:
     GLuint getProgram() const { return m_program; }
     const PipelineStateDesc& getDesc() const { return m_desc; }
 
-    void setDebugName(const SmallString& name) override;
+    void setDebugName(const String& name) override;
 
 protected:
     void onDestroy() override;

@@ -3,7 +3,7 @@
 #include "ecs/world/scheduler.h"
 #include "motor/movement_system.h"
 #include "bridge/tool_registry.h"
-#include "core/string/small_string.h"
+#include "core/string/string.h"
 
 namespace Entelechy {
 
@@ -17,16 +17,16 @@ public:
     void step(f32 dt);
 
     // Structured tool interfaces (Milestone 0.4)
-    SmallString queryEntities(const SmallString& comp_name) const;
-    SmallString getComponent(Entity e, const SmallString& comp_name) const;
-    SmallString setComponent(Entity e, const SmallString& comp_name, const SmallString& json);
+    String queryEntities(const String& comp_name) const;
+    String getComponent(Entity e, const String& comp_name) const;
+    String setComponent(Entity e, const String& comp_name, const String& json);
 
     // New AI-friendly tools
-    SmallString queryEntitiesByMask(u64 mask) const;
-    SmallString getWorldSummary() const;
+    String queryEntitiesByMask(u64 mask) const;
+    String getWorldSummary() const;
 
     // ToolRegistry integration
-    SmallString callTool(const SmallString& name, const SmallString& json_args) const;
+    String callTool(const String& name, const String& json_args) const;
 };
 
 } // namespace Entelechy

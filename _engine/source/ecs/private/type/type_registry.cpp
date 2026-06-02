@@ -23,19 +23,19 @@ const ComponentDesc* TypeRegistry::findComponent(ComponentTypeID id) const {
     return nullptr;
 }
 
-const ComponentDesc* TypeRegistry::findComponent(const SmallString& name) const {
+const ComponentDesc* TypeRegistry::findComponent(const String& name) const {
     auto* id = m_name_to_id.find(name);
     if (id) return findComponent(*id);
     return nullptr;
 }
 
-ComponentTypeID TypeRegistry::findComponentID(const SmallString& name) const {
+ComponentTypeID TypeRegistry::findComponentID(const String& name) const {
     auto* v = m_name_to_id.find(name);
     if (v) return *v;
     return INVALID_COMPONENT_TYPE_ID;
 }
 
-u64 TypeRegistry::getComponentMask(const SmallString& name) const {
+u64 TypeRegistry::getComponentMask(const String& name) const {
     auto* v = m_name_to_mask.find(name);
     if (v) return *v;
     return 0;
@@ -47,14 +47,14 @@ void TypeRegistry::registerType(const TypeDesc& desc) {
     m_types.insert(desc.name, desc);
 }
 
-const TypeDesc* TypeRegistry::findType(const SmallString& name) const {
+const TypeDesc* TypeRegistry::findType(const String& name) const {
     auto* v = m_types.find(name);
     if (v) return v;
     return nullptr;
 }
 
 const TypeDesc* TypeRegistry::findType(StringId name) const {
-    // StringId doesn't directly map to SmallString in HashMap; fallback to linear scan
+    // StringId doesn't directly map to String in HashMap; fallback to linear scan
     // (types table is small, so this is acceptable for now)
     for (const auto& pair : m_types) {
         if (StringId(pair.first.c_str()) == name) {
@@ -64,8 +64,8 @@ const TypeDesc* TypeRegistry::findType(StringId name) const {
     return nullptr;
 }
 
-SmallString TypeRegistry::listComponents() const {
-    SmallString json = "[\n";
+String TypeRegistry::listComponents() const {
+    String json = "[\n";
     bool first = true;
     for (const auto& pair : m_name_to_id) {
         if (!first) json += ",\n";
@@ -82,13 +82,13 @@ usize TypeRegistry::componentCount() const {
     return m_components.size();
 }
 
-SmallString TypeRegistry::describeComponent(const SmallString& name) const {
+String TypeRegistry::describeComponent(const String& name) const {
     const ComponentDesc* desc = findComponent(name);
     if (!desc) {
-        return SmallString("{\"error\":\"component not found\"}");
+        return String("{\"error\":\"component not found\"}");
     }
 
-    SmallString json = "{\n";
+    String json = "{\n";
     json += "  \"name\": \"";
     json += desc->name;
     json += "\",\n";

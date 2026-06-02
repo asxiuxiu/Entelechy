@@ -4,7 +4,7 @@
 #include <compare>
 #include "ecs/type/entity_registry.h"
 #include "ecs/type/type_registry.h"
-#include "core/string/small_string.h"
+#include "core/string/string.h"
 #include "core/string/string_id.h"
 
 namespace Entelechy {

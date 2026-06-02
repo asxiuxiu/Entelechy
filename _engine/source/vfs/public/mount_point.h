@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "vfs/vfs_types.h"
-#include "core/string/small_string.h"
+#include "core/string/string.h"
 #include "core/container/hash_map.h"
 #include "core/container/dynamic_array.h"
 
@@ -24,7 +24,7 @@ public:
     bool writeFile(const char* path, const u8* data, usize size) override;
 
 private:
-    SmallString m_root;
+    String m_root;
     void buildFullPath(const char* path, char* out, usize outSize) const;
 };
 
@@ -37,7 +37,7 @@ public:
     bool writeFile(const char* path, const u8* data, usize size) override;
 
 private:
-    HashMap<SmallString, DynamicArray<u8>> m_files;
+    HashMap<String, DynamicArray<u8>> m_files;
 };
 
 } // namespace Entelechy

@@ -1,5 +1,5 @@
 #pragma once
-#include "core/string/small_string.h"
+#include "core/string/string.h"
 #include "core/foundation_types.h"
 #include "core/allocator/allocator.h"
 #include <cstring>
@@ -13,9 +13,9 @@ namespace Entelechy {
 // Platform conversion only happens when calling OS APIs.
 
 class Path {
-    SmallString m_path;
+    String m_path;
 
-    static void normalize(SmallString& str) {
+    static void normalize(String& str) {
         const char* s = str.c_str();
         usize len = str.length();
         if (len == 0) return;
@@ -44,7 +44,7 @@ public:
         normalize(m_path);
     }
 
-    explicit Path(const SmallString& str) : m_path(str) {
+    explicit Path(const String& str) : m_path(str) {
         normalize(m_path);
     }
 
@@ -71,7 +71,7 @@ public:
         return result;
     }
 
-    Path operator/(const SmallString& sub) const {
+    Path operator/(const String& sub) const {
         return operator/(sub.c_str());
     }
 
@@ -89,46 +89,46 @@ public:
     bool empty() const { return m_path.empty(); }
 
     // Returns the file extension (including the dot), or empty string if none.
-    SmallString extension() const {
+    String extension() const {
         const char* s = m_path.c_str();
         usize len = m_path.length();
         // Find last '/'
-        usize lastSlash = SmallString::npos;
+        usize lastSlash = String::npos;
         for (usize i = 0; i < len; ++i) {
             if (s[i] == '/') lastSlash = i;
         }
         // Find last '.' after lastSlash
-        usize lastDot = SmallString::npos;
-        for (usize i = (lastSlash == SmallString::npos ? 0 : lastSlash + 1); i < len; ++i) {
+        usize lastDot = String::npos;
+        for (usize i = (lastSlash == String::npos ? 0 : lastSlash + 1); i < len; ++i) {
             if (s[i] == '.') lastDot = i;
         }
-        if (lastDot == SmallString::npos || lastDot == len - 1) return SmallString();
+        if (lastDot == String::npos || lastDot == len - 1) return String();
         return m_path.substr(lastDot);
     }
 
     // Returns the file name including extension.
-    SmallString fileName() const {
+    String fileName() const {
         const char* s = m_path.c_str();
         usize len = m_path.length();
-        usize lastSlash = SmallString::npos;
+        usize lastSlash = String::npos;
         for (usize i = 0; i < len; ++i) {
             if (s[i] == '/') lastSlash = i;
         }
-        if (lastSlash == SmallString::npos) return m_path;
-        if (lastSlash + 1 >= len) return SmallString();
+        if (lastSlash == String::npos) return m_path;
+        if (lastSlash + 1 >= len) return String();
         return m_path.substr(lastSlash + 1);
     }
 
     // Returns the file name without extension.
-    SmallString stem() const {
-        SmallString name = fileName();
+    String stem() const {
+        String name = fileName();
         const char* s = name.c_str();
         usize len = name.length();
-        usize lastDot = SmallString::npos;
+        usize lastDot = String::npos;
         for (usize i = 0; i < len; ++i) {
             if (s[i] == '.') lastDot = i;
         }
-        if (lastDot == SmallString::npos || lastDot == 0) return name;
+        if (lastDot == String::npos || lastDot == 0) return name;
         return name.substr(0, lastDot);
     }
 
@@ -153,7 +153,7 @@ namespace std {
     template<>
     struct hash<Entelechy::Path> {
         usize operator()(const Entelechy::Path& path) const noexcept {
-            return std::hash<Entelechy::SmallString>{}(Entelechy::SmallString(path.c_str()));
+            return std::hash<Entelechy::String>{}(Entelechy::String(path.c_str()));
         }
     };
 } // namespace std

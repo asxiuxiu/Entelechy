@@ -12,19 +12,26 @@ StringId StringInternPool::intern(const char* str) {
     if (!str || str[0] == '\0') {
         return StringId();
     }
-    u64 h = hashFNV1a(str);
+    return intern(StringView(str));
+}
+
+StringId StringInternPool::intern(StringView sv) {
+    if (sv.empty()) {
+        return StringId();
+    }
+    u64 h = hashFNV1aLen(sv.data(), sv.length());
     std::lock_guard<std::mutex> lock(m_mutex);
     auto* v = m_pool.find(h);
     if (v) {
         // Collision detection: same hash must map to identical content
-        if (std::strcmp(*v, str) != 0) {
+        if (std::strcmp(*v, sv.data()) != 0) {
             CHECK(false && "StringId hash collision detected!");
         }
         return StringId(h);
     }
-    usize len = std::strlen(str);
-    char* copy = static_cast<char*>(DefaultAllocator::alloc(len + 1, alignof(char)));
-    std::memcpy(copy, str, len + 1);
+    char* copy = static_cast<char*>(DefaultAllocator::alloc(sv.length() + 1, alignof(char)));
+    std::memcpy(copy, sv.data(), sv.length());
+    copy[sv.length()] = '\0';
     m_pool.insert(h, copy);
     return StringId(h);
 }

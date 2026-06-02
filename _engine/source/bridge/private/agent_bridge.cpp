@@ -99,7 +99,7 @@ void AgentBridge::init() {
     AgentBridge* self = this;
 
     ToolRegistry::instance().registerTool(ToolDesc{
-        "queryEntities",
+        StringInternPool::instance().intern("queryEntities"),
         "Query all alive entities that have a given component",
         "{\"comp_name\": \"string\"}",
         true,
@@ -121,7 +121,7 @@ void AgentBridge::init() {
     });
 
     ToolRegistry::instance().registerTool(ToolDesc{
-        "getComponent",
+        StringInternPool::instance().intern("getComponent"),
         "Get component data for a specific entity",
         "{\"entity\": uint32, \"comp_name\": \"string\"}",
         true,
@@ -146,7 +146,7 @@ void AgentBridge::init() {
     });
 
     ToolRegistry::instance().registerTool(ToolDesc{
-        "setComponent",
+        StringInternPool::instance().intern("setComponent"),
         "Set component data for a specific entity",
         "{\"entity\": uint32, \"comp_name\": \"string\", \"values\": {...}}",
         false,
@@ -190,7 +190,7 @@ void AgentBridge::init() {
     });
 
     ToolRegistry::instance().registerTool(ToolDesc{
-        "stepWorld",
+        StringInternPool::instance().intern("stepWorld"),
         "Advance the simulation by one frame with given dt",
         "{\"dt\": float}",
         false,
@@ -203,7 +203,7 @@ void AgentBridge::init() {
     });
 
     ToolRegistry::instance().registerTool(ToolDesc{
-        "queryEntitiesByMask",
+        StringInternPool::instance().intern("queryEntitiesByMask"),
         "Query all alive entities that match a component mask",
         "{\"mask\": uint32}",
         true,
@@ -215,7 +215,7 @@ void AgentBridge::init() {
     });
 
     ToolRegistry::instance().registerTool(ToolDesc{
-        "getWorldSummary",
+        StringInternPool::instance().intern("getWorldSummary"),
         "Get a summary of the current world state",
         "{}",
         true,
@@ -231,7 +231,7 @@ void AgentBridge::step(f32 dt) {
 }
 
 String AgentBridge::queryEntities(const String& comp_name) const {
-    u32 mask = TypeRegistry::instance().getComponentMask(comp_name.c_str());
+    u32 mask = TypeRegistry::instance().getComponentMask(StringInternPool::instance().intern(comp_name.c_str()));
     if (mask == 0) {
         return "{\"error\":\"component not found\"}";
     }
@@ -263,7 +263,8 @@ String AgentBridge::getWorldSummary() const {
         first = false;
         const auto* desc = TypeRegistry::instance().findComponent(pair.first);
         json += "{";
-        json += "\"name\":\"" + String(desc ? desc->name.c_str() : "unknown") + "\",";
+        const char* nameResolved = desc ? StringInternPool::instance().resolve(desc->name) : nullptr;
+        json += "\"name\":\"" + String(nameResolved ? nameResolved : "unknown") + "\",";
         json += "\"count\":" + toString(pair.second->count());
         json += "}";
     }
@@ -277,7 +278,7 @@ String AgentBridge::getComponent(Entity e, const String& comp_name) const {
         return "{\"error\":\"invalid entity\"}";
     }
 
-    ComponentTypeID typeID = TypeRegistry::instance().findComponentID(comp_name.c_str());
+    ComponentTypeID typeID = TypeRegistry::instance().findComponentID(StringInternPool::instance().intern(comp_name.c_str()));
     if (typeID == INVALID_COMPONENT_TYPE_ID) {
         return "{\"error\":\"component not found\"}";
     }
@@ -299,14 +300,15 @@ String AgentBridge::getComponent(Entity e, const String& comp_name) const {
     for (const auto& field : desc->fields) {
         if (!first) json += ",";
         first = false;
-        json += "\"" + String(field.name.c_str()) + "\":";
-        if (field.type == "float") {
+        const char* fieldNameResolved = StringInternPool::instance().resolve(field.name);
+        json += "\"" + String(fieldNameResolved ? fieldNameResolved : "") + "\":";
+        if (field.type == "float"_sid) {
             f32 val = *reinterpret_cast<const f32*>(static_cast<const char*>(comp_ptr) + field.offset);
             json += toString(val);
-        } else if (field.type == "String") {
+        } else if (field.type == "String"_sid) {
             const String* str = reinterpret_cast<const String*>(static_cast<const char*>(comp_ptr) + field.offset);
             json += "\"" + String(str->c_str()) + "\"";
-        } else if (field.type == "StringId") {
+        } else if (field.type == "StringId"_sid) {
             const StringId* id = reinterpret_cast<const StringId*>(static_cast<const char*>(comp_ptr) + field.offset);
             const char* resolved = StringInternPool::instance().resolve(*id);
             json += "\"";
@@ -325,7 +327,7 @@ String AgentBridge::setComponent(Entity e, const String& comp_name, const String
         return "{\"error\":\"invalid entity\"}";
     }
 
-    ComponentTypeID typeID = TypeRegistry::instance().findComponentID(comp_name.c_str());
+    ComponentTypeID typeID = TypeRegistry::instance().findComponentID(StringInternPool::instance().intern(comp_name.c_str()));
     if (typeID == INVALID_COMPONENT_TYPE_ID) {
         return "{\"error\":\"component not found\"}";
     }
@@ -343,19 +345,22 @@ String AgentBridge::setComponent(Entity e, const String& comp_name, const String
     }
 
     for (const auto& field : desc->fields) {
-        if (field.type == "float") {
+        if (field.type == "float"_sid) {
             f32 val = 0.0f;
-            if (jsonParseFloat(json, field.name.c_str(), val)) {
+            const char* fieldNameResolved = StringInternPool::instance().resolve(field.name);
+            if (jsonParseFloat(json, fieldNameResolved ? fieldNameResolved : "", val)) {
                 *reinterpret_cast<f32*>(static_cast<char*>(comp_ptr) + field.offset) = val;
             }
-        } else if (field.type == "String") {
+        } else if (field.type == "String"_sid) {
             String val;
-            if (jsonParseString(json, field.name.c_str(), val)) {
+            const char* fieldNameResolved = StringInternPool::instance().resolve(field.name);
+            if (jsonParseString(json, fieldNameResolved ? fieldNameResolved : "", val)) {
                 *reinterpret_cast<String*>(static_cast<char*>(comp_ptr) + field.offset) = val.c_str();
             }
-        } else if (field.type == "StringId") {
+        } else if (field.type == "StringId"_sid) {
             String val;
-            if (jsonParseString(json, field.name.c_str(), val)) {
+            const char* fieldNameResolved = StringInternPool::instance().resolve(field.name);
+            if (jsonParseString(json, fieldNameResolved ? fieldNameResolved : "", val)) {
                 StringId id = StringInternPool::instance().intern(val.c_str());
                 *reinterpret_cast<StringId*>(static_cast<char*>(comp_ptr) + field.offset) = id;
             }
@@ -366,7 +371,7 @@ String AgentBridge::setComponent(Entity e, const String& comp_name, const String
 }
 
 String AgentBridge::callTool(const String& name, const String& json_args) const {
-    return ToolRegistry::instance().callTool(name, json_args);
+    return ToolRegistry::instance().callTool(StringInternPool::instance().intern(name.c_str()), json_args);
 }
 
 } // namespace Entelechy

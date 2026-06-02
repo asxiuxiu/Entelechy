@@ -12,13 +12,13 @@ VFS::~VFS() {
 void VFS::mount(const char* logicalPath, IMountPoint* backend) {
     if (!backend) return;
     MountEntry entry;
-    entry.name = StringId(logicalPath);
+    entry.name = StringInternPool::instance().intern(logicalPath);
     entry.backend = backend;
     m_mounts.pushBack(entry);
 }
 
 void VFS::unmount(const char* logicalPath) {
-    StringId target(logicalPath);
+    StringId target = StringInternPool::instance().intern(logicalPath);
     for (usize i = 0; i < m_mounts.size(); ++i) {
         if (m_mounts[i].name == target) {
             std::destroy_at(m_mounts[i].backend);

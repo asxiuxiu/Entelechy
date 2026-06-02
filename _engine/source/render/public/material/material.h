@@ -6,7 +6,8 @@
 #include "render/material/material_types.h"
 #include "render/material/shader_cache.h"
 #include "core/container/hash_map.h"
-#include "core/string/string.h"
+#include "core/string/string_id.h"
+#include "core/string/string_intern_pool.h"
 #include "core/math/vec.h"
 #include "core/math/mat4.h"
 
@@ -47,12 +48,12 @@ public:
     void shutdown();
 
     // -- Parameter setters (CPU side, uploaded on bind) --------------------
-    void setFloat(const char* name, f32 value);
-    void setVec2(const char* name, const Vec2& value);
-    void setVec3(const char* name, const Vec3& value);
-    void setVec4(const char* name, const Vec4& value);
-    void setMat4(const char* name, const Mat4& value, bool transpose = false);
-    void setTexture(const char* name, RHITextureRef texture);
+    void setFloat(StringId name, f32 value);
+    void setVec2(StringId name, const Vec2& value);
+    void setVec3(StringId name, const Vec3& value);
+    void setVec4(StringId name, const Vec4& value);
+    void setMat4(StringId name, const Mat4& value, bool transpose = false);
+    void setTexture(StringId name, RHITextureRef texture);
 
     // -- Rendering ---------------------------------------------------------
     // Bind PSO and upload all parameters to GPU.
@@ -80,8 +81,8 @@ private:
     u8* m_uniform_data = nullptr;
     u32 m_uniform_data_size = 0;
 
-    HashMap<String, ParamSlot> m_params;
-    HashMap<String, RHITextureRef> m_textures;
+    HashMap<StringId, ParamSlot> m_params;
+    HashMap<StringId, RHITextureRef> m_textures;
 };
 
 } // namespace Entelechy

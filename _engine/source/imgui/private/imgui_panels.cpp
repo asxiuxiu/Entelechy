@@ -44,14 +44,16 @@ bool drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
     bool changed = false;
 
     // 1. Try AtomRegistry for true atoms (f32, bool, i32, u32, StringId, String)
-    if (Entelechy::AtomRegistry::instance().tryDraw(field.type, field.name.c_str(), fieldPtr)) {
+    const char* fieldNameResolved = Entelechy::StringInternPool::instance().resolve(field.name);
+    if (Entelechy::AtomRegistry::instance().tryDraw(field.type, fieldNameResolved ? fieldNameResolved : "", fieldPtr)) {
         changed = true;
         return changed;
     }
 
     // 2. Special-case Mat4 for better UX (4 rows instead of 16 raw floats)
-    if (field.type == "Mat4") {
-        if (ImGui::TreeNode(field.name.c_str())) {
+    if (field.type == "Mat4"_sid) {
+        const char* fieldNameResolved = Entelechy::StringInternPool::instance().resolve(field.name);
+        if (ImGui::TreeNode(fieldNameResolved ? fieldNameResolved : "")) {
             auto* mat = static_cast<Entelechy::Mat4*>(fieldPtr);
             for (int row = 0; row < 4; ++row) {
                 float rowVals[4];
@@ -69,7 +71,8 @@ bool drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
     // 3. Try TypeRegistry composite lookup (Vec3, Quat, Vec2, Vec4, Entity, Color, ...)
     const auto* typeDesc = Entelechy::TypeRegistry::instance().findType(field.type);
     if (typeDesc && typeDesc->kind == Entelechy::TypeKind::Composite && !typeDesc->fields.empty()) {
-        if (ImGui::TreeNode(field.name.c_str())) {
+        const char* nameResolved = Entelechy::StringInternPool::instance().resolve(field.name);
+        if (ImGui::TreeNode(nameResolved ? nameResolved : "")) {
             for (const auto& subField : typeDesc->fields) {
                 if (drawField(subField, fieldPtr)) changed = true;
             }
@@ -81,7 +84,8 @@ bool drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
     // 4. Fallback: legacy ComponentDesc recursive lookup
     const auto* compDesc = Entelechy::TypeRegistry::instance().findComponent(field.type);
     if (compDesc && !compDesc->fields.empty()) {
-        if (ImGui::TreeNode(field.name.c_str())) {
+        const char* nameResolved = Entelechy::StringInternPool::instance().resolve(field.name);
+        if (ImGui::TreeNode(nameResolved ? nameResolved : "")) {
             for (const auto& subField : compDesc->fields) {
                 if (drawField(subField, fieldPtr)) changed = true;
             }
@@ -91,7 +95,9 @@ bool drawField(const Entelechy::FieldDesc& field, void* componentRaw) {
     }
 
     // 5. Unknown type
-    ImGui::TextDisabled("%s: (%s)", field.name.c_str(), field.type.c_str());
+    const char* nameResolved = Entelechy::StringInternPool::instance().resolve(field.name);
+    const char* typeResolved = Entelechy::StringInternPool::instance().resolve(field.type);
+    ImGui::TextDisabled("%s: (%s)", nameResolved ? nameResolved : "", typeResolved ? typeResolved : "");
     return changed;
 }
 
@@ -263,7 +269,7 @@ void buildECSInspector(World& world, Scheduler& scheduler, f32 dt, bool& autoRun
         world.addComponent<Position>(e, {0.0f, 0.0f});
         world.addComponent<Velocity>(e, {1.0f, 0.0f});
         world.addComponent<Health>(e, {100.0f});
-        world.addComponent<NameTag>(e, {StringId("NewEntity")});
+        world.addComponent<NameTag>(e, {StringInternPool::instance().intern("NewEntity")});
     }
     ImGui::SameLine();
     if (ImGui::Button("Delete Selected") && selected.valid() && world.valid(selected)) {
@@ -297,7 +303,8 @@ void buildECSInspector(World& world, Scheduler& scheduler, f32 dt, bool& autoRun
                     } else {
                         label += " [";
                     }
-                    label += desc->name;
+                    const char* nameResolved = Entelechy::StringInternPool::instance().resolve(desc->name);
+                    if (nameResolved) label += nameResolved;
                     hasAny = true;
                 }
             }
@@ -327,7 +334,8 @@ void buildECSInspector(World& world, Scheduler& scheduler, f32 dt, bool& autoRun
             void* raw = const_cast<void*>(pair.second->getRaw(selected));
             if (!raw) continue;
 
-            if (ImGui::TreeNodeEx(desc->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+            const char* nameResolved = Entelechy::StringInternPool::instance().resolve(desc->name);
+            if (ImGui::TreeNodeEx(nameResolved ? nameResolved : "", ImGuiTreeNodeFlags_DefaultOpen)) {
                 bool componentChanged = false;
                 for (const auto& field : desc->fields) {
                     if (drawField(field, raw)) componentChanged = true;
@@ -335,7 +343,7 @@ void buildECSInspector(World& world, Scheduler& scheduler, f32 dt, bool& autoRun
                 ImGui::TreePop();
                 // If the Transform component was edited, mark it dirty so the
                 // TransformPropagationSystem recomputes the world matrix.
-                if (componentChanged && desc->name == "Transform") {
+                if (componentChanged && desc->name == "Transform"_sid) {
                     if (auto* trans = world.getComponent<Entelechy::Transform>(selected)) {
                         trans->dirty = 1;
                     }

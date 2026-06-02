@@ -1,13 +1,15 @@
 #pragma once
 #include "core/foundation_types.h"
+#include "core/string/string_id.h"
 #include "core/string/string.h"
+#include "core/string/string_intern_pool.h"
 #include "core/container/hash_map.h"
 #include <functional>
 
 namespace Entelechy {
 
 struct ToolDesc {
-    String name;
+    StringId name;
     String description;
     String inputSchema;
     bool isReadOnly = false;
@@ -19,15 +21,15 @@ public:
     static ToolRegistry& instance();
 
     void registerTool(ToolDesc desc);
-    const ToolDesc* findTool(const String& name) const;
+    const ToolDesc* findTool(StringId name) const;
     String listTools() const;
-    String describeTool(const String& name) const;
-    String callTool(const String& name, const String& json_args) const;
+    String describeTool(StringId name) const;
+    String callTool(StringId name, const String& json_args) const;
     usize toolCount() const;
 
 private:
     ToolRegistry() = default;
-    HashMap<String, ToolDesc> m_tools;
+    HashMap<StringId, ToolDesc> m_tools;
 };
 
 // Helper macro for auto-registering a tool to ToolRegistry
@@ -38,7 +40,7 @@ private:
     struct _AutoToolReg_##Name { \
         _AutoToolReg_##Name() { \
             Entelechy::ToolRegistry::instance().registerTool(Entelechy::ToolDesc{ \
-                #Name, Desc, Schema, ReadOnly, Func \
+                Entelechy::StringInternPool::instance().intern(#Name), Desc, Schema, ReadOnly, Func \
             }); \
         } \
     } _auto_tool_reg_##Name##_instance; \

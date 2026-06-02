@@ -101,8 +101,8 @@ bool SimpleCubeRenderer::init() {
 
     // Parameter layout: matches shader uniforms
     MaterialParamDesc params[] = {
-        {"uMVP",  MaterialParamType::Mat4},
-        {"uColor", MaterialParamType::Vec3},
+        {"uMVP"_sid,  MaterialParamType::Mat4},
+        {"uColor"_sid, MaterialParamType::Vec3},
     };
 
     PipelineStateDesc pipelineDesc{};
@@ -147,8 +147,8 @@ void SimpleCubeRenderer::drawCube(const Mat4& mvp, const Vec3& color) {
 
     auto* cmdList = m_device->createCommandList();
 
-    m_material.setMat4("uMVP", mvp);
-    m_material.setVec3("uColor", color);
+    m_material.setMat4("uMVP"_sid, mvp);
+    m_material.setVec3("uColor"_sid, color);
     m_material.bind(cmdList);
 
     cmdList->bindVertexBuffer(m_vertex_buffer.get(), 0, 0);

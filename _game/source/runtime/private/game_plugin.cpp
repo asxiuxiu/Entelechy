@@ -3,6 +3,7 @@
 #include "ecs/query/query.h"
 #include "ecs/type/type_registry.h"
 #include "ecs/hierarchy/hierarchy.h"
+#include "core/string/string_intern_pool.h"
 #include <cstdlib>
 
 namespace game {
@@ -12,7 +13,7 @@ void GamePlugin::build(Entelechy::App& app) {
 
     // MovementSystem
     app.scheduler().registerSystem({
-        .name = "MovementSystem",
+        .name = StringInternPool::instance().intern("MovementSystem"),
         .system = &m_movement,
         .phase = static_cast<u8>(DefaultPhase::Update),
         .reads = { TypeRegistry::instance().getTypeID<Position>(),
@@ -22,7 +23,7 @@ void GamePlugin::build(Entelechy::App& app) {
 
     // RotationSystem
     app.scheduler().registerSystem({
-        .name = "RotationSystem",
+        .name = StringInternPool::instance().intern("RotationSystem"),
         .system = &m_rotation,
         .phase = static_cast<u8>(DefaultPhase::Update),
         .reads = { TypeRegistry::instance().getTypeID<Transform>() },
@@ -31,7 +32,7 @@ void GamePlugin::build(Entelechy::App& app) {
 
     // WobbleSystem (deliberately conflicts with RotationSystem to verify ambiguity detection)
     app.scheduler().registerSystem({
-        .name = "WobbleSystem",
+        .name = StringInternPool::instance().intern("WobbleSystem"),
         .system = &m_wobble,
         .phase = static_cast<u8>(DefaultPhase::Update),
         .writes = { TypeRegistry::instance().getTypeID<Transform>() }
@@ -39,7 +40,7 @@ void GamePlugin::build(Entelechy::App& app) {
 
     // TransformPropagationSystem
     app.scheduler().registerSystem({
-        .name = "TransformPropagationSystem",
+        .name = StringInternPool::instance().intern("TransformPropagationSystem"),
         .system = &m_transform_system,
         .phase = static_cast<u8>(DefaultPhase::PostUpdate),
         .reads = { TypeRegistry::instance().getTypeID<Transform>(),
@@ -49,7 +50,7 @@ void GamePlugin::build(Entelechy::App& app) {
 
     // ColorChangeSystem
     app.scheduler().registerSystem({
-        .name = "ColorChangeSystem",
+        .name = StringInternPool::instance().intern("ColorChangeSystem"),
         .system = &m_color_change,
         .phase = static_cast<u8>(DefaultPhase::Update),
         .reads = { TypeRegistry::instance().getTypeID<KeyboardEvent>() },
@@ -58,7 +59,7 @@ void GamePlugin::build(Entelechy::App& app) {
 
     // EventCleanupSystem
     app.scheduler().registerSystem({
-        .name = "EventCleanupSystem",
+        .name = StringInternPool::instance().intern("EventCleanupSystem"),
         .system = &m_event_cleanup,
         .phase = static_cast<u8>(DefaultPhase::Last),
         .reads = { TypeRegistry::instance().getTypeID<EventLifetime>() }

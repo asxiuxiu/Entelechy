@@ -54,7 +54,7 @@ static void writeU32(String& out, u32 v) {
 
 static void serializeField(const FieldDesc& field, const void* componentPtr, String& out);
 
-static void serializeValue(const String& typeName, const void* ptr, String& out) {
+static void serializeValue(StringId typeName, const void* ptr, String& out) {
     // Try atom registry first
     const AtomType* atom = AtomRegistry::instance().find(typeName);
     if (atom && atom->serialize) {
@@ -63,17 +63,17 @@ static void serializeValue(const String& typeName, const void* ptr, String& out)
     }
 
     // Basic atoms (hard-coded for now)
-    if (typeName == "f32" || typeName == "float") {
+    if (typeName == "f32"_sid || typeName == "float"_sid) {
         writeF32(out, *reinterpret_cast<const f32*>(ptr));
-    } else if (typeName == "i32" || typeName == "int" || typeName == "int32_t") {
+    } else if (typeName == "i32"_sid || typeName == "int"_sid || typeName == "int32_t"_sid) {
         writeI32(out, *reinterpret_cast<const i32*>(ptr));
-    } else if (typeName == "u32" || typeName == "uint32_t") {
+    } else if (typeName == "u32"_sid || typeName == "uint32_t"_sid) {
         writeU32(out, *reinterpret_cast<const u32*>(ptr));
-    } else if (typeName == "bool") {
+    } else if (typeName == "bool"_sid) {
         out += *reinterpret_cast<const bool*>(ptr) ? "true" : "false";
-    } else if (typeName == "String") {
+    } else if (typeName == "String"_sid) {
         writeJsonString(out, reinterpret_cast<const String*>(ptr)->c_str());
-    } else if (typeName == "StringId") {
+    } else if (typeName == "StringId"_sid) {
         StringId id = *reinterpret_cast<const StringId*>(ptr);
         const char* resolved = StringInternPool::instance().resolve(id);
         writeJsonString(out, resolved ? resolved : "");
@@ -87,7 +87,8 @@ static void serializeValue(const String& typeName, const void* ptr, String& out)
                 if (!first) out += ",";
                 first = false;
                 out += '"';
-                out += f.name.c_str();
+                const char* nameResolved = StringInternPool::instance().resolve(f.name);
+                if (nameResolved) out += nameResolved;
                 out += "\":";
                 serializeField(f, ptr, out);
             }
@@ -110,7 +111,8 @@ static String serializeComponent(const ComponentDesc& desc, const void* componen
         if (!first) out += ",";
         first = false;
         out += '"';
-        out += field.name.c_str();
+        const char* nameResolved = StringInternPool::instance().resolve(field.name);
+        if (nameResolved) out += nameResolved;
         out += "\":";
         serializeField(field, componentPtr, out);
     }
@@ -203,10 +205,9 @@ struct JsonCursor {
     }
 };
 
-static bool deserializeAtom(const String& typeName, void* ptr, JsonCursor& cur);
 static bool deserializeComposite(const TypeDesc* typeDesc, void* ptr, JsonCursor& cur);
 
-static bool deserializeValue(const String& typeName, void* ptr, JsonCursor& cur) {
+static bool deserializeValue(StringId typeName, void* ptr, JsonCursor& cur) {
     // Try atom registry
     const AtomType* atom = AtomRegistry::instance().find(typeName);
     if (atom && atom->deserialize) {
@@ -215,20 +216,20 @@ static bool deserializeValue(const String& typeName, void* ptr, JsonCursor& cur)
         // This is tricky without a full parser. For now, handle basic types directly.
     }
 
-    if (typeName == "f32" || typeName == "float") {
+    if (typeName == "f32"_sid || typeName == "float"_sid) {
         return cur.parseFloat(*reinterpret_cast<f32*>(ptr));
-    } else if (typeName == "i32" || typeName == "int" || typeName == "int32_t") {
+    } else if (typeName == "i32"_sid || typeName == "int"_sid || typeName == "int32_t"_sid) {
         return cur.parseInt32(*reinterpret_cast<i32*>(ptr));
-    } else if (typeName == "u32" || typeName == "uint32_t") {
+    } else if (typeName == "u32"_sid || typeName == "uint32_t"_sid) {
         return cur.parseUint32(*reinterpret_cast<u32*>(ptr));
-    } else if (typeName == "bool") {
+    } else if (typeName == "bool"_sid) {
         return cur.parseBool(*reinterpret_cast<bool*>(ptr));
-    } else if (typeName == "String") {
+    } else if (typeName == "String"_sid) {
         String val;
         if (!cur.parseString(val)) return false;
         *reinterpret_cast<String*>(ptr) = val.c_str();
         return true;
-    } else if (typeName == "StringId") {
+    } else if (typeName == "StringId"_sid) {
         String val;
         if (!cur.parseString(val)) return false;
         *reinterpret_cast<StringId*>(ptr) = StringInternPool::instance().intern(val.c_str());
@@ -258,8 +259,9 @@ static bool deserializeComposite(const TypeDesc* typeDesc, void* ptr, JsonCursor
         if (!cur.consume(':')) return false;
 
         bool found = false;
+        StringId fieldNameId = StringInternPool::instance().intern(fieldName.c_str());
         for (const auto& f : typeDesc->fields) {
-            if (f.name == fieldName) {
+            if (f.name == fieldNameId) {
                 if (!deserializeField(f, ptr, cur)) return false;
                 found = true;
                 break;
@@ -324,7 +326,8 @@ String SceneSerializer::serialize(const World& world) const {
             if (!firstComp) json += ",";
             firstComp = false;
 
-            writeJsonString(json, desc->name.c_str());
+            const char* nameResolved = StringInternPool::instance().resolve(desc->name);
+            writeJsonString(json, nameResolved ? nameResolved : "");
             json += ":";
             const void* raw = pair.second->getRaw(e);
             json += serializeComponent(*desc, raw);
@@ -380,7 +383,8 @@ bool SceneSerializer::deserialize(World& world, const String& jsonStr) const {
             if (!cur.parseString(compName)) return false;
             if (!cur.consume(':')) return false;
 
-            const ComponentDesc* desc = TypeRegistry::instance().findComponent(compName);
+            StringId compNameId = StringInternPool::instance().intern(compName.c_str());
+            const ComponentDesc* desc = TypeRegistry::instance().findComponent(compNameId);
             if (desc) {
                 // Allocate component data on stack (max reasonable component size)
                 alignas(64) u8 compBuffer[512];
@@ -410,7 +414,7 @@ bool SceneSerializer::deserialize(World& world, const String& jsonStr) const {
                         // We need to parse the whole object and then match fields.
                         // But our parser above does this in deserializeComposite...
                         // Actually ComponentDesc fields need to be parsed as a composite.
-                        const TypeDesc* typeDesc = TypeRegistry::instance().findType(compName);
+                        const TypeDesc* typeDesc = TypeRegistry::instance().findType(compNameId);
                         if (typeDesc) {
                             deserializeComposite(typeDesc, compBuffer, cur);
                         } else {
@@ -435,7 +439,7 @@ bool SceneSerializer::deserialize(World& world, const String& jsonStr) const {
                         }
                         break; // only one composite parse per component
                     }
-                    world.addComponentRaw(e, TypeRegistry::instance().findComponentID(compName), compBuffer);
+                    world.addComponentRaw(e, TypeRegistry::instance().findComponentID(compNameId), compBuffer);
                 }
             } else {
                 // Unknown component: skip its JSON value

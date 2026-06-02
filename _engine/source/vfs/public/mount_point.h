@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "vfs/vfs_types.h"
 #include "core/string/string.h"
+#include "core/string/string_id.h"
 #include "core/container/hash_map.h"
 #include "core/container/dynamic_array.h"
 
@@ -37,7 +38,7 @@ public:
     bool writeFile(const char* path, const u8* data, usize size) override;
 
 private:
-    HashMap<String, DynamicArray<u8>> m_files;
+    HashMap<StringId, DynamicArray<u8>> m_files;
 };
 
 } // namespace Entelechy

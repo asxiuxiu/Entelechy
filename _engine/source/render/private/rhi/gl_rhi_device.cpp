@@ -1,6 +1,7 @@
 #include "render/rhi/gl_rhi_device.h"
 #include "log/core/log_macros.h"
 #include "core/allocator/allocator.h"
+#include "core/string/string_intern_pool.h"
 #include <cstring>
 #include <memory>
 
@@ -260,14 +261,14 @@ void GLCommandList::begin() {
 // ------------------------------------------------------------------
 // Uniform location cache
 // ------------------------------------------------------------------
-GLint GLCommandList::getUniformLocation(const char* name) {
-    if (!m_bound_program || !name) return -1;
-    StringId sid(name);
-    UniformLocKey key{m_bound_program, sid};
+GLint GLCommandList::getUniformLocation(StringId name) {
+    if (!m_bound_program || name.value() == 0) return -1;
+    UniformLocKey key{m_bound_program, name};
     if (auto* cached = m_uniform_cache.find(key)) {
         return *cached;
     }
-    GLint loc = glGetUniformLocation(m_bound_program, name);
+    const char* resolved = StringInternPool::instance().resolve(name);
+    GLint loc = glGetUniformLocation(m_bound_program, resolved ? resolved : "");
     m_uniform_cache.insert(key, loc);
     return loc;
 }
@@ -620,35 +621,35 @@ usize PSOManager::getCacheSize() const {
 // GLCommandList — Uniform and texture binding (Phase 1)
 // ==================================================================
 
-void GLCommandList::setUniformFloat(const char* name, f32 value) {
+void GLCommandList::setUniformFloat(StringId name, f32 value) {
     GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniform1f(loc, value);
 }
 
-void GLCommandList::setUniformInt(const char* name, i32 value) {
+void GLCommandList::setUniformInt(StringId name, i32 value) {
     GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniform1i(loc, value);
 }
 
-void GLCommandList::setUniformVec2(const char* name, const f32* value) {
+void GLCommandList::setUniformVec2(StringId name, const f32* value) {
     if (!value) return;
     GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniform2fv(loc, 1, value);
 }
 
-void GLCommandList::setUniformVec3(const char* name, const f32* value) {
+void GLCommandList::setUniformVec3(StringId name, const f32* value) {
     if (!value) return;
     GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniform3fv(loc, 1, value);
 }
 
-void GLCommandList::setUniformVec4(const char* name, const f32* value) {
+void GLCommandList::setUniformVec4(StringId name, const f32* value) {
     if (!value) return;
     GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniform4fv(loc, 1, value);
 }
 
-void GLCommandList::setUniformMat4(const char* name, const f32* value, bool transpose) {
+void GLCommandList::setUniformMat4(StringId name, const f32* value, bool transpose) {
     if (!value) return;
     GLint loc = getUniformLocation(name);
     if (loc >= 0) glUniformMatrix4fv(loc, 1, transpose ? GL_TRUE : GL_FALSE, value);

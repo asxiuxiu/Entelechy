@@ -17,10 +17,15 @@ constexpr u64 hashFNV1aLen(const char* str, usize len, u64 h = 0xcbf29ce48422232
 class StringId {
     u64 m_hash;
 
-public:
-    constexpr StringId() : m_hash(0) {}
     constexpr StringId(const char* str) : m_hash(hashFNV1a(str)) {}
     constexpr StringId(StringView sv) : m_hash(hashFNV1aLen(sv.data(), sv.length())) {}
+
+    friend consteval StringId operator"" _sid(const char* str, usize);
+    friend class StringInternPool;
+    friend struct LogCategory;
+
+public:
+    constexpr StringId() : m_hash(0) {}
     constexpr explicit StringId(u64 hash) : m_hash(hash) {}
 
     [[nodiscard]] constexpr u64 value() const { return m_hash; }

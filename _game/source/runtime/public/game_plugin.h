@@ -25,7 +25,7 @@ public:
     Entelechy::LoadingPhase phase() const override {
         return Entelechy::LoadingPhase::Gameplay;
     }
-    Entelechy::DynamicArray<Entelechy::String> dependencies() const override {
+    Entelechy::DynamicArray<Entelechy::StringId> dependencies() const override {
         // Gameplay layer depends on core systems being registered first.
         // In a multi-plugin setup, this would list plugins like "Render", "Input", etc.
         return {};

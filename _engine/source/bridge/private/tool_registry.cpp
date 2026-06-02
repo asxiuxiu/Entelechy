@@ -1,5 +1,6 @@
 ﻿#include "bridge/tool_registry.h"
 #include "ecs/type/type_registry.h"
+#include "core/string/string_intern_pool.h"
 #include <cstdio>
 #include <cstring>
 
@@ -40,7 +41,7 @@ REFLECT_TOOL(describeTool,
         if (!jsonExtractString(json, "name", name)) {
             return "{\"error\":\"missing name\"}";
         }
-        return Entelechy::ToolRegistry::instance().describeTool(name);
+        return Entelechy::ToolRegistry::instance().describeTool(Entelechy::StringInternPool::instance().intern(name.c_str()));
     }
 )
 
@@ -62,7 +63,7 @@ REFLECT_TOOL(describeComponent,
         if (!jsonExtractString(json, "name", name)) {
             return "{\"error\":\"missing name\"}";
         }
-        return Entelechy::TypeRegistry::instance().describeComponent(name.c_str()).c_str();
+        return Entelechy::TypeRegistry::instance().describeComponent(Entelechy::StringInternPool::instance().intern(name.c_str())).c_str();
     }
 )
 
@@ -75,7 +76,7 @@ void ToolRegistry::registerTool(ToolDesc desc) {
     m_tools.insert(desc.name, std::move(desc));
 }
 
-const ToolDesc* ToolRegistry::findTool(const String& name) const {
+const ToolDesc* ToolRegistry::findTool(StringId name) const {
     auto* v = m_tools.find(name);
     return v ? v : nullptr;
 }
@@ -91,7 +92,8 @@ String ToolRegistry::listTools() const {
         if (!first) json += ",\n";
         first = false;
         json += "  {\n";
-        json += "    \"name\": \"" + kv.first + "\",\n";
+        const char* nameResolved = StringInternPool::instance().resolve(kv.first);
+        json += "    \"name\": \"" + String(nameResolved ? nameResolved : "") + "\",\n";
         json += "    \"description\": \"" + kv.second.description + "\",\n";
         json += "    \"isReadOnly\": " + String(kv.second.isReadOnly ? "true" : "false") + "\n";
         json += "  }";
@@ -100,14 +102,15 @@ String ToolRegistry::listTools() const {
     return json;
 }
 
-String ToolRegistry::describeTool(const String& name) const {
+String ToolRegistry::describeTool(StringId name) const {
     const ToolDesc* desc = findTool(name);
     if (!desc) {
         return "{\"error\":\"tool not found\"}";
     }
 
     String json = "{\n";
-    json += "  \"name\": \"" + desc->name + "\",\n";
+    const char* nameResolved = StringInternPool::instance().resolve(desc->name);
+    json += "  \"name\": \"" + String(nameResolved ? nameResolved : "") + "\",\n";
     json += "  \"description\": \"" + desc->description + "\",\n";
     json += "  \"inputSchema\": \"" + desc->inputSchema + "\",\n";
     json += "  \"isReadOnly\": " + String(desc->isReadOnly ? "true" : "false") + "\n";
@@ -115,7 +118,7 @@ String ToolRegistry::describeTool(const String& name) const {
     return json;
 }
 
-String ToolRegistry::callTool(const String& name, const String& json_args) const {
+String ToolRegistry::callTool(StringId name, const String& json_args) const {
     const ToolDesc* desc = findTool(name);
     if (!desc) {
         return "{\"error\":\"tool not found\"}";

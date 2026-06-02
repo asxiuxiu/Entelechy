@@ -1,5 +1,6 @@
 #include "ecs/world/scheduler.h"
 #include "log/core/log_macros.h"
+#include "core/string/string_intern_pool.h"
 
 namespace Entelechy {
 
@@ -54,9 +55,9 @@ void Scheduler::build() {
         if (n <= 1) continue;
 
         // Name -> index map for this group.
-        HashMap<String, usize> nameToIndex;
+        HashMap<StringId, usize> nameToIndex;
         for (usize i = 0; i < n; ++i) {
-            if (!sys[i]->name.empty()) {
+            if (sys[i]->name.value() != 0) {
                 nameToIndex.insert(sys[i]->name, i);
             }
         }
@@ -174,8 +175,8 @@ void Scheduler::detectAmbiguities() {
                 }
 
                 if (!ordered) {
-                    const char* nameA = sys[i]->name.empty() ? "<unnamed>" : sys[i]->name.c_str();
-                    const char* nameB = sys[j]->name.empty() ? "<unnamed>" : sys[j]->name.c_str();
+                    const char* nameA = sys[i]->name.value() == 0 ? "<unnamed>" : StringInternPool::instance().resolve(sys[i]->name);
+                    const char* nameB = sys[j]->name.value() == 0 ? "<unnamed>" : StringInternPool::instance().resolve(sys[j]->name);
                     LOG_WARN(Entelechy::LogCategories::kEngine,
                         "Scheduler Ambiguity: '%s' and '%s' conflict on component data but have no ordering dependency in phase %d",
                         nameA, nameB, group.phaseIndex);

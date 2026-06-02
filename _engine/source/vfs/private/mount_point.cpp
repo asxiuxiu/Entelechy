@@ -1,4 +1,5 @@
 ﻿#include "vfs/mount_point.h"
+#include "core/string/string_intern_pool.h"
 #include <cstdio>
 #include <cstring>
 
@@ -143,15 +144,15 @@ void MemoryMountPoint::registerFile(const char* path, const u8* data, usize size
             copy[i] = data[i];
         }
     }
-    m_files.insert(String(path), std::move(copy));
+    m_files.insert(StringInternPool::instance().intern(path), std::move(copy));
 }
 
 bool MemoryMountPoint::exists(const char* path) {
-    return m_files.find(String(path)) != nullptr;
+    return m_files.find(StringInternPool::instance().intern(path)) != nullptr;
 }
 
 FileData MemoryMountPoint::readFile(const char* path) {
-    auto* entry = m_files.find(String(path));
+    auto* entry = m_files.find(StringInternPool::instance().intern(path));
     if (!entry) {
         return FileData{};
     }
@@ -170,7 +171,7 @@ bool MemoryMountPoint::writeFile(const char* path, const u8* data, usize size) {
             copy[i] = data[i];
         }
     }
-    m_files.insert(String(path), std::move(copy));
+    m_files.insert(StringInternPool::instance().intern(path), std::move(copy));
     return true;
 }
 

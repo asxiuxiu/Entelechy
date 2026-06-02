@@ -28,6 +28,7 @@ public:
     static StringInternPool& instance();
 
     StringId intern(const char* str);
+    StringId intern(StringView sv);
     const char* resolve(StringId id) const;
 
     bool has(StringId id) const;

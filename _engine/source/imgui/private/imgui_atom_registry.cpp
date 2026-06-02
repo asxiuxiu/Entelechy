@@ -37,16 +37,16 @@ static void drawString(const char* label, void* ptr) {
 }
 
 void AtomRegistry::registerBuiltinAtoms() {
-    registerAtom({"f32",     sizeof(f32),    drawF32});
-    registerAtom({"float",   sizeof(f32),    drawF32});
-    registerAtom({"bool",    sizeof(bool),   drawBool});
-    registerAtom({"i32",     sizeof(i32),    drawI32});
-    registerAtom({"int",     sizeof(i32),    drawI32});
-    registerAtom({"int32_t", sizeof(i32),    drawI32});
-    registerAtom({"u32",     sizeof(u32),    drawU32});
-    registerAtom({"uint32_t",sizeof(u32),    drawU32});
-    registerAtom({"StringId",sizeof(StringId), drawStringId});
-    registerAtom({"String",sizeof(String), drawString});
+    registerAtom({"f32"_sid,     sizeof(f32),    drawF32});
+    registerAtom({"float"_sid,   sizeof(f32),    drawF32});
+    registerAtom({"bool"_sid,    sizeof(bool),   drawBool});
+    registerAtom({"i32"_sid,     sizeof(i32),    drawI32});
+    registerAtom({"int"_sid,     sizeof(i32),    drawI32});
+    registerAtom({"int32_t"_sid, sizeof(i32),    drawI32});
+    registerAtom({"u32"_sid,     sizeof(u32),    drawU32});
+    registerAtom({"uint32_t"_sid,sizeof(u32),    drawU32});
+    registerAtom({"StringId"_sid,sizeof(StringId), drawStringId});
+    registerAtom({"String"_sid,sizeof(String), drawString});
 }
 
 } // namespace Entelechy

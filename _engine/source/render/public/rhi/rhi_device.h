@@ -1,5 +1,6 @@
 #pragma once
 #include "core/foundation_types.h"
+#include "core/string/string_id.h"
 #include "render/rhi/rhi_types.h"
 #include "render/rhi/rhi_resources.h"
 #include "render/rhi/rhi_pipeline.h"
@@ -90,12 +91,12 @@ public:
     // Future backends (Vulkan/D3D12) implement these via push constants
     // or dynamic UBO offsets. This interface is intentionally minimal
     // and will be revisited when the bindless architecture is ready.
-    virtual void setUniformFloat(const char* name, f32 value) = 0;
-    virtual void setUniformInt(const char* name, i32 value) = 0;
-    virtual void setUniformVec2(const char* name, const f32* value) = 0;
-    virtual void setUniformVec3(const char* name, const f32* value) = 0;
-    virtual void setUniformVec4(const char* name, const f32* value) = 0;
-    virtual void setUniformMat4(const char* name, const f32* value, bool transpose = false) = 0;
+    virtual void setUniformFloat(StringId name, f32 value) = 0;
+    virtual void setUniformInt(StringId name, i32 value) = 0;
+    virtual void setUniformVec2(StringId name, const f32* value) = 0;
+    virtual void setUniformVec3(StringId name, const f32* value) = 0;
+    virtual void setUniformVec4(StringId name, const f32* value) = 0;
+    virtual void setUniformMat4(StringId name, const f32* value, bool transpose = false) = 0;
     virtual void bindTexture(u32 slot, RHITexture* texture) = 0;
 
     // -- Debug markers -----------------------------------------------------

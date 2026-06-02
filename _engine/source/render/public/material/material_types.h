@@ -27,7 +27,7 @@ enum class MaterialParamType : u8 {
 // Offsets are computed automatically by Material using std140 rules.
 // ------------------------------------------------------------------
 struct MaterialParamDesc {
-    const char* name = nullptr;   // Uniform name in shader (must outlive Material)
+    StringId name;                // Uniform name in shader (interned)
     MaterialParamType type = MaterialParamType::Float;
 };
 

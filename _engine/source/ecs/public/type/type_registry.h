@@ -2,9 +2,9 @@
 #include "core/foundation_types.h"
 #include "core/string/string.h"
 #include "core/string/string_format.h"
+#include "core/string/string_id.h"
 #include "core/container/hash_map.h"
 #include "core/container/dynamic_array.h"
-#include "core/string/string_id.h"
 #include <cstddef>
 #include <type_traits>
 #include <utility>
@@ -23,19 +23,19 @@ enum class TypeKind { Atom, Composite, Array };
 // FieldDesc — one field inside a composite type
 // ------------------------------------------------------------------
 struct FieldDesc {
-    String name;
-    String type;   // original type name (e.g. "Vec3", "f32")
+    StringId name;
+    StringId type;   // original type name (e.g. "Vec3"_sid, "f32"_sid)
     usize offset = 0;
     usize size = 0;
     TypeKind kind = TypeKind::Atom;
-    String subtype; // when kind == Composite: name of the composite type in TypeRegistry
+    StringId subtype; // when kind == Composite: name of the composite type in TypeRegistry
 };
 
 // ------------------------------------------------------------------
 // TypeDesc — runtime description of any type (component or composite)
 // ------------------------------------------------------------------
 struct TypeDesc {
-    String name;
+    StringId name;
     usize size = 0;
     usize alignment = 0;
     TypeKind kind = TypeKind::Composite;
@@ -50,7 +50,7 @@ using ComponentCopyCtor = void (*)(void* dest, const void* src);
 // ComponentDesc — runtime description of an ECS component type
 // ------------------------------------------------------------------
 struct ComponentDesc {
-    String name;
+    StringId name;
     usize size = 0;
     usize alignment = 0;
     ComponentDtor dtor = nullptr;
@@ -61,7 +61,7 @@ struct ComponentDesc {
 };
 
 template<typename T>
-ComponentDesc makeComponentDesc(const char* name, DynamicArray<FieldDesc> fields) {
+ComponentDesc makeComponentDesc(StringId name, DynamicArray<FieldDesc> fields) {
     ComponentDesc desc;
     desc.name = name;
     desc.size = sizeof(T);
@@ -125,17 +125,16 @@ public:
 
     void registerComponent(ComponentTypeID id, u64 mask, const ComponentDesc& desc);
     const ComponentDesc* findComponent(ComponentTypeID id) const;
-    const ComponentDesc* findComponent(const String& name) const;
-    ComponentTypeID findComponentID(const String& name) const;
-    u64 getComponentMask(const String& name) const;
+    const ComponentDesc* findComponent(StringId name) const;
+    ComponentTypeID findComponentID(StringId name) const;
+    u64 getComponentMask(StringId name) const;
 
     // ----- General type descriptions (new) -----
     void registerType(const TypeDesc& desc);
-    const TypeDesc* findType(const String& name) const;
     const TypeDesc* findType(StringId name) const;
 
     String listComponents() const;
-    String describeComponent(const String& name) const;
+    String describeComponent(StringId name) const;
     usize componentCount() const;
 
     void registerBuiltinTypes();
@@ -149,23 +148,23 @@ private:
 
     // ECS component tables
     HashMap<ComponentTypeID, ComponentDesc> m_components;
-    HashMap<String, ComponentTypeID> m_name_to_id;
-    HashMap<ComponentTypeID, String> m_id_to_name;
-    HashMap<String, u64> m_name_to_mask;
+    HashMap<StringId, ComponentTypeID> m_name_to_id;
+    HashMap<ComponentTypeID, StringId> m_id_to_name;
+    HashMap<StringId, u64> m_name_to_mask;
     ComponentTypeID m_next_id = 0;
 
     // General type table
-    HashMap<String, TypeDesc> m_types;
+    HashMap<StringId, TypeDesc> m_types;
 };
 
 // ------------------------------------------------------------------
 // Helper macros
 // ------------------------------------------------------------------
 #define REG_FIELD(struct_type, field_name, field_type) \
-    Entelechy::FieldDesc{ #field_name, #field_type, offsetof(struct_type, field_name), sizeof(struct_type::field_name), Entelechy::TypeKind::Atom, {} }
+    Entelechy::FieldDesc{ #field_name##_sid, #field_type##_sid, offsetof(struct_type, field_name), sizeof(struct_type::field_name), Entelechy::TypeKind::Atom, {} }
 
 #define REG_COMPOSITE_FIELD(struct_type, field_name, field_type) \
-    Entelechy::FieldDesc{ #field_name, #field_type, offsetof(struct_type, field_name), sizeof(struct_type::field_name), Entelechy::TypeKind::Composite, #field_type }
+    Entelechy::FieldDesc{ #field_name##_sid, #field_type##_sid, offsetof(struct_type, field_name), sizeof(struct_type::field_name), Entelechy::TypeKind::Composite, #field_type##_sid }
 
 #define REFLECT_COMPONENT(Name, ...) \
     namespace { \
@@ -174,7 +173,7 @@ private:
             Entelechy::ComponentTypeID id = Entelechy::TypeRegistry::instance().getOrAllocateTypeID<Name>(); \
             u64 mask = (1ull << id); \
             Entelechy::TypeRegistry::instance().registerComponent(id, mask, \
-                Entelechy::makeComponentDesc<Name>(#Name, { __VA_ARGS__ })); \
+                Entelechy::makeComponentDesc<Name>(#Name##_sid, { __VA_ARGS__ })); \
         } \
     } _auto_reg_##Name##_instance; \
     }

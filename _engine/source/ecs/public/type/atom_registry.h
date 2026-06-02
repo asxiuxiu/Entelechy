@@ -18,7 +18,7 @@ using AtomDeserializeFn = void(*)(void* ptr, const char* json);
 using AtomCopyFn = void(*)(void* dst, const void* src);
 
 struct AtomType {
-    String name;
+    StringId name;
     usize size = 0;
     AtomInspectorFn inspectorDraw = nullptr;
     AtomSerializeFn serialize = nullptr;
@@ -31,17 +31,16 @@ public:
     static AtomRegistry& instance();
 
     void registerAtom(const AtomType& type);
-    const AtomType* find(const String& name) const;
     const AtomType* find(StringId name) const;
 
     // Convenience: draw a field if its type is registered as an atom
-    bool tryDraw(const String& typeName, const char* label, void* ptr) const;
+    bool tryDraw(StringId typeName, const char* label, void* ptr) const;
 
     void registerBuiltinAtoms();
 
 private:
     AtomRegistry() = default;
-    HashMap<String, AtomType> m_atoms;
+    HashMap<StringId, AtomType> m_atoms;
 };
 
 } // namespace Entelechy

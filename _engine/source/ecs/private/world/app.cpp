@@ -43,9 +43,9 @@ void App::sortPlugins() {
     if (n <= 1) return;
 
     // Build name -> original index map for dependency resolution.
-    HashMap<String, usize> nameToIndex;
+    HashMap<StringId, usize> nameToIndex;
     for (usize i = 0; i < n; ++i) {
-        nameToIndex.insert(String(m_plugins[i]->name()), i);
+        nameToIndex.insert(StringInternPool::instance().intern(m_plugins[i]->name()), i);
     }
 
     // Group plugins by LoadingPhase.
@@ -112,7 +112,7 @@ void App::sortPlugins() {
                 if (!depGlobalIdx) {
                     LOG_WARN(LogCategories::kEngine,
                         "Plugin '%s' declares dependency '%s' which is not registered",
-                        p->name(), depName.c_str());
+                        p->name(), StringInternPool::instance().resolve(depName));
                     continue;
                 }
                 auto* depLocalIdx = localIndex.find(*depGlobalIdx);

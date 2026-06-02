@@ -124,10 +124,10 @@ bool Material::init(IRHIDevice* device, ShaderCache* shaderCache,
         u32 nextTextureSlot = 0;
 
         for (u32 i = 0; i < paramCount; ++i) {
-            const char* name = params[i].name;
-            if (!name || name[0] == '\0') continue;
+            StringId name = params[i].name;
+            if (name.value() == 0) continue;
 
-            String key(name);
+            StringId key = name;
             ParamSlot slot;
             slot.type = params[i].type;
 
@@ -174,48 +174,48 @@ void Material::shutdown() {
 // ------------------------------------------------------------------
 // Parameter setters
 // ------------------------------------------------------------------
-void Material::setFloat(const char* name, f32 value) {
-    if (!m_uniform_data || !name) return;
-    auto* slot = m_params.find(String(name));
+void Material::setFloat(StringId name, f32 value) {
+    if (!m_uniform_data || name.value() == 0) return;
+    auto* slot = m_params.find(name);
     if (!slot || slot->type != MaterialParamType::Float) return;
     std::memcpy(m_uniform_data + slot->offset, &value, sizeof(f32));
 }
 
-void Material::setVec2(const char* name, const Vec2& value) {
-    if (!m_uniform_data || !name) return;
-    auto* slot = m_params.find(String(name));
+void Material::setVec2(StringId name, const Vec2& value) {
+    if (!m_uniform_data || name.value() == 0) return;
+    auto* slot = m_params.find(name);
     if (!slot || slot->type != MaterialParamType::Vec2) return;
     std::memcpy(m_uniform_data + slot->offset, &value.x, 2 * sizeof(f32));
 }
 
-void Material::setVec3(const char* name, const Vec3& value) {
-    if (!m_uniform_data || !name) return;
-    auto* slot = m_params.find(String(name));
+void Material::setVec3(StringId name, const Vec3& value) {
+    if (!m_uniform_data || name.value() == 0) return;
+    auto* slot = m_params.find(name);
     if (!slot || slot->type != MaterialParamType::Vec3) return;
     std::memcpy(m_uniform_data + slot->offset, &value.x, 3 * sizeof(f32));
     // Note: std140 vec3 has 4 floats (16 bytes), but we only write 3.
     // The shader only reads .xyz; the w component is padding.
 }
 
-void Material::setVec4(const char* name, const Vec4& value) {
-    if (!m_uniform_data || !name) return;
-    auto* slot = m_params.find(String(name));
+void Material::setVec4(StringId name, const Vec4& value) {
+    if (!m_uniform_data || name.value() == 0) return;
+    auto* slot = m_params.find(name);
     if (!slot || slot->type != MaterialParamType::Vec4) return;
     std::memcpy(m_uniform_data + slot->offset, &value.x, 4 * sizeof(f32));
 }
 
-void Material::setMat4(const char* name, const Mat4& value, bool /*transpose*/) {
-    if (!m_uniform_data || !name) return;
-    auto* slot = m_params.find(String(name));
+void Material::setMat4(StringId name, const Mat4& value, bool /*transpose*/) {
+    if (!m_uniform_data || name.value() == 0) return;
+    auto* slot = m_params.find(name);
     if (!slot || slot->type != MaterialParamType::Mat4) return;
     std::memcpy(m_uniform_data + slot->offset, value.m, 16 * sizeof(f32));
 }
 
-void Material::setTexture(const char* name, RHITextureRef texture) {
-    if (!name) return;
-    auto* slot = m_params.find(String(name));
+void Material::setTexture(StringId name, RHITextureRef texture) {
+    if (name.value() == 0) return;
+    auto* slot = m_params.find(name);
     if (!slot || slot->type != MaterialParamType::Texture) return;
-    m_textures.insert(String(name), texture);
+    m_textures.insert(name, texture);
 }
 
 // ------------------------------------------------------------------
@@ -228,30 +228,30 @@ void Material::bind(IRHICommandList* cmdList) {
 
     // Upload scalar/vector/matrix uniforms
     for (auto kv : m_params) {
-        const String& name = kv.first;
+        StringId name = kv.first;
         const ParamSlot& slot = kv.second;
 
         switch (slot.type) {
             case MaterialParamType::Float: {
                 f32 v;
                 std::memcpy(&v, m_uniform_data + slot.offset, sizeof(f32));
-                cmdList->setUniformFloat(name.c_str(), v);
+                cmdList->setUniformFloat(name, v);
                 break;
             }
             case MaterialParamType::Vec2: {
-                cmdList->setUniformVec2(name.c_str(), reinterpret_cast<f32*>(m_uniform_data + slot.offset));
+                cmdList->setUniformVec2(name, reinterpret_cast<f32*>(m_uniform_data + slot.offset));
                 break;
             }
             case MaterialParamType::Vec3: {
-                cmdList->setUniformVec3(name.c_str(), reinterpret_cast<f32*>(m_uniform_data + slot.offset));
+                cmdList->setUniformVec3(name, reinterpret_cast<f32*>(m_uniform_data + slot.offset));
                 break;
             }
             case MaterialParamType::Vec4: {
-                cmdList->setUniformVec4(name.c_str(), reinterpret_cast<f32*>(m_uniform_data + slot.offset));
+                cmdList->setUniformVec4(name, reinterpret_cast<f32*>(m_uniform_data + slot.offset));
                 break;
             }
             case MaterialParamType::Mat4: {
-                cmdList->setUniformMat4(name.c_str(), reinterpret_cast<f32*>(m_uniform_data + slot.offset), false);
+                cmdList->setUniformMat4(name, reinterpret_cast<f32*>(m_uniform_data + slot.offset), false);
                 break;
             }
             default:
@@ -261,7 +261,7 @@ void Material::bind(IRHICommandList* cmdList) {
 
     // Bind textures and set sampler uniforms
     for (auto kv : m_textures) {
-        const String& name = kv.first;
+        StringId name = kv.first;
         RHITexture* texture = kv.second.get();
         if (!texture) continue;
 
@@ -269,7 +269,7 @@ void Material::bind(IRHICommandList* cmdList) {
         if (!slot) continue;
 
         cmdList->bindTexture(slot->textureSlot, texture);
-        cmdList->setUniformInt(name.c_str(), static_cast<i32>(slot->textureSlot));
+        cmdList->setUniformInt(name, static_cast<i32>(slot->textureSlot));
     }
 }
 

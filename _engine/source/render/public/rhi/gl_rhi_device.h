@@ -138,12 +138,12 @@ public:
     void clearRenderTarget(u32 attachmentIndex, const f32 color[4]) override;
 
     // Uniform and texture binding (Phase 1 immediate GL)
-    void setUniformFloat(const char* name, f32 value) override;
-    void setUniformInt(const char* name, i32 value) override;
-    void setUniformVec2(const char* name, const f32* value) override;
-    void setUniformVec3(const char* name, const f32* value) override;
-    void setUniformVec4(const char* name, const f32* value) override;
-    void setUniformMat4(const char* name, const f32* value, bool transpose = false) override;
+    void setUniformFloat(StringId name, f32 value) override;
+    void setUniformInt(StringId name, i32 value) override;
+    void setUniformVec2(StringId name, const f32* value) override;
+    void setUniformVec3(StringId name, const f32* value) override;
+    void setUniformVec4(StringId name, const f32* value) override;
+    void setUniformMat4(StringId name, const f32* value, bool transpose = false) override;
     void bindTexture(u32 slot, RHITexture* texture) override;
 
     // Debug markers
@@ -154,7 +154,7 @@ public:
 private:
     // Cached uniform location lookup (program + name) -> location.
     // Eliminates per-draw-call string hashing inside the GL driver.
-    GLint getUniformLocation(const char* name);
+    GLint getUniformLocation(StringId name);
 
     bool m_inside_render_pass = false;
     GLuint m_bound_program = 0;

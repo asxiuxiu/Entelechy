@@ -2,20 +2,42 @@
 
 ## 基础库优先
 
-项目已封装的基础库（`core/` 模块）必须优先使用，禁止在基础库已覆盖的领域重复引入 STL 或自行实现：
+项目已封装的基础库（`core/` 模块）必须优先使用。详细对照表与底线规则见 [Core 模块规范](_engine/source/core/AGENTS.md)。
 
-| 基础库设施 | 替代目标 | 说明 |
-|---|---|---|
-| `DynamicArray<T>` | `std::vector<T>` | 带可插拔分配器的动态数组 |
-| `HashMap<K,V>` / `HashSet<K>` | `std::unordered_map` / `std::unordered_set` | 开放寻址哈希表 |
-| `SmallString` | `std::string` | SSO 小字符串 |
-| `formatString` | `std::format` / `snprintf` | 零堆分配格式化 |
-| `Vec2/Vec3/Vec4/Mat4/Quat` 等 | `glm::` | 数学库 |
-| `DefaultAllocator` / `IAllocator` | 裸 `new/delete` / `malloc/free` | 对齐分配器 |
-| `ObjectPool<T>` | 裸 `new/delete`（对象池场景） | 带代际安全检查的对象池 |
-| `FrameArena` | 临时/帧级堆分配 | O(1) 重置的帧分配器 |
+**底线**：基础库已有对应实现时，不允许以"习惯""省事"为由绕回 STL 或裸分配。
 
-**底线**：基础库已有对应实现时，不允许以"习惯""省事"为由绕回 STL 或裸分配。若基础库接口确实不满足需求，先讨论扩展基础库，而非在业务代码里开例外。
+## 字符串体系
+
+**决策口诀**：先问"要不要存进组件/字典键？" → 要，用 `StringId`；再问"要不要修改/拼接？" → 要，用 `String`；否则默认 `StringView`。
+
+三种角色的详细约束、构造规则与已 StringId 化模块清单见 [Core 模块规范](_engine/source/core/AGENTS.md)。
+
+## 基础设计优先：拒绝适配层与兼容后门
+
+**核心原则**：基础类型和核心接口的设计必须一步到位正确。不能因为"上层还有旧代码在用"就给底层留兼容重载、隐式转换或适配层。
+
+### 禁止行为
+
+1. **禁止为旧调用方保留废弃 API**
+   - ❌ `findComponent(const String& name)` + `findComponent(StringId name)` 双轨并存
+   - ✅ 直接删除 `const String&` 版本，所有调用方同步改为 `StringId`
+
+2. **禁止在基础类型上开隐式构造后门**
+   - ❌ `StringId` 保留 public `StringId(const char*)` 让运行时可以直接构造
+   - ✅ 运行时构造强制私有化，只能通过 `StringInternPool::intern()` 工厂生产
+
+3. **禁止用适配层包装设计缺陷**
+   - ❌ "先写个 `StringToIdAdapter` 过渡一下，以后再说"
+   - ✅ 直接改到底层类型定义，让编译错误驱动上层同步修复
+
+### 实施方式
+
+- **改底层接口时，直接改到底**。不要保留旧签名，不要加 `_deprecated` 后缀，不要加 `[[deprecated]]` 拖时间。
+- **让编译失败成为迁移清单**。编译器报错比文档更可靠，每个报错就是一个必须修复的调用点。
+- **宁可单次改动量大，不要堆积 hack 代码**。单次大规模机械重构的成本远低于长期维护适配层。
+- **上层调用方跟着改是义务，不是可选**。基础设计正确后，上层代码必须适配，没有"暂时兼容"的选项。
+
+> **判断标准**：如果某个改动让代码"看起来对旧代码更友好"，但增加了接口复杂度或破坏了类型约束，那就是错的。基础设计永远优先于调用方便利。
 
 ## 命名空间
 
@@ -72,62 +94,19 @@
 
 ## 自动化检查
 
-项目配置了 `scripts/tools/lint.py` 自动检查代码规范，通过 git 原生 `.git/hooks/pre-commit` 在 `git commit` 前触发。
+项目配置了 `scripts/tools/lint.py` 自动检查代码规范，由 `.git/hooks/pre-commit` 在 `git commit` 前触发。完整规则表、排除规则与运行方式见 [LINT_RULES.md](scripts/tools/LINT_RULES.md)。
 
-### 检查项
-
-| 规则 | 说明 | 严重程度 |
-|------|------|----------|
-| `naming.member-variable` | 成员变量须为 `m_snake_case` | error |
-| `naming.function` | 函数须为 `camelCase` | error |
-| `naming.class` | 类/结构体须为 `PascalCase` | error |
-| `assert.bare` | 禁止裸 `assert()`，须用 `CHECK/VERIFY/ENSURE` | error |
-| `language.chinese-comment` | 代码注释须为英文 | warning |
-| `format.line-ending` | 须使用 LF 换行符 | warning |
-| `format.encoding` | 须使用有效 UTF-8 编码 | warning |
-| `cmake.relative-path` | `CMakeLists.txt` 须用 `${CMAKE_CURRENT_LIST_DIR}` | error |
-
-### 手动运行
+常用命令：
 
 ```bash
 # 检查所有源文件
 python scripts/tools/lint.py
 
-# 仅检查 git staged 文件（pre-commit 场景）
+# 仅检查 git staged 文件
 python scripts/tools/lint.py --staged
 
-# 自动修复换行符（CRLF → LF）
+# 自动修复换行符
 python scripts/tools/lint.py --fix
-
-# 检查指定文件/目录
-python scripts/tools/lint.py _engine/source/core/
-```
-
-### 排除规则
-
-- **不检查**：`build/`、`scripts/`、Conan 引入的第三方依赖
-- **内部第三方模块**（如 `imgui/`）：模块自有 API 不检查，但项目代码调用该模块时须遵守规范
-
-### 安装 pre-commit hook
-
-```bash
-# 复制 hook 到 git hooks 目录（已预配置，新 clone 仓库需执行一次）
-cp .git/hooks/pre-commit.sample .git/hooks/pre-commit  # 如不存在
-# 然后编辑 .git/hooks/pre-commit 加入 lint 调用
-```
-
-实际 hook 脚本已写入 `.git/hooks/pre-commit`：
-
-```sh
-#!/bin/sh
-cd "$(dirname "$0")/../.." || exit 1
-python scripts/tools/lint.py --staged
-EXIT_CODE=$?
-if [ $EXIT_CODE -ne 0 ]; then
-    echo "[pre-commit] Lint checks failed. Fix violations before committing."
-    exit 1
-fi
-exit 0
 ```
 
 ## 技术债务记录（`TODO.md`）

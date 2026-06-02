@@ -30,9 +30,6 @@
 ## Render / RHI
 > 2026-05-31：已完成级别 1 轻量优化（调试标注 + Uniform Cache + 错误码骨架）。
 
-- [x] Render / RHI | **级别 1 — 调试标注与诊断**：`IRHICommandList` 新增 `pushDebugGroup` / `popDebugGroup` / `insertDebugMarker`；`GPUResource` 新增 `setDebugName`；GL 后端映射到 `GL_KHR_debug` / OpenGL 4.3+ 的 `glPushDebugGroup` / `glObjectLabel`。
-- [x] Render / RHI | **级别 1 — Uniform Location 缓存**：`GLCommandList` 内部维护 `HashMap<(program, StringId), GLint>`，消除每 Draw Call 的 `glGetUniformLocation` 字符串查询开销。
-- [x] Render / RHI | **级别 1 — 统一错误码骨架**：`rhi_types.h` 新增 `RHIErrorCode` 枚举（`Success/InvalidArgument/OutOfMemory/DeviceLost/ShaderCompilationFailed/UnsupportedFeature`），为跨后端错误分类预留基础。
 - [ ] Render / RHI | `GLRHIDevice` 未包装为 ECS `Resource`，`MeshRenderSystem` 仍直接调用 GL 裸接口，需让渲染系统通过 `IRHICommandList` 录制命令。
   - 参考：`_engine/source/render/rhi_device.h`
 - [ ] Render / RHI | 当 Draw Call > 2000 且 Profiling 确认 CPU 瓶颈时，`GLCommandList` 的即时执行模式无法扩展，需引入简化版延迟命令缓冲（`LinearAllocator` + 引擎级命令枚举 + `switch-case` 翻译执行），单线程录制 → 多线程并行生成 `DrawPacket` → 单线程排序 → 单线程翻译。
@@ -104,8 +101,6 @@
 ## Base Layer / 基础层优化
 > 本章节完整融合 `plans/BaseLayer-Optimizations-Plan.md` 全部内容（已完成 + 未做 + 回探替换确认）。原 plan 文件可视为已归档。
 
-### 已完成的简单优化（BaseLayer Plan 归档）
-
 ### 回探替换时机确认（阶段 1/2 → 阶段 3）
 
 | 回探项 | 当前状态 | 备注 |
@@ -132,8 +127,6 @@
   - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — Intern 池全局状态应以 ECS Resource 形式存在
 - [ ] Base Layer | `StringId` 增加 intern 池索引。当前字符串碰撞概率极低，与 StringInternPool Resource 化一起改。
   - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — `u64 m_hash` + `u32 m_index` 二次校验
-- [x] Base Layer | `BasicString` union-SSO → `std::basic_string` thin wrapper（chaos route）。已完成，消除 strict aliasing UB，利用工业级 std::string SSO。
-  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — 工业级实现用 `std::aligned_storage` 或手动指针运算；`可变字符串与 SSO.md` — chaos route 推荐
 - [ ] Base Layer | 日志 `flush()` devices 锁竞争优化。初版日志量小，锁竞争不显著，高并发日志场景前实施。
   - 参考：知识库 `Notes/SelfGameEngine/Hello-Engine-Window/可视化日志系统.md` — 未来替换为 TLS 无锁环形缓冲
 
@@ -149,9 +142,6 @@
 - [ ] Module / 模块架构 | `core/` 与具体业务之间缺少"比 core 更业务、比 gameplay 更通用"的层，需引入 `common/` 通用中间件层，包含场景图（Transform 层级脏标记传播）、Prefab 资产结构、序列化框架、状态机基础、调试绘制接口。
 - [ ] Module / 模块架构 | `render/` 下所有文件平铺，随着 RHI、材质、后处理加入会越来越混乱，需按 `render/rhi/`（RHI 抽象层 + 各后端）、`render/renderer/`（RenderGraph、RenderPass）、`render/material/`（Material、ShaderCache）、`render/2d/`（Sprite、UI）、`render/post_process/`（后处理栈）分层。
 - [ ] Module / 模块架构 | `math/aabb.h:42` 注册了 ECS 组件 `REFLECT_COMPONENT(AABB)`，迫使 `math` 模块依赖 `core/type_registry.h`，破坏底层纯净性，需在 `render/components/` 下新建 `WorldAabb.h`（主世界）与 `RenderAabb.h`（渲染世界）作为专用 ECS 组件，`math/aabb.h` 移除 `type_registry.h` 依赖，恢复零依赖。
-
-## Core Runtime / 阶段 4 优化（已完成的低成本项）
-> 2026-05-30：参照 SelfGameEngine 第四阶段知识库，执行了一批低成本直接优化，以下已落地。
 
 ## Core Runtime / 阶段 4 差距（尚未实施）
 > 以下项来自 SelfGameEngine 第四阶段知识库的「默认推荐」路径，当前代码已实现骨架但关键特性缺失。
@@ -169,7 +159,6 @@
 - [ ] Core Runtime | `GlobalTransform` 用 `Affine3A` 替代 `Mat4`。`Affine3A` 48 字节 vs `Mat4` 64 字节，省 25% 内存，且能正确表达层级叠加后的 shear。Bevy 生产验证。
   - 参考：知识库 `Notes/SelfGameEngine/核心运行时闭环/场景图与变换.md` 问题 2
 - [ ] Core Runtime | `imgui_panels.cpp` 中仍有 `Fallback: legacy ComponentDesc recursive lookup` 分支，新增组件若未走新反射路径会静默回退到旧逻辑，需补全 `AtomRegistry::registerBuiltinAtoms()` 覆盖所有引擎内置原子类型，`imgui_panels.cpp` 中删除 legacy 分支，强制走 `inspectorDrawComponent()` 递归绘制。
-- [x] Core Runtime | `App::addPlugin()` 只有唯一性检查，无依赖声明与拓扑排序。 **2026-05-31 已修复**：新增 `IPlugin::dependencies()` / `phase()` / `ready()` / `finish()`，`App::sortPlugins()` 实现 LoadingPhase 分组 + Kahn 拓扑排序 + 循环依赖检测。
 - [ ] Core Runtime | `ViewBinnedPhases` / `ViewSortedPhases` / `ViewVisibleList`（`render/RenderResources.h`、`render/culling/ViewVisibleList.h`）未注册 `REFLECT_COMPONENT`，Inspector 和序列化系统无法遍历字段，需补全注册，并确认 `ViewVisibleList` 中的 `DynamicArray<Entity>` 反射系统是否支持容器字段（当前可能只支持 Atom/Composite）。
 
 ## Build System / 构建体系重构
@@ -182,7 +171,6 @@
   - 文件：`launch/generator.py`
 - [ ] Build System | `main.cpp.in` 模板中硬编码了大量跨模块 include（如 `#include "glfw_window.h"`、`#include "render/opengl_backend.h"`），未通过模块依赖自动推导。未来应让各模块在 `entelechy_module()` 中声明「需要暴露给 main 的头文件」，或由 CMake 自动生成 include 列表。
   - 文件：`launch/templates/main.cpp.in`
-- [x] Build System | `.conan/profiles/default` `compiler.cppstd=14` 与 `CMakeLists.txt` `CMAKE_CXX_STANDARD 20` 冲突产生警告。**2026-05-31 已修复**：profile 改为 `compiler.cppstd=20`。
 
 ## ThreadPool / 线程池
 
@@ -213,9 +201,6 @@
 
 ## Allocator / ECS 存储优化（2026-05-31 完成阶段一至四基础实现，以下待后续细化）
 
-- [x] Allocator / ECS 存储优化 | `ecs/storage/archetype_chunk.h` 中 `Chunk` 定义使用 `alignas(64) u8 storage[CAPACITY]` 作为内联数组，导致 `sizeof(Chunk) = 16448 > CAPACITY = 16384`，`chunkDataCapacity()` 被迫返回 0，每个 chunk 只能容纳 1 个实体（`entitiesPerChunk = 1`），丧失了 16 KiB chunk 设计的缓存局部性优势。**2026-05-31 已修复**：改为分离式布局（`Chunk` 纯 64 字节元数据头部 + 同一次分配中紧跟其后的 16 KiB payload），`chunkData()` 通过 `&chunk + sizeof(Chunk)` 访问，`chunkDataCapacity()` 返回完整 `16384`。
-- [x] Allocator / ECS 存储优化 | `ecs/private/archetype/archetype_world.cpp` `moveEntityToArchetypeRaw()` 使用 `std::memcpy` 在 chunk 间移动组件数据，对非 POD / 含析构函数的类型（如 `SmallString`、`DynamicArray`）是未定义行为。**2026-05-31 已修复**：`ComponentDesc` 扩展 `dtor` / `moveCtor` / `copyCtor` 函数指针（由 `makeComponentDesc<T>()` 模板自动根据 `std::is_trivially_destructible` / `std::is_move_constructible` / `std::is_copy_constructible` 推导），`Archetype` 同步存储函数指针数组；`destroy()`、`moveEntityToArchetypeRaw()`、`~ArchetypeWorld()` 中所有 `memcpy` 路径替换为「析构旧位置 → move/copy-construct 新位置 → 析构源位置」的正确序列，平凡类型自动退化回 `memcpy`。
-- [x] Allocator / ECS 存储优化 | `ecs/public/ecs/archetype/archetype_world.inl` `QueryArchetype::Iterator::operator*()` 每次解引用都通过 `archetypes` 哈希表线性查找匹配的 `Archetype*`，即使 archetype 数量少，cache miss 仍不可忽视。**2026-05-31 已修复**：`Iterator` 增加 `Archetype* currentArchetype` 字段，`advanceToNextValid()` 在切换 archetype 时同步缓存；`operator*()` 直接使用 `currentArchetype` 而不再查哈希表。额外收益：`Chunk` 增加 `archetypePtr` 反向指针，`getComponentData()` 也消除了哈希表查找。
 - [ ] Allocator / ECS 存储优化 | `ecs/public/ecs/archetype/archetype_world.h` `ArchetypeWorld` 目前与 `World`（SparseSet+Column）并存，未实现双轨迁移路径。`ArchetypeWorld` 缺少 `setParent`、批量 `spawn`、事件系统、`CommandBuffer` 等能力，无法直接替换现有 `World`。需在 `App` / `Scheduler` 中支持可选的 world 后端，逐步将 System 从 `World` 迁移到 `ArchetypeWorld`。
   - **阻塞点**：`System::tick(World&, ...)` / `Scheduler::tick(World&, ...)` / `CommandBuffer::apply(World&)` 签名硬编码旧 `World`；`Query<Cs...>` 模板依赖 `World::getComponentArray`；`AgentBridge` 直接遍历 `world.componentArrays()`；渲染系统的 `IExtractSystem` 接口也硬编码 `World&`。迁移需跨 `ecs` / `motor` / `render` / `bridge` / `_game` 多个模块，非 ECS 模块内部可独立完成。
 - [ ] Allocator / ECS 存储优化 | `test_runner/CMakeLists.txt` 依赖 `entelechy_get_enabled_modules` 收集测试 OBJECT 库，但各模块 `tests/CMakeLists.txt` 使用裸 `add_library(... OBJECT)` 而非 `entelechy_module()`，导致测试目标无法被自动发现。当前 workaround 是在每个 `tests/CMakeLists.txt` 末尾手动 `set_property(GLOBAL APPEND PROPERTY ENTELECHY_ENABLED_MODULES ...)`，应统一改用 `entelechy_module(NAME XxxTests TYPE OBJECT NO_TESTS)`。

@@ -153,8 +153,24 @@ public:
         }
     }
 
+    void set(Entity e, T&& value) {
+        if (!m_sparse_set.has(e.id)) {
+            m_sparse_set.add(e.id);
+            m_column.pushBack(std::move(value));
+        } else {
+            u32 idx = m_sparse_set.indexOf(e.id);
+            m_column[idx] = std::move(value);
+        }
+    }
+
     void setRaw(Entity e, const void* data) override {
-        set(e, *static_cast<const T*>(data));
+        if constexpr (std::is_copy_assignable_v<T> && std::is_copy_constructible_v<T>) {
+            set(e, *static_cast<const T*>(data));
+        } else {
+            (void)e;
+            (void)data;
+            CHECK(false && "setRaw is not supported for move-only component types");
+        }
     }
 
     void remove(Entity e) override {

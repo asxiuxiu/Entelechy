@@ -29,6 +29,8 @@ public:
         view.proj_matrix = Mat4::identity();
         view.frustum = Frustum::fromMatrix(Mat4::identity());
         view.viewport = Rect{0.0f, 0.0f, 800.0f, 600.0f};
+        view.near_plane = 0.1f;
+        view.far_plane = 100.0f;
         renderWorld.addComponent(viewEntity, view);
 
         renderWorld.addComponent(viewEntity, ViewVisibleList{});

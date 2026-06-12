@@ -4,15 +4,8 @@
 #include "render/culling/ViewVisibleList.h"
 #include "render/phase/RenderResources.h"
 #include "ecs/query/query.h"
-#include <cstring>
 
 namespace Entelechy {
-
-static u32 floatBitsToUint(f32 f) {
-    u32 u;
-    std::memcpy(&u, &f, sizeof(f32));
-    return u;
-}
 
 void QueueDrawsSystem::run(World& renderWorld) {
     // Locate the single view entity (for depth calculation and resource lookup).
@@ -61,8 +54,10 @@ void QueueDrawsSystem::run(World& renderWorld) {
         Vec3 viewPos = viewMatrix.transformPoint(worldPos);
         f32 depth = viewPos.z;
 
-        // Pack depth into sort key bits.
-        u32 depthBits = floatBitsToUint(depth);
+        // Normalize view-space depth to [0, 1] over the view frustum and encode
+        // it as a monotonic uint. This avoids the IEEE-754 uint ordering bug for
+        // negative or near-zero viewZ values.
+        u32 depthBits = encodeLinearDepth(depth, view->near_plane, view->far_plane);
 
         RenderPhase phase = material->render_phase;
         SortKey key{};

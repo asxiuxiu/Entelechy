@@ -21,13 +21,17 @@ struct ExtractedView {
     Mat4 proj_matrix;
     Frustum frustum;
     Rect viewport;
+    f32 near_plane = 0.1f;
+    f32 far_plane = 1000.0f;
 };
 
 REFLECT_COMPONENT(ExtractedView,
     REG_FIELD(ExtractedView, view_matrix, Mat4),
     REG_FIELD(ExtractedView, proj_matrix, Mat4),
     REG_FIELD(ExtractedView, frustum, Frustum),
-    REG_FIELD(ExtractedView, viewport, Rect)
+    REG_FIELD(ExtractedView, viewport, Rect),
+    REG_FIELD(ExtractedView, near_plane, f32),
+    REG_FIELD(ExtractedView, far_plane, f32)
 )
 
 } // namespace Entelechy

@@ -42,6 +42,8 @@ void ExtractCameraSystem::extract(const World& mainWorld, World& renderWorld, Fr
             ev->proj_matrix = proj_matrix;
             ev->frustum = Frustum::fromMatrix(proj_matrix * view_matrix);
             ev->viewport = Rect{0.0f, 0.0f, static_cast<f32>(w), static_cast<f32>(h)};
+            ev->near_plane = camera->near_plane;
+            ev->far_plane = camera->far_plane;
             found = true;
             break;
         }
@@ -53,6 +55,8 @@ void ExtractCameraSystem::extract(const World& mainWorld, World& renderWorld, Fr
             view.proj_matrix = proj_matrix;
             view.frustum = Frustum::fromMatrix(proj_matrix * view_matrix);
             view.viewport = Rect{0.0f, 0.0f, static_cast<f32>(w), static_cast<f32>(h)};
+            view.near_plane = camera->near_plane;
+            view.far_plane = camera->far_plane;
             renderWorld.addComponent(viewEntity, view);
 
             // Pre-bind downstream view resources to the same entity so that

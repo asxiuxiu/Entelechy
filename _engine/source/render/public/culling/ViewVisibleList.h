@@ -2,6 +2,7 @@
 #include "core/foundation_types.h"
 #include "core/container/dynamic_array.h"
 #include "ecs/type/entity_registry.h"
+#include "ecs/type/type_registry.h"
 
 namespace Entelechy {
 
@@ -10,5 +11,9 @@ namespace Entelechy {
 struct ViewVisibleList {
     DynamicArray<Entity> entities;
 };
+
+REFLECT_COMPONENT(ViewVisibleList,
+    REG_FIELD(ViewVisibleList, entities, DynamicArray<Entity>)
+)
 
 } // namespace Entelechy

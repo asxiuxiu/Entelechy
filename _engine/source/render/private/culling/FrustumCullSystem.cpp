@@ -8,26 +8,22 @@
 namespace Entelechy {
 
 void FrustumCullSystem::run(World& renderWorld) {
-    // Find the view entity and its frustum.
+    // Find the single view entity.
+    Entity viewEntity{0, 0};
     const ExtractedView* view = nullptr;
     Query<ExtractedView> viewQuery(renderWorld);
     for (auto [ve, ev] : viewQuery) {
+        viewEntity = ve;
         view = ev;
         break;
     }
     if (!view) return;
 
-    // Find or create ViewVisibleList on a dedicated entity.
-    ViewVisibleList* visibleList = nullptr;
-    Query<ViewVisibleList> vlQuery(renderWorld);
-    for (auto [ve, vl] : vlQuery) {
-        visibleList = vl;
-        break;
-    }
+    // Ensure ViewVisibleList is attached to the same view entity.
+    ViewVisibleList* visibleList = renderWorld.getComponent<ViewVisibleList>(viewEntity);
     if (!visibleList) {
-        Entity vlEntity = renderWorld.spawn();
-        renderWorld.addComponent(vlEntity, ViewVisibleList{});
-        visibleList = renderWorld.getComponent<ViewVisibleList>(vlEntity);
+        renderWorld.addComponent(viewEntity, ViewVisibleList{});
+        visibleList = renderWorld.getComponent<ViewVisibleList>(viewEntity);
     }
     visibleList->entities.clear();
 

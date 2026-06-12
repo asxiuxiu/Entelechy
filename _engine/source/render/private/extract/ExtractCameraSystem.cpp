@@ -3,6 +3,8 @@
 #include "render/components/Camera.h"
 #include "ecs/component/transform_component.h"
 #include "render/components/RenderCamera.h"
+#include "render/culling/ViewVisibleList.h"
+#include "render/phase/RenderResources.h"
 #include "core/math/mat4.h"
 #include "ecs/query/query.h"
 
@@ -52,6 +54,13 @@ void ExtractCameraSystem::extract(const World& mainWorld, World& renderWorld, Fr
             view.frustum = Frustum::fromMatrix(proj_matrix * view_matrix);
             view.viewport = Rect{0.0f, 0.0f, static_cast<f32>(w), static_cast<f32>(h)};
             renderWorld.addComponent(viewEntity, view);
+
+            // Pre-bind downstream view resources to the same entity so that
+            // FrustumCullSystem and QueueDrawsSystem can find them with O(1)
+            // lookups instead of spawning separate entities each frame.
+            renderWorld.addComponent(viewEntity, ViewVisibleList{});
+            renderWorld.addComponent(viewEntity, ViewBinnedPhases{});
+            renderWorld.addComponent(viewEntity, ViewSortedPhases{});
         }
 
         // Checkpoint 1: only the first camera is extracted.

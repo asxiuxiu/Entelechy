@@ -15,52 +15,36 @@ static u32 floatBitsToUint(f32 f) {
 }
 
 void QueueDrawsSystem::run(World& renderWorld) {
-    // Locate the view (for depth calculation).
+    // Locate the single view entity (for depth calculation and resource lookup).
+    Entity viewEntity{0, 0};
     const ExtractedView* view = nullptr;
     ConstQuery<ExtractedView> viewQuery(renderWorld);
     for (auto [ve, ev] : viewQuery) {
+        viewEntity = ve;
         view = ev;
         break;
     }
     if (!view) return;
 
-    // Locate or create the phase containers.
-    ViewBinnedPhases* binned = nullptr;
-    ViewSortedPhases* sorted = nullptr;
-
-    Query<ViewBinnedPhases> bq(renderWorld);
-    for (auto [be, bp] : bq) {
-        binned = bp;
-        break;
-    }
+    // Ensure phase containers are attached to the same view entity.
+    ViewBinnedPhases* binned = renderWorld.getComponent<ViewBinnedPhases>(viewEntity);
     if (!binned) {
-        Entity e = renderWorld.spawn();
-        renderWorld.addComponent(e, ViewBinnedPhases{});
-        binned = renderWorld.getComponent<ViewBinnedPhases>(e);
+        renderWorld.addComponent(viewEntity, ViewBinnedPhases{});
+        binned = renderWorld.getComponent<ViewBinnedPhases>(viewEntity);
     }
     binned->opaque.clear();
     binned->alpha_mask.clear();
 
-    Query<ViewSortedPhases> sq(renderWorld);
-    for (auto [se, sp] : sq) {
-        sorted = sp;
-        break;
-    }
+    ViewSortedPhases* sorted = renderWorld.getComponent<ViewSortedPhases>(viewEntity);
     if (!sorted) {
-        Entity e = renderWorld.spawn();
-        renderWorld.addComponent(e, ViewSortedPhases{});
-        sorted = renderWorld.getComponent<ViewSortedPhases>(e);
+        renderWorld.addComponent(viewEntity, ViewSortedPhases{});
+        sorted = renderWorld.getComponent<ViewSortedPhases>(viewEntity);
     }
     sorted->transparent.clear();
     sorted->ui.clear();
 
-    // Locate the visible list.
-    ConstQuery<ViewVisibleList> vlQuery(renderWorld);
-    const ViewVisibleList* visibleList = nullptr;
-    for (auto [ve, vl] : vlQuery) {
-        visibleList = vl;
-        break;
-    }
+    // Get the visible list from the same view entity.
+    const ViewVisibleList* visibleList = renderWorld.getComponent<ViewVisibleList>(viewEntity);
     if (!visibleList) return;
 
     Mat4 viewMatrix = view->view_matrix;

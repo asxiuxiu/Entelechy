@@ -8,6 +8,8 @@
 #include <cstdio>
 #include <tuple>
 #include <memory>
+#include <utility>
+#include <type_traits>
 
 namespace Entelechy {
 
@@ -83,6 +85,15 @@ public:
     T* addComponent(Entity e, const T& comp) {
         auto* array = getOrCreateComponentArray<T>();
         array->set(e, comp);
+        m_entity_masks[e.id] |= TypeRegistry::instance().getMask<T>();
+        return array->get(e);
+    }
+
+    template<typename T>
+    std::enable_if_t<std::is_rvalue_reference_v<T&&>, T*>
+    addComponent(Entity e, T&& comp) {
+        auto* array = getOrCreateComponentArray<T>();
+        array->set(e, std::forward<T>(comp));
         m_entity_masks[e.id] |= TypeRegistry::instance().getMask<T>();
         return array->get(e);
     }

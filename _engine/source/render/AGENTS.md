@@ -33,12 +33,12 @@
 | `render_world/ExtractSchedule.h/cpp` | Extract 阶段调度器：`IExtractSystem` 注册与顺序执行 |
 | `extract/ExtractRenderablesSystem.h/cpp` | 搬运 `(MeshHandle, MaterialHandle, GlobalTransform)` → Render World |
 | `extract/ExtractCameraSystem.h/cpp` | 搬运 `(Camera, GlobalTransform)` → `ExtractedView` |
-| `culling/FrustumCullSystem.h/cpp` | 逐实体视锥剔除：`ExtractedView.frustum` vs `AABB`；无 AABB 则始终可见 |
+| `culling/FrustumCullSystem.h/cpp` | 逐实体视锥剔除：`ExtractedView.frustum` vs `AABB`；无 AABB 则始终可见。**当实体数 > 256 且传入 `ThreadPool*` 时自动并行化** |
 | `culling/ViewVisibleList.h` | Culling 阶段显式产出：可见实体列表 |
 | `queue/PhaseItem.h` | 渲染阶段最小单元：`SortKey`（64-bit）+ `Entity` + `instance_count` |
 | `queue/BinnedRenderPhase.h/cpp` | Opaque/AlphaMask 分箱：按 `material_id` 聚类减少状态切换 |
-| `queue/SortedRenderPhase.h/cpp` | Transparent/UI 深度排序：远→近（`~depthBits`） |
-| `queue/QueueDrawsSystem.h/cpp` | 按 Phase 生成 Items：深度计算 + SortKey 构造 + 分箱/排序 |
+| `queue/SortedRenderPhase.h/cpp` | Transparent/UI 深度排序：远→近（`~depthBits`），使用 **64-bit 稳定基数排序** |
+| `queue/QueueDrawsSystem.h/cpp` | 按 Phase 生成 Items：深度计算 + SortKey 构造 + 分箱/排序。**当可见实体数 > 256 且传入 `ThreadPool*` 时自动并行化** |
 | `RenderResources.h` | Queue 阶段产出：`ViewBinnedPhases` + `ViewSortedPhases` |
 
 ## 重要入口

@@ -1,5 +1,5 @@
-﻿#include "render/queue/SortedRenderPhase.h"
-#include <algorithm>
+#include "render/queue/SortedRenderPhase.h"
+#include "core/algorithm/radix_sort.h"
 
 namespace Entelechy {
 
@@ -8,9 +8,14 @@ void SortedRenderPhase::addItem(const PhaseItem& item) {
 }
 
 void SortedRenderPhase::prepare() {
-    std::sort(m_items.begin(), m_items.end(), [](const PhaseItem& a, const PhaseItem& b) {
-        return a.sort_key.value < b.sort_key.value;
-    });
+    if (m_items.size() > 1) {
+        m_scratch.resize(m_items.size());
+        radixSort64(m_items.data(), m_items.size(),
+            [](const PhaseItem& item) -> u64 {
+                return item.sort_key.value;
+            },
+            m_scratch.data());
+    }
 }
 
 void SortedRenderPhase::clear() {

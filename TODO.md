@@ -50,6 +50,8 @@
 - [x] Render / RHI | `QueueDrawsSystem`（`render/queue/QueueDrawsSystem.cpp:48`）SortKey 的 float→uint 编码未处理 viewZ ≤ 0，IEEE-754 负数 bit pattern 按 uint 排序与数值排序不一致，若物体在相机后方或近平面处深度键会混乱，需将 viewZ 钳制到 `[near, far]` 后规范化到 `[0, 1]` 再编码为 uint（如 `uint32_t(depth * 0xFFFFFFFF)`），保证全范围单调。
   - 完成：2026-06-12，`ExtractedView` 增加 `near_plane` / `far_plane`；`QueueDrawsSystem` 改用 `encodeLinearDepth` 将 viewZ 规范化到 `[0, 1]` 后编码为单调 uint；透明/UI 仍通过按位取反实现远→近排序。新增 `SortKeyDepthEncoding` 单元测试覆盖负深度钳制、近平面/远平面边界、单调性与透明降序。
 - [ ] Render / RHI | `FrustumCullSystem` 和 `QueueDrawsSystem` 由调用方手动按顺序调用，无内建依赖声明，未来渲染步骤增多后容易顺序出错，需仿照 `ExtractSchedule` 引入 `RenderSchedule`（`IRenderSystem` 接口 + 注册表），在 `RenderWorld` 中统一定义 Extract → Cull → Queue → ... 的 SystemSet 链。
+- [ ] Render / RHI | `AABB`（`core/math/aabb.h`）未注册为 ECS 组件，`render/tests/test_render_parallel.cpp` 为构造测试场景只能手动调用 `TypeRegistry::registerComponent`。需按模块边界规则在 `render/components/` 下新增 `WorldAABB` / `RenderAABB` 包装组件并注册 `REFLECT_COMPONENT`，`FrustumCullSystem` 应读取该包装组件而非直接使用 `AABB`。
+- [ ] Render / RHI | `FrustumCullSystem` / `QueueDrawsSystem` 的并行路径目前依赖调用方传入 `ThreadPool*` 并自行按 batch 拆分/等待，与 `ThreadPool::parallelFor` 不兼容且重复了任务分发样板代码。未来应在 `ThreadPool` 中增加 `parallelForRanges` 或 `parallelBatch` 工具，或让 ECS Scheduler 的 System 级并行调度接管这些系统。
 - [ ] Render / RHI | Culling 与 Queue 系统仅处理第一个 `ExtractedView`。`ViewVisibleList`、`ViewBinnedPhases`、`ViewSortedPhases` 已绑定到 view 实体（单视图完成）；多视图扩展时需遍历所有含 `ExtractedView` 的实体，为每个 view 生成独立的可见列表和 phase 容器。
 - [ ] Render / RHI | `PhaseItem::instance_count`（`render/queue/PhaseItem.h`、`render/queue/QueueDrawsSystem.cpp`）字段已预留为 1 但未实现 instancing 合并，`QueueDrawsSystem` 未检测同 material + 同 mesh 的连续实体，需在 `BinnedRenderPhase::addItem` 中检测并合并为同一 `PhaseItem` 且累加 `instance_count`，并配合 Prepare 步骤生成 instance buffer。
 - [ ] Render / RHI | `ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:23`）每帧对静态 AABB 全量拷贝，大多数模型的本地 AABB 是静态的但每帧都通过 `mainWorld.getComponent<AABB>(entity)` 提取到 render world，需在 `MainWorldSync` 中记录「上一帧是否有 AABB」或引入脏标记机制，仅当 AABB 组件被修改时才重新提取。
@@ -199,7 +201,8 @@
 - [ ] Core / 基础库扩展缺口 | `std::unique_ptr<T>` 仍在 `log/core/logger.h`（`addOutputDevice` / `m_devices`）与 `render/example/simple_cube_renderer.h`（`m_device`、`m_shader_cache`）中使用。需引入引擎级 `UniquePtr<T, Deleter>`（支持自定义 `DefaultAllocator` 释放），并迁移所有所有权语义场景。
 - [ ] Core / 基础库扩展缺口 | `std::function<void()>` 仍在 `thread_pool/thread_pool.h`、`asset/loader/asset_server.h`、`bridge/tool_registry.h` 中使用。需设计零分配或固定缓冲的 `Function<Ret(Args...)>` / `Delegate`（参考 `ue::TFunction` / `bevy::Func`），避免 `std::function` 的类型擦除堆分配与不可拷贝约束。
 - [ ] Core / 基础库扩展缺口 | `std::deque<T>` 仍在 `thread_pool` 溢出队列与 `asset_server` 任务队列中使用。需实现支持头尾 O(1) push/pop 的 `Deque<T>`，或更直接地提供 lock-free `MPSCQueue<T>` 替换线程池/资源加载的回调队列。
-- [ ] Core / 基础库扩展缺口 | `std::sort` 仍在 `render/queue/SortedRenderPhase.cpp` 中使用。需引入 `algo::sort(begin, end, cmp)`（可考虑 introsort / timsort），并对 `DynamicArray` 提供 convenience 成员方法。
+- [x] Core / 基础库扩展缺口 | `std::sort` 仍在 `render/queue/SortedRenderPhase.cpp` 中使用。需引入 `algo::sort(begin, end, cmp)`（可考虑 introsort / timsort），并对 `DynamicArray` 提供 convenience 成员方法。
+  - 完成：2026-06-18，新增 `core/algorithm/radix_sort.h` 提供稳定 64-bit LSD radix sort，`SortedRenderPhase::prepare()` 改用 `radixSort64` 按 `SortKey` 排序；新增 `RadixSort64` 单元测试。后续若 Sort Key 结构变化或需通用比较排序，再引入 `algo::sort`。
 - [ ] Core / 基础库扩展缺口 | `std::thread` / `std::mutex` / `std::atomic` / `std::condition_variable` 仍散落在线程池、asset_server、logger 中。需封装为 `Thread`、`Mutex`、`Atomic<T>`、`ConditionVariable` 等薄层，便于未来切换平台线程模型（如 Windows ThreadPool API、C++20 `std::jthread`）。
 
 ## Allocator / ECS 存储优化（2026-05-31 完成阶段一至四基础实现，以下待后续细化）

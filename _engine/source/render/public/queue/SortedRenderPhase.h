@@ -9,9 +9,10 @@ namespace Entelechy {
 // Used for Transparent3D and UI phases.
 class SortedRenderPhase {
     DynamicArray<PhaseItem> m_items;
+    DynamicArray<PhaseItem> m_scratch; // temp buffer for radix sort
 public:
     void addItem(const PhaseItem& item);
-    void prepare(); // sort by sort_key.value ascending
+    void prepare(); // stable radix sort by sort_key.value ascending
     void clear();
     const DynamicArray<PhaseItem>& getItems() const { return m_items; }
 };

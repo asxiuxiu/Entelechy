@@ -10,5 +10,7 @@ entelechy_module(
         LogLib
         CoreLib
         EcsLib
+    PRIVATE_DEPS
+        ThreadPoolLib
 )
 

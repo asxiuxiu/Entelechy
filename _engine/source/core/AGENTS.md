@@ -20,6 +20,7 @@
 | `string_intern_pool.h/.cpp` | `StringInternPool` 运行时字符串池与冲突检测 |
 | `dynamic_array.h` | `DynamicArray<T, AllocatorT>` 动态数组模板 |
 | `hash_map.h` | `HashMap<K,V,Hash,Allocator>` 开放寻址哈希表 |
+| `algorithm/radix_sort.h` | 稳定 64-bit LSD 基数排序 `radixSort64<T, KeyFunc>`，用于 `SortKey` 等固定位宽整数键 |
 | `inline_array.h` | `InlineArray<T,N>` 栈上小数组优化 |
 | `ring_buffer.h` | `RingBuffer<T,SIZE>` SPSC 无锁环形队列 |
 | `fixed_ring_queue.h` | `FixedRingQueue<T,Capacity>` 固定容量环形队列 |

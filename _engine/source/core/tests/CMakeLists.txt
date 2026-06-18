@@ -8,6 +8,7 @@ add_library(CoreTests OBJECT
     ${CMAKE_CURRENT_LIST_DIR}/test_quat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_geometry.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_misc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_radix_sort.cpp
 )
 
 target_link_libraries(CoreTests PUBLIC CoreLib TestFrameworkLib)

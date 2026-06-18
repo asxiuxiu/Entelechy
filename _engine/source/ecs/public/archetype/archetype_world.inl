@@ -10,7 +10,7 @@ namespace Entelechy {
 template<typename... Cs>
 QueryArchetype<Cs...>::QueryArchetype(ArchetypeWorld& world)
     : m_world(&world)
-    , m_requiredMask((TypeRegistry::instance().getMask<Cs>() | ...)) {}
+    , m_required_mask((TypeRegistry::instance().getMask<Cs>() | ...)) {}
 
 template<typename... Cs>
 void QueryArchetype<Cs...>::Iterator::advanceToNextValid() {
@@ -87,7 +87,7 @@ template<typename... Cs>
 auto QueryArchetype<Cs...>::begin() -> Iterator {
     Iterator it;
     it.world = m_world;
-    it.requiredMask = m_requiredMask;
+    it.m_required_mask = m_required_mask;
     it.archetypeIndex = 0;
     it.currentArchetype = nullptr;
     it.currentChunk = nullptr;
@@ -96,7 +96,7 @@ auto QueryArchetype<Cs...>::begin() -> Iterator {
     // Pre-filter matching archetypes
     for (auto pair : m_world->m_archetypes) {
         Archetype* archetype = pair.second;
-        if ((archetype->id & m_requiredMask) == m_requiredMask) {
+        if ((archetype->id & m_required_mask) == m_required_mask) {
             it.matching.pushBack(archetype);
         }
     }
@@ -109,7 +109,7 @@ template<typename... Cs>
 auto QueryArchetype<Cs...>::end() -> Iterator {
     Iterator it;
     it.world = m_world;
-    it.requiredMask = m_requiredMask;
+    it.m_required_mask = m_required_mask;
     it.archetypeIndex = static_cast<usize>(-1);
     it.currentArchetype = nullptr;
     it.currentChunk = nullptr;

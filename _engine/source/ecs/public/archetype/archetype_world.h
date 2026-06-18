@@ -193,7 +193,7 @@ public:
         Archetype* currentArchetype;
         Chunk* currentChunk;
         u16 slotIndex;
-        u64 requiredMask;
+        u64 m_required_mask;
 
         void advanceToNextValid();
 
@@ -210,7 +210,7 @@ public:
 
 private:
     ArchetypeWorld* m_world;
-    u64 m_requiredMask = 0;
+    u64 m_required_mask = 0;
 };
 
 } // namespace Entelechy

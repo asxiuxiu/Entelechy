@@ -34,6 +34,10 @@ public:
     // Convenience: draw a cube at world transform with view + projection.
     void drawCube(const Mat4& world, const Mat4& view, const Mat4& proj, const Vec3& color);
 
+    // Called once per frame after present(). Signals the GPU fence and flushes
+    // any deferred-delete resources that are now safe to destroy.
+    void endFrame();
+
 private:
     bool createMesh();
 

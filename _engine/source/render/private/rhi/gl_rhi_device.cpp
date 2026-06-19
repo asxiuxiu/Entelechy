@@ -24,6 +24,25 @@ struct GLFormatInfo {
     GLenum type;
 };
 
+static u32 getTextureFormatBytesPerPixel(TextureFormat fmt) {
+    switch (fmt) {
+        case TextureFormat::R8_UNORM:           return 1;
+        case TextureFormat::RG8_UNORM:          return 2;
+        case TextureFormat::RGBA8_UNORM:
+        case TextureFormat::RGBA8_SRGB:
+        case TextureFormat::BGRA8_UNORM:        return 4;
+        case TextureFormat::R16_FLOAT:          return 2;
+        case TextureFormat::RG16_FLOAT:         return 4;
+        case TextureFormat::RGBA16_FLOAT:       return 8;
+        case TextureFormat::R32_FLOAT:          return 4;
+        case TextureFormat::RG32_FLOAT:         return 8;
+        case TextureFormat::RGBA32_FLOAT:       return 16;
+        case TextureFormat::D24_UNORM_S8_UINT:  return 4;
+        case TextureFormat::D32_FLOAT:          return 4;
+        default:                                return 4;
+    }
+}
+
 static GLFormatInfo getGLFormatInfo(TextureFormat fmt) {
     switch (fmt) {
         case TextureFormat::R8_UNORM:           return {GL_R8,               GL_RED,             GL_UNSIGNED_BYTE};
@@ -170,6 +189,10 @@ void GLTexture::onDestroy() {
         glDeleteTextures(1, &m_texture);
         m_texture = 0;
     }
+}
+
+u64 GLTexture::memorySizeBytes() const {
+    return GLRHIDevice::textureMemorySizeBytes(m_desc);
 }
 
 void GLTexture::setDebugName(const String& name) {
@@ -416,6 +439,34 @@ GLRHIDevice::~GLRHIDevice() {
     }
 }
 
+u64 GLRHIDevice::textureMemorySizeBytes(const TextureDesc& desc) {
+    const u32 bpp = getTextureFormatBytesPerPixel(desc.format);
+    u64 total = 0;
+    u32 w = desc.width;
+    u32 h = desc.height;
+    u32 d = desc.depth;
+    for (u32 mip = 0; mip < desc.mipLevels; ++mip) {
+        total += static_cast<u64>(w) * h * d * bpp;
+        if (w > 1) w /= 2;
+        if (h > 1) h /= 2;
+        if (d > 1) d /= 2;
+    }
+    return total * desc.arrayLayers;
+}
+
+void GLRHIDevice::trackResourceCreated(const GPUResource* resource) {
+    if (resource) {
+        m_tracked_memory_bytes += resource->memorySizeBytes();
+    }
+}
+
+void GLRHIDevice::trackResourceDestroyed(const GPUResource* resource) {
+    if (resource) {
+        const u64 size = resource->memorySizeBytes();
+        m_tracked_memory_bytes = (size > m_tracked_memory_bytes) ? 0 : m_tracked_memory_bytes - size;
+    }
+}
+
 bool GLRHIDevice::initialize() {
     if (m_initialized) return true;
     m_initialized = true;
@@ -424,7 +475,28 @@ bool GLRHIDevice::initialize() {
 }
 
 void GLRHIDevice::shutdown() {
+    // Release cached pipeline states first so they enter the pending-delete queue.
     m_pso_manager.clear();
+
+    // At shutdown we cannot wait for GPU fences; destroy every queued resource
+    // immediately. This is safe because the context is being torn down and no
+    // further frames will be submitted.
+    for (auto& pd : m_pending_deletes) {
+        trackResourceDestroyed(pd.resource);
+        pd.resource->internalDestroy();
+    }
+    m_pending_deletes.clear();
+
+    // Delete any frame fences that are still outstanding.
+    for (auto& ff : m_frame_fences) {
+        if (ff.sync) {
+            glDeleteSync(ff.sync);
+            ff.sync = nullptr;
+        }
+    }
+    m_frame_fences.clear();
+
+    m_tracked_memory_bytes = 0;
     m_initialized = false;
 }
 
@@ -468,7 +540,10 @@ RHIBufferRef GLRHIDevice::createBuffer(const BufferDesc& desc, const void* initi
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    return RHIBufferRef(allocateResource<GLBuffer>(desc.size, desc.usage, bufferObj, vao));
+    auto* buffer = allocateResource<GLBuffer>(desc.size, desc.usage, bufferObj, vao);
+    buffer->setDevice(this);
+    trackResourceCreated(buffer);
+    return RHIBufferRef(buffer);
 }
 
 RHITextureRef GLRHIDevice::createTexture(const TextureDesc& desc, const void* initialData) {
@@ -499,7 +574,10 @@ RHITextureRef GLRHIDevice::createTexture(const TextureDesc& desc, const void* in
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
         glBindTexture(GL_TEXTURE_2D, 0);
-        return RHITextureRef(allocateResource<GLTexture>(desc, tex, GL_TEXTURE_2D));
+        auto* texture = allocateResource<GLTexture>(desc, tex, GL_TEXTURE_2D);
+        texture->setDevice(this);
+        trackResourceCreated(texture);
+        return RHITextureRef(texture);
     } else {
         // 3D texture (simplified path)
         glBindTexture(GL_TEXTURE_3D, tex);
@@ -508,7 +586,10 @@ RHITextureRef GLRHIDevice::createTexture(const TextureDesc& desc, const void* in
                      static_cast<GLsizei>(desc.depth),
                      0, info.format, info.type, initialData);
         glBindTexture(GL_TEXTURE_3D, 0);
-        return RHITextureRef(allocateResource<GLTexture>(desc, tex, GL_TEXTURE_3D));
+        auto* texture = allocateResource<GLTexture>(desc, tex, GL_TEXTURE_3D);
+        texture->setDevice(this);
+        trackResourceCreated(texture);
+        return RHITextureRef(texture);
     }
 }
 
@@ -535,7 +616,10 @@ RHIShaderRef GLRHIDevice::createShader(ShaderStage stage, const void* bytecode, 
         return nullptr;
     }
 
-    return RHIShaderRef(allocateResource<GLShader>(stage, shader));
+    auto* glShader = allocateResource<GLShader>(stage, shader);
+    glShader->setDevice(this);
+    trackResourceCreated(glShader);
+    return RHIShaderRef(glShader);
 }
 
 RHIPipelineStateRef GLRHIDevice::createPipelineState(const PipelineStateDesc& desc) {
@@ -566,7 +650,10 @@ RHIPipelineStateRef GLRHIDevice::createPipelineState(const PipelineStateDesc& de
         return nullptr;
     }
 
-    return RHIPipelineStateRef(allocateResource<GLPipelineState>(desc, program));
+    auto* pso = allocateResource<GLPipelineState>(desc, program);
+    pso->setDevice(this);
+    trackResourceCreated(pso);
+    return RHIPipelineStateRef(pso);
 }
 
 IRHICommandList* GLRHIDevice::createCommandList() {
@@ -584,7 +671,117 @@ void GLRHIDevice::submit(IRHICommandList* cmdList) {
 
 void GLRHIDevice::present() {
     // Phase 1: SwapBuffers is handled by OpenGLBackend / Window layer.
-    // Future: this may insert a present command into the queue.
+    // Signal the end of the frame so deferred deletes have a fence to wait on.
+    signalFrame();
+}
+
+RHIFenceValue GLRHIDevice::signalFrame() {
+    GLsync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    if (!sync) {
+        // Fence creation failed; fall back to a CPU-side frame value that
+        // will only advance when explicitly polled. This is safe but may
+        // delay deletes until the queue is flushed at shutdown.
+        return m_next_frame_value++;
+    }
+
+    const RHIFenceValue frame = m_next_frame_value++;
+    FrameFence ff;
+    ff.frame = frame;
+    ff.sync = sync;
+    m_frame_fences.pushBack(ff);
+    return frame;
+}
+
+RHIFenceValue GLRHIDevice::getCompletedFenceValue() {
+    // Check outstanding fences in order; stop at the first unsignaled fence.
+    while (!m_frame_fences.empty()) {
+        FrameFence& front = m_frame_fences.front();
+        if (!front.sync) {
+            // Fallback CPU frame: treat as immediately completed.
+            m_completed_frame_value = front.frame;
+            m_frame_fences.removeAt(0);
+            continue;
+        }
+
+        const GLenum result = glClientWaitSync(front.sync, 0, 0);
+        if (result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED) {
+            m_completed_frame_value = front.frame;
+            glDeleteSync(front.sync);
+            m_frame_fences.removeAt(0);
+        } else {
+            break;
+        }
+    }
+    return m_completed_frame_value;
+}
+
+void GLRHIDevice::queueResourceForDelete(GPUResource* resource) {
+    if (!resource) return;
+
+    // Record the frame value the GPU must complete before destruction.
+    // If no fence has been inserted yet, signal one now so we have a value.
+    RHIFenceValue fence = m_next_frame_value;
+    if (m_frame_fences.empty()) {
+        fence = signalFrame();
+    }
+    resource->setDeletionFence(fence);
+
+    PendingDelete pd;
+    pd.resource = resource;
+    pd.fence = fence;
+    m_pending_deletes.pushBack(pd);
+}
+
+void GLRHIDevice::flushPendingDeletes() {
+    const RHIFenceValue safe_frame = getCompletedFenceValue();
+
+    usize keep = 0;
+    for (usize i = 0; i < m_pending_deletes.size(); ++i) {
+        PendingDelete& pd = m_pending_deletes[i];
+        if (pd.fence <= safe_frame) {
+            trackResourceDestroyed(pd.resource);
+            pd.resource->internalDestroy();
+        } else {
+            if (keep != i) {
+                m_pending_deletes[keep] = pd;
+            }
+            ++keep;
+        }
+    }
+
+    if (keep != m_pending_deletes.size()) {
+        DynamicArray<PendingDelete> compacted;
+        compacted.reserve(keep);
+        for (usize i = 0; i < keep; ++i) {
+            compacted.pushBack(m_pending_deletes[i]);
+        }
+        m_pending_deletes.swap(compacted);
+    }
+}
+
+RHIMemoryInfo GLRHIDevice::queryMemoryInfo() const {
+    RHIMemoryInfo info{};
+
+#if defined(GLAD_GL_NVX_gpu_memory_info)
+    if (GLAD_GL_NVX_gpu_memory_info) {
+        GLint total_kb = 0;
+        GLint available_kb = 0;
+        glGetIntegerv(GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, &total_kb);
+        glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, &available_kb);
+        info.totalBytes = static_cast<u64>(total_kb) * 1024;
+        info.availableBytes = static_cast<u64>(available_kb) * 1024;
+        info.budgetBytes = info.totalBytes;
+    }
+#elif defined(GLAD_GL_ATI_meminfo)
+    if (GLAD_GL_ATI_meminfo) {
+        // Return the free memory in the first pool (best approximation).
+        GLint values[4] = {0, 0, 0, 0};
+        glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, values);
+        info.availableBytes = static_cast<u64>(values[0]) * 1024;
+    }
+#endif
+
+    return info;
 }
 
 // ==================================================================

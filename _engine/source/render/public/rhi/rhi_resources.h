@@ -8,13 +8,17 @@
 
 namespace Entelechy {
 
+// Forward declaration
+class IRHIDevice;
+
 // ------------------------------------------------------------------
 // GPUResource base class with reference counting
 //
 // Design note: Absorbs UE's FRHIResource ref-counting pattern.
 // Release() does not immediately destroy; instead the resource enters
-// a deferred-delete queue managed by the RHI device (future Phase 2).
-// For Phase 1 (single-threaded, immediate GL), deletion is immediate.
+// a deferred-delete queue managed by the owning RHI device. The device
+// waits until the GPU has finished all commands referencing the resource
+// (tracked via fences) before calling internalDestroy().
 // ------------------------------------------------------------------
 class GPUResource {
 public:
@@ -24,27 +28,46 @@ public:
         m_ref_count.fetch_add(1, std::memory_order_relaxed);
     }
 
-    void release() {
-        if (m_ref_count.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-            onDestroy();
-            this->~GPUResource();
-            DefaultAllocator::free(this);
-        }
-    }
+    // Release a reference. When the last reference is dropped the resource
+    // is handed back to its owning IRHIDevice for deferred deletion.
+    // If no device is set (e.g. emergency fallback) it is destroyed immediately.
+    void release();
 
     u32 refCount() const {
         return m_ref_count.load(std::memory_order_relaxed);
     }
 
+    // Owning device. Set by the backend when the resource is created.
+    void setDevice(IRHIDevice* device) { m_device = device; }
+    IRHIDevice* device() const { return m_device; }
+
+    // Fence value recorded when the resource was queued for deletion.
+    // Used by the device to decide when it is safe to free.
+    void setDeletionFence(RHIFenceValue fence) { m_deletion_fence = fence; }
+    RHIFenceValue deletionFence() const { return m_deletion_fence; }
+
+    // Estimated GPU memory footprint in bytes. Backends override this
+    // so the budget tracker can account for the resource.
+    virtual u64 memorySizeBytes() const { return 0; }
+
     // Debug name for GPU debugging tools (RenderDoc, Nsight, PIX).
     // Backends map this to platform-specific object labeling.
     virtual void setDebugName(const String& /*name*/) {}
+
+    // Internal: actually destroy the resource. Only the owning RHI device
+    // may call this after confirming the GPU is no longer using it.
+    void internalDestroy() {
+        this->~GPUResource();
+        DefaultAllocator::free(this);
+    }
 
 protected:
     virtual void onDestroy() {}
 
 private:
     mutable std::atomic<u32> m_ref_count{1};
+    IRHIDevice* m_device = nullptr;
+    RHIFenceValue m_deletion_fence = 0;
 };
 
 // ------------------------------------------------------------------

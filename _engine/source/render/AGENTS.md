@@ -8,12 +8,13 @@
 ## 关键文件
 | 文件 | 职责 |
 |------|------|
-| `rhi_types.h` | RHI 基础类型：Buffer/Texture/Shader 枚举、资源描述结构、渲染通道描述 |
-| `rhi_resources.h` | GPUResource 基类（引用计数）、RHIRef 智能句柄、具体资源类型声明 |
-| `rhi_device.h` | `IRHIDevice`（资源工厂 + 提交）与 `IRHICommandList`（命令录制 + 调试标注）纯虚接口 |
+| `rhi_types.h` | RHI 基础类型：Buffer/Texture/Shader 枚举、资源描述结构、渲染通道描述、`RHIFenceValue`、`RHIMemoryInfo` |
+| `rhi_resources.h` | GPUResource 基类（引用计数 + 延迟删除支持）、RHIRef 智能句柄、具体资源类型声明 |
+| `rhi_device.h` | `IRHIDevice`（资源工厂 + 提交 + Frame Fence + 延迟删除 + 显存预算）与 `IRHICommandList`（命令录制 + 调试标注）纯虚接口 |
 | `rhi_pipeline.h` | `PipelineStateDesc`（完整 PSO 描述，含哈希支持）、`PSOManager`（全局缓存） |
-| `rhi_types.h` | RHI 基础类型 + 统一错误码 `RHIErrorCode` |
-| `gl_rhi_device.h` / `.cpp` | OpenGL 后端对 RHI 接口的实现：`GLRHIDevice`、`GLCommandList`、GL 资源对象 |
+| `rhi_transient_resource_pool.h` / `.cpp` | 瞬态纹理池：按描述符分组复用单帧生命周期纹理，预留显存别名接口 |
+| `gl_rhi_device.h` / `.cpp` | OpenGL 后端对 RHI 接口的实现：`GLRHIDevice`、`GLCommandList`、GL 资源对象、Fence 跟踪、延迟删除队列、显存统计 |
+| `rhi_resources.cpp` | `GPUResource::release()` 实现：引用计数归零后交给所属设备延迟删除 |
 | `opengl_backend.cpp` | OpenGL 初始化、视口管理、清除与呈现（SwapChain 层，保留兼容） |
 | `opengl_backend.h` | `OpenGLBackend` 类声明 |
 | `render_backend.h` | `IRenderBackend` 接口 + `RenderSettings`（SwapChain 兼容层） |
@@ -44,6 +45,8 @@
 ## 重要入口
 - 改**RHI 抽象接口** → 动 `rhi_device.h` / `rhi_types.h`
 - 改**OpenGL RHI 具体实现** → 动 `gl_rhi_device.h` / `.cpp`
+- 改**GPU 资源生命周期（延迟删除 / Fence / 显存预算）** → 动 `rhi_resources.h/.cpp` / `rhi_device.h` / `gl_rhi_device.h/.cpp`
+- 改**瞬态资源池** → 动 `rhi_transient_resource_pool.h/.cpp`
 - 改**PSO 缓存策略** → 动 `rhi_pipeline.h` / `gl_rhi_device.cpp`
 - 改**渲染后端接口（SwapChain/帧管理）** → 动 `render_backend.h`
 - 改**OpenGL 具体实现（视口、清除色、VSync）** → 动 `opengl_backend.cpp`
@@ -65,10 +68,16 @@
 ## 架构决策
 - **分层**：
   - `IRenderBackend` / `OpenGLBackend` 负责 SwapChain 和帧边界（上下文、Present、清屏）
-  - `IRHIDevice` / `GLRHIDevice` 负责 GPU 资源创建和命令录制
+  - `IRHIDevice` / `GLRHIDevice` 负责 GPU 资源创建、命令录制、Fence 与生命周期管理
   - `Material` 位于 RHI 之上，管理 shader + 参数 + PSO
   - 未来引入 D3D12/Vulkan 时，`IRenderBackend` 可能合并进 `IRHIDevice`
 - `beginFrame()` 每帧自动查询窗口大小并设置 glViewport
+- **GPU 资源生命周期**：
+  - `GPUResource::release()` 不立即销毁，而是交给所属 `IRHIDevice` 的延迟删除队列
+  - `IRHIDevice::signalFrame()` 每帧末尾插入 GPU Fence，`getCompletedFenceValue()` 非阻塞查询
+  - `IRHIDevice::flushPendingDeletes()` 在确认 GPU 安全后批量真正释放资源
+  - 显存占用由每个资源自行报告（`memorySizeBytes()`），设备汇总为 `getTrackedMemoryUsage()`；`queryMemoryInfo()` 在 OpenGL 上尝试 NVX/ATI 扩展
+  - 当前为设备单例模型；ECS Resource 系统就绪后，预算/删除队列/瞬态池等可变状态应迁移为 World Resource（参考 TODO.md 债务项）
 
 ## 技术债务
 
@@ -79,3 +88,11 @@
 - ✅ `GPUResource::setDebugName` — 资源对象命名（RenderDoc/PIX 可识别）
 - ✅ `GLCommandList` Uniform Location 缓存 — `HashMap<(program, StringId), GLint>`，消除每 Draw Call 的 `glGetUniformLocation` 字符串查询
 - ✅ `RHIErrorCode` 统一错误码枚举 — 为跨后端错误分类预留骨架
+
+### 2026-06-19 已完成（GPU 资源生命周期管理）
+- ✅ `GPUResource` 延迟删除：`release()` 将资源交回 `IRHIDevice`，`internalDestroy()` 在 GPU Fence 安全后调用
+- ✅ `IRHIDevice` 新增 `signalFrame()` / `getCompletedFenceValue()` / `queueResourceForDelete()` / `flushPendingDeletes()` / `queryMemoryInfo()` / `getTrackedMemoryUsage()`
+- ✅ `GLRHIDevice` OpenGL Fence 实现（`GL_SYNC_GPU_COMMANDS_COMPLETE`）、延迟删除队列、显存跟踪与 NVX/ATI 扩展查询
+- ✅ `TransientTexturePool` 瞬态纹理复用池（按 `TextureDesc` 分组，Fence 保护回收）
+- ✅ `SimpleCubeRenderer::endFrame()` 每帧调用 `signalFrame()` + `flushPendingDeletes()`
+- ✅ 新增单元测试：`test_gpu_resource_lifecycle.cpp` 覆盖延迟删除、引用计数、瞬态池、显存大小计算

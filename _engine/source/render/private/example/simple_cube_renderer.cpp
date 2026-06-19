@@ -162,4 +162,10 @@ void SimpleCubeRenderer::drawCube(const Mat4& world, const Mat4& view, const Mat
     drawCube(proj * view * world, color);
 }
 
+void SimpleCubeRenderer::endFrame() {
+    if (!m_initialized || !m_device) return;
+    m_device->signalFrame();
+    m_device->flushPendingDeletes();
+}
+
 } // namespace Entelechy

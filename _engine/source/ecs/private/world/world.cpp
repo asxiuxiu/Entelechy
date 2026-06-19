@@ -163,9 +163,9 @@ void World::setParentImmediate(Entity child, Entity parent) {
 static bool decomposeTRS(const Mat4& m, Vec3& outT, Quat& outR, Vec3& outS) {
     outT = Vec3{m.m[12], m.m[13], m.m[14]};
 
-    Vec3 col0(m.m[0], m.m[1], m.m[2]);
-    Vec3 col1(m.m[4], m.m[5], m.m[6]);
-    Vec3 col2(m.m[8], m.m[9], m.m[10]);
+    Vec3 col0{m.m[0], m.m[1], m.m[2]};
+    Vec3 col1{m.m[4], m.m[5], m.m[6]};
+    Vec3 col2{m.m[8], m.m[9], m.m[10]};
 
     outS = Vec3{col0.length(), col1.length(), col2.length()};
 

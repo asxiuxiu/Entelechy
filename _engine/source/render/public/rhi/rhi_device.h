@@ -37,6 +37,36 @@ public:
     virtual void submit(IRHICommandList* cmdList) = 0;
     virtual void present() = 0;
 
+    // -- Frame fencing -----------------------------------------------------
+    // Insert a GPU fence after all previously submitted commands and return
+    // its monotonic value. Safe to call once per frame at the end of the
+    // frame (after present).
+    virtual RHIFenceValue signalFrame() = 0;
+
+    // Return the highest frame value whose fence has been signaled by the GPU.
+    // This is a non-blocking poll.
+    virtual RHIFenceValue getCompletedFenceValue() = 0;
+
+    // -- Resource lifecycle ------------------------------------------------
+    // Queue a resource whose reference count reached zero for deferred
+    // deletion. The device records the current frame fence and will not
+    // destroy the resource until the GPU has finished that frame.
+    virtual void queueResourceForDelete(GPUResource* resource) = 0;
+
+    // Process the deferred-delete queue, freeing resources whose frame fence
+    // has been signaled. Call once per frame on the rendering thread.
+    virtual void flushPendingDeletes() = 0;
+
+    // -- Memory budget -----------------------------------------------------
+    // Best-effort query of GPU memory info. OpenGL backends use vendor
+    // extensions (NVX/ATI); returns zeros if unsupported.
+    virtual RHIMemoryInfo queryMemoryInfo() const = 0;
+
+    // Memory usage tracked by the RHI (sum of memorySizeBytes() for all
+    // resources currently considered resident). This always works, even when
+    // queryMemoryInfo() returns zeros.
+    virtual u64 getTrackedMemoryUsage() const = 0;
+
     // -- Queries ----------------------------------------------------------
     virtual RenderBackendType getBackendType() const = 0;
 

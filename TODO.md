@@ -34,8 +34,14 @@
   - 参考：`_engine/source/render/rhi_device.h`
 - [ ] Render / RHI | 当 Draw Call > 2000 且 Profiling 确认 CPU 瓶颈时，`GLCommandList` 的即时执行模式无法扩展，需引入简化版延迟命令缓冲（`LinearAllocator` + 引擎级命令枚举 + `switch-case` 翻译执行），单线程录制 → 多线程并行生成 `DrawPacket` → 单线程排序 → 单线程翻译。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/RHI抽象层.md` 问题 2/3。
-- [ ] Render / RHI | CPU 删除纹理但 GPU 还在读的 race condition，需引入 RHI 内部延迟删除队列，引用计数归零后进入队列，帧边界检查 GPU Fence，确认 GPU 完成后批量释放。
-  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/RHI抽象层.md` 问题 4。
+- [x] Render / RHI | CPU 删除纹理但 GPU 还在读的 race condition，已引入 RHI 内部延迟删除队列，引用计数归零后进入队列，帧边界检查 GPU Fence，确认 GPU 完成后批量释放。
+  - 完成：2026-06-19，见 `render/public/rhi/rhi_resources.h`、`render/public/rhi/rhi_device.h`、`render/private/rhi/gl_rhi_device.cpp`。
+- [x] Render / RHI | 增加 GPU 显存预算跟踪（`RHIMemoryInfo`、`GLRHIDevice::queryMemoryInfo`、`getTrackedMemoryUsage`）与瞬态纹理池（`TransientTexturePool`）。
+  - 完成：2026-06-19，见 `render/public/rhi/rhi_types.h`、`render/public/rhi/rhi_transient_resource_pool.h/.cpp`。
+- [ ] Render / RHI | `GLRHIDevice` 目前仍不是 ECS `Resource`，预算/删除队列/瞬态池等状态仍挂在设备单例上。后续 ECS Resource 系统就绪后，应将这些可变状态迁移为 World Resource，仅保留不可变底层后端指针为单例。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与画面/GPU资源生命周期管理.md` 问题 5 分支 C。
+- [ ] Render / RHI | 瞬态纹理池目前只按整纹理复用，未实现 RenderGraph 驱动的显存别名（Memory Aliasing）。RenderGraph 成熟后应在 `TransientTexturePool` 下层接入别名分配器。
+  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与画面/GPU资源生命周期管理.md` 问题 4 分支 C。
 - [ ] Render / RHI | `PSOManager::getOrCreateAsync()` 缓存未命中时同步编译造成帧时间尖刺（hitch），需返回占位 PSO（如最简单的纯色着色器），同时启动后台线程编译，后台完成后自动切换。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/RHI抽象层.md` 问题 5。
 - [ ] Render / RHI | RHI 抽象接口目前仅有 OpenGL 后端，需在接口已跑通带纹理旋转立方体、接口稳定后启动第二个后端，先钉死 D3D12（Windows 默认，调试工具顶尖），跑通全部上层管线后再移植 Vulkan。

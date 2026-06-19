@@ -1,6 +1,7 @@
 #pragma once
 #include "render/rhi/rhi_device.h"
 #include "render/rhi/rhi_pipeline.h"
+#include "core/container/dynamic_array.h"
 #include "core/container/hash_map.h"
 #include "core/string/string_id.h"
 #include <glad/glad.h>
@@ -22,6 +23,7 @@ public:
     GLuint getVBO() const { return m_vbo; }
     GLuint getVAO() const { return m_vao; }
 
+    u64 memorySizeBytes() const override { return static_cast<u64>(m_size); }
     void setDebugName(const String& name) override;
 
 protected:
@@ -43,6 +45,7 @@ public:
     GLuint getTexture() const { return m_texture; }
     GLenum getTarget() const { return m_target; }
 
+    u64 memorySizeBytes() const override;
     void setDebugName(const String& name) override;
 
 protected:
@@ -62,6 +65,7 @@ public:
     ShaderStage getStage() const override { return m_stage; }
     GLuint getShader() const { return m_shader; }
 
+    u64 memorySizeBytes() const override { return 0; } // Driver-managed, unknown
     void setDebugName(const String& name) override;
 
 protected:
@@ -80,6 +84,7 @@ public:
     GLuint getProgram() const { return m_program; }
     const PipelineStateDesc& getDesc() const { return m_desc; }
 
+    u64 memorySizeBytes() const override { return 0; } // Driver-managed, unknown
     void setDebugName(const String& name) override;
 
 protected:
@@ -189,14 +194,47 @@ public:
     void submit(IRHICommandList* cmdList) override;
     void present() override;
 
+    RHIFenceValue signalFrame() override;
+    RHIFenceValue getCompletedFenceValue() override;
+
+    void queueResourceForDelete(GPUResource* resource) override;
+    void flushPendingDeletes() override;
+
+    RHIMemoryInfo queryMemoryInfo() const override;
+    u64 getTrackedMemoryUsage() const override { return m_tracked_memory_bytes; }
+
     RenderBackendType getBackendType() const override { return RenderBackendType::OpenGL; }
 
     PSOManager& getPSOManager() { return m_pso_manager; }
 
+    // Utility: estimate GPU memory for a texture description. Public so tests
+    // and tooling can use the same calculation as the device.
+    static u64 textureMemorySizeBytes(const TextureDesc& desc);
+
 private:
+    struct PendingDelete {
+        GPUResource* resource = nullptr;
+        RHIFenceValue fence = 0;
+    };
+
+    struct FrameFence {
+        RHIFenceValue frame = 0;
+        GLsync sync = nullptr;
+    };
+
+    void trackResourceCreated(const GPUResource* resource);
+    void trackResourceDestroyed(const GPUResource* resource);
+
     PSOManager m_pso_manager;
     GLCommandList m_cmd_list;
     bool m_initialized = false;
+
+    DynamicArray<PendingDelete> m_pending_deletes;
+    DynamicArray<FrameFence> m_frame_fences;
+    RHIFenceValue m_next_frame_value = 1;
+    RHIFenceValue m_completed_frame_value = 0;
+
+    u64 m_tracked_memory_bytes = 0;
 };
 
 } // namespace Entelechy

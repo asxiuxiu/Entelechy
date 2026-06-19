@@ -254,6 +254,20 @@ struct BarrierDesc {
 };
 
 // ------------------------------------------------------------------
+// Fence value alias
+// ------------------------------------------------------------------
+using RHIFenceValue = u64;
+
+// ------------------------------------------------------------------
+// GPU memory information (best-effort per backend)
+// ------------------------------------------------------------------
+struct RHIMemoryInfo {
+    u64 totalBytes = 0;      // Dedicated + shared GPU memory, 0 if unknown
+    u64 availableBytes = 0;  // Free GPU memory, 0 if unknown
+    u64 budgetBytes = 0;     // OS/driver budget, 0 if unknown
+};
+
+// ------------------------------------------------------------------
 // Unified error codes for cross-backend diagnostics
 // ------------------------------------------------------------------
 enum class RHIErrorCode : u32 {

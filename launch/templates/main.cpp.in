@@ -193,6 +193,9 @@ int main() {
 
         render->present();
 
+        // ===== GPU resource lifecycle: signal frame fence and flush safe deletes =====
+        cubeRenderer.endFrame();
+
         // ===== Tick systems =====
         if (autoRunSystems) {
             app.update(dt);

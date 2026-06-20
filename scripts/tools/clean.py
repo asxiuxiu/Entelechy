@@ -28,7 +28,8 @@ def _handle_remove_error(func, path, exc_info):
 def remove_dir(path: Path):
     if path.exists():
         print(f"Removing: {path}")
-        shutil.rmtree(path, onexc=_handle_remove_error)
+        # onerror 兼容 Python 3.10+；onexc 从 3.12 起才可用。
+        shutil.rmtree(path, onerror=_handle_remove_error)
     else:
         print(f"Already clean: {path} does not exist.")
 

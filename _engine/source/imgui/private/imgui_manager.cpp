@@ -55,7 +55,12 @@ bool ImGuiManager::init(GLFWwindow* window) {
         return false;
     }
 
-    if (!ImGui_ImplOpenGL3_Init("#version 460")) {
+#if defined(__APPLE__)
+    const char* glsl_version = "#version 410";
+#else
+    const char* glsl_version = "#version 460";
+#endif
+    if (!ImGui_ImplOpenGL3_Init(glsl_version)) {
         LOG_ERROR(LogCategories::kEngine, "ImGui_ImplOpenGL3_Init failed");
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();

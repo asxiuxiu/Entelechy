@@ -23,8 +23,8 @@
 | `material.h` / `.cpp` | **材质系统核心**：Shader 引用 + CPU uniform 块 + 参数按名设置 + PSO 绑定 |
 | `simple_cube_renderer.cpp` | 最小可行立方体渲染器：通过 `Material` + `GLRHIDevice` 绘制（批次 B 验证用） |
 | `simple_cube_renderer.h` | `SimpleCubeRenderer` 类声明 |
-| `components/MeshHandle.h` | 主 World 组件：`MeshHandle`（mesh asset ID） |
-| `components/MaterialHandle.h` | 主 World 组件：`MaterialHandle`（material asset ID） |
+| `components/MeshAssetRef.h` | 主 World 组件：`MeshAssetRef`（mesh asset ID，轻量标识符，非 `Handle<T>`） |
+| `components/MaterialAssetRef.h` | 主 World 组件：`MaterialAssetRef`（material asset ID，轻量标识符，非 `Handle<T>`） |
 | `components/Camera.h` | 主 World 组件：`Camera`（fov/near/far/ortho 参数） |
 | `components/RenderComponents.h` | Render World 组件：`RenderMesh`, `RenderMaterial`, `RenderTransform` |
 | `components/RenderCamera.h` | Render World 组件：`ExtractedView`（view/proj/frustum/viewport）+ `Rect` |
@@ -32,7 +32,7 @@
 | `extract/MainWorldSync.h` | 主世界 ↔ 渲染世界实体双向映射表 |
 | `render_world/RenderWorld.h/cpp` | Render World 容器：ECS World + ExtractSchedule + `MainWorldSync` |
 | `render_world/ExtractSchedule.h/cpp` | Extract 阶段调度器：`IExtractSystem` 注册与顺序执行 |
-| `extract/ExtractRenderablesSystem.h/cpp` | 搬运 `(MeshHandle, MaterialHandle, GlobalTransform)` → Render World |
+| `extract/ExtractRenderablesSystem.h/cpp` | 搬运 `(MeshAssetRef, MaterialAssetRef, GlobalTransform)` → Render World |
 | `extract/ExtractCameraSystem.h/cpp` | 搬运 `(Camera, GlobalTransform)` → `ExtractedView` |
 | `culling/FrustumCullSystem.h/cpp` | 逐实体视锥剔除：`ExtractedView.frustum` vs `AABB`；无 AABB 则始终可见。**当实体数 > 256 且传入 `ThreadPool*` 时自动并行化** |
 | `culling/ViewVisibleList.h` | Culling 阶段显式产出：可见实体列表 |
@@ -53,7 +53,7 @@
 - 改**最小立方体渲染** → 动 `simple_cube_renderer.cpp`
 - 改**Render World / Extract 流程** → 动 `render_world/RenderWorld.h/cpp` / `ExtractSchedule.h/cpp`
 - 改**Extract 系统逻辑** → 动 `extract/ExtractRenderablesSystem.h/cpp` / `ExtractCameraSystem.h/cpp`
-- 改**主世界渲染组件** → 动 `components/MeshHandle.h` / `MaterialHandle.h` / `Camera.h`
+- 改**主世界渲染组件** → 动 `components/MeshAssetRef.h` / `MaterialAssetRef.h` / `Camera.h`
 - 改**渲染世界组件** → 动 `components/RenderComponents.h` / `RenderCamera.h`
 - 改**视锥剔除** → 动 `culling/FrustumCullSystem.h/cpp`
 - 改**Phase 队列** → 动 `queue/QueueDrawsSystem.h/cpp` / `BinnedRenderPhase.h/cpp` / `SortedRenderPhase.h/cpp`

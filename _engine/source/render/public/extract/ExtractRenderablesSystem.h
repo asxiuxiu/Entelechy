@@ -1,10 +1,10 @@
-﻿#pragma once
+#pragma once
 #include "render/render_world/ExtractSchedule.h"
 #include "render/extract/MainWorldSync.h"
 
 namespace Entelechy {
 
-// ExtractRenderablesSystem — copies (MeshHandle, MaterialHandle, GlobalTransform)
+// ExtractRenderablesSystem — copies (MeshAssetRef, MaterialAssetRef, GlobalTransform)
 // from the main world into the render world as (RenderMesh, RenderMaterial, RenderTransform).
 class ExtractRenderablesSystem : public IExtractSystem {
 public:

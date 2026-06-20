@@ -72,7 +72,7 @@
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 4 分支 B。
 - [ ] Material / Shader | 每 draw call 遍历参数调用 `glUniform*`，CPU 开销大且无法合批，需定义 `BindGroupLayout` 并按类型分池，`MaterialBindGroupAllocator` 管理，`CPU uniform` 块一次性写入 GPU UBO，`bind()` 只切换 UBO offset 或 PushConstants。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 3 分支 C。
-- [ ] Material / Shader | 当前 `Material` 为纯 C++ 对象未接入 ECS，渲染系统无法批量处理同材质实体，需引入 ECS 组件 `MaterialHandle { AssetId material; }`，渲染架构分 Extract → Prepare → Queue → Render，`PrepareMaterialSystem` 按类型批量创建 `BindGroup`，`QueueOpaqueDraws` 按（材质类型, 管线 key）分组排序。
+- [ ] Material / Shader | 当前 `Material` 为纯 C++ 对象未接入 ECS，渲染系统无法批量处理同材质实体，需引入 ECS 组件 `MaterialAssetRef { AssetId material; }`，渲染架构分 Extract → Prepare → Queue → Render，`PrepareMaterialSystem` 按类型批量创建 `BindGroup`，`QueueOpaqueDraws` 按（材质类型, 管线 key）分组排序。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 5 分支 B。
 - [ ] Material / Shader | 当前一材质一 PSO，无法表达「有法线/无法线」「有骨骼/无骨骼」等组合变体，需 `ShaderTemplate` 维护 `Array<ShaderCategory>`，`MaterialInstance::getTechnique(keywords)` 生成 `permutation_id` 并查找/触发编译，严格限制维度（≤5 个二值开关）防止组合爆炸。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 2 分支 C。
@@ -80,7 +80,7 @@
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 工业级设计清单。
 - [ ] Material / Shader | 当前材质只能通过 C++ 代码定义，美术无法直观调整，需运行时解析节点图定义 → 生成 GLSL/HLSL 源码 → 通过 `ShaderCache` 编译，编辑器通过 MCP/反射接口让 AI 也能操作节点参数。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 1 分支 C。
-- [ ] Material / Shader | `MaterialHandle`（`render/components/MaterialHandle.h`）缺少 `render_phase` 信息，`ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:20`）无法推断 phase，全部默认 `Opaque3D`，透明材质被错误分箱到 `BinnedRenderPhase`，需在材质系统（`Material` / `MaterialAsset`）增加 `RenderPhase` 声明，`ExtractRenderablesSystem` 从材质元数据读取 phase。
+- [ ] Material / Shader | `MaterialAssetRef`（`render/components/MaterialAssetRef.h`）缺少 `render_phase` 信息，`ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:20`）无法推断 phase，全部默认 `Opaque3D`，透明材质被错误分箱到 `BinnedRenderPhase`，需在材质系统（`Material` / `MaterialAsset`）增加 `RenderPhase` 声明，`ExtractRenderablesSystem` 从材质元数据读取 phase。
 
 ## AI / Agent 基建
 > 2026-04-13 讨论纪要：AI 不应是独立的第三个 exe，而是「协议 + 桥梁」。先记录为技术债务，后续渐进补齐。

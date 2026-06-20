@@ -1,6 +1,6 @@
 #include "render/extract/ExtractRenderablesSystem.h"
-#include "render/components/MeshHandle.h"
-#include "render/components/MaterialHandle.h"
+#include "render/components/MeshAssetRef.h"
+#include "render/components/MaterialAssetRef.h"
 #include "ecs/component/transform_component.h"
 #include "core/math/aabb.h"
 #include "render/components/RenderComponents.h"
@@ -12,7 +12,7 @@ void ExtractRenderablesSystem::extract(const World& mainWorld, World& renderWorl
     m_sync.clear();
 
     // Query all main-world entities that are renderable.
-    ConstQuery<MeshHandle, MaterialHandle, GlobalTransform> q(mainWorld);
+    ConstQuery<MeshAssetRef, MaterialAssetRef, GlobalTransform> q(mainWorld);
     for (auto [entity, mesh, material, transform] : q) {
         Entity renderEntity = renderWorld.spawn();
 

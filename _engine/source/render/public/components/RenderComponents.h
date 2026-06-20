@@ -6,13 +6,13 @@
 
 namespace Entelechy {
 
-// RenderMesh — render-world counterpart of MeshHandle.
+// RenderMesh — render-world counterpart of MeshAssetRef.
 // Contains only the asset ID; GPU geometry resolution happens later.
 struct RenderMesh {
     u32 mesh_asset_id = 0xFFFFFFFFu;
 };
 
-// RenderMaterial — render-world counterpart of MaterialHandle.
+// RenderMaterial — render-world counterpart of MaterialAssetRef.
 struct RenderMaterial {
     u32 material_asset_id = 0xFFFFFFFFu;
     RenderPhase render_phase = RenderPhase::Opaque3D;

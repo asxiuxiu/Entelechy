@@ -36,8 +36,8 @@ def get_cmake_version():
     return (3, 20, 0)
 
 
-def get_supported_msvc_versions():
-    """Parse ~/.conan2/settings.yml to get the list of supported MSVC versions."""
+def get_supported_compiler_versions(compiler_name):
+    """Parse ~/.conan2/settings.yml to get supported versions for a compiler."""
     settings_path = Path.home() / ".conan2" / "settings.yml"
     if not settings_path.exists():
         return None
@@ -45,22 +45,21 @@ def get_supported_msvc_versions():
     content = settings_path.read_text(encoding="utf-8")
     lines = content.splitlines()
 
-    in_msvc = False
-    msvc_indent = None
+    in_compiler = False
+    compiler_indent = None
     version_line_idx = -1
 
     for i, line in enumerate(lines):
-        msvc_match = re.match(r'^(\s*)msvc:\s*$', line)
-        if msvc_match:
-            in_msvc = True
-            msvc_indent = len(msvc_match.group(1))
+        compiler_match = re.match(rf'^(\s*){re.escape(compiler_name)}:\s*$', line)
+        if compiler_match:
+            in_compiler = True
+            compiler_indent = len(compiler_match.group(1))
             continue
 
-        if in_msvc:
+        if in_compiler:
             current_indent = len(re.match(r'^(\s*)', line).group(1))
             stripped = line.strip()
-            # If indent returns to msvc level (or less) and it's not a continuation, we've left the block
-            if current_indent <= msvc_indent and stripped and not stripped.startswith('#'):
+            if current_indent <= compiler_indent and stripped and not stripped.startswith('#'):
                 if 'version' not in stripped:
                     break
 
@@ -72,13 +71,11 @@ def get_supported_msvc_versions():
         return None
 
     version_line = lines[version_line_idx].strip()
-    # Inline list: version: [170, 180, ...]
     list_match = re.search(r'\[([^\]]*)\]', version_line)
     if list_match:
         items = [v.strip().strip('"').strip("'") for v in list_match.group(1).split(',')]
         return [v for v in items if v]
 
-    # Multi-line list
     versions = []
     base_indent = len(re.match(r'^(\s*)', lines[version_line_idx]).group(1))
     for j in range(version_line_idx + 1, len(lines)):
@@ -93,11 +90,40 @@ def get_supported_msvc_versions():
     return versions if versions else None
 
 
+def parse_version_list(versions):
+    """Parse version strings into comparable tuples of ints."""
+    parsed = []
+    for v in versions:
+        try:
+            parsed.append((tuple(int(x) for x in v.split('.')), v))
+        except ValueError:
+            continue
+    return parsed
+
+
+def pick_nearest_version(supported_versions, detected_version):
+    """Pick the nearest supported version that is <= detected version."""
+    if not supported_versions:
+        return detected_version
+    if detected_version in supported_versions:
+        return detected_version
+
+    parsed_supported = parse_version_list(supported_versions)
+    parsed_detected = parse_version_list([detected_version])
+    if not parsed_supported or not parsed_detected:
+        return supported_versions[-1]
+
+    detected_tuple = parsed_detected[0][0]
+    candidates = [(t, v) for t, v in parsed_supported if t <= detected_tuple]
+    if candidates:
+        return max(candidates, key=lambda x: x[0])[1]
+    return min(parsed_supported, key=lambda x: x[0])[1]
+
+
 def pick_msvc_version(supported_versions):
     """Choose the best MSVC version from the supported list."""
     if not supported_versions:
         return "193"
-    # Prefer 194 (newer VS2022), otherwise fall back to the maximum available
     if "194" in supported_versions:
         return "194"
     numeric = [v for v in supported_versions if v.isdigit()]
@@ -106,43 +132,158 @@ def pick_msvc_version(supported_versions):
     return supported_versions[-1]
 
 
+def detect_apple_clang_version():
+    """Detect Apple Clang version string suitable for Conan (e.g., 14.0)."""
+    try:
+        result = subprocess.run(
+            ["clang", "--version"], capture_output=True, text=True, check=True
+        )
+        match = re.search(r'Apple clang version\s+(\d+\.\d+)', result.stdout)
+        if match:
+            return match.group(1)
+    except Exception:
+        pass
+    return "14.0"
+
+
+def detect_gcc_version():
+    """Detect GCC major version suitable for Conan."""
+    try:
+        result = subprocess.run(
+            ["gcc", "--version"], capture_output=True, text=True, check=True
+        )
+        match = re.search(r'gcc\s+.*?\s+(\d+\.\d+)', result.stdout, re.IGNORECASE)
+        if match:
+            return match.group(1).split('.')[0]
+    except Exception:
+        pass
+    return "11"
+
+
+def detect_linux_clang_version():
+    """Detect Linux Clang version string suitable for Conan."""
+    try:
+        result = subprocess.run(
+            ["clang", "--version"], capture_output=True, text=True, check=True
+        )
+        match = re.search(r'clang version\s+(\d+\.\d+)', result.stdout)
+        if match:
+            return match.group(1).split('.')[0]
+    except Exception:
+        pass
+    return "15"
+
+
+def get_default_platform_profile():
+    """Return default Conan profile settings for the current host platform."""
+    if sys.platform == "win32":
+        supported = get_supported_compiler_versions("msvc")
+        version = pick_msvc_version(supported)
+        return {
+            "compiler": "msvc",
+            "compiler.version": version,
+            "compiler.cppstd": "20",
+            "compiler.runtime": "dynamic",
+            "os": "Windows",
+            "arch": "x86_64",
+        }
+
+    if sys.platform == "darwin":
+        supported = get_supported_compiler_versions("apple-clang")
+        detected = detect_apple_clang_version()
+        version = pick_nearest_version(supported, detected) if supported else detected
+        return {
+            "compiler": "apple-clang",
+            "compiler.version": version,
+            "compiler.cppstd": "20",
+            "compiler.libcxx": "libc++",
+            "os": "Macos",
+            "arch": "x86_64",
+        }
+
+    # Linux: prefer GCC, fallback to Clang if GCC unavailable
+    supported_gcc = get_supported_compiler_versions("gcc")
+    if supported_gcc is not None:
+        detected = detect_gcc_version()
+        version = pick_nearest_version(supported_gcc, detected)
+        return {
+            "compiler": "gcc",
+            "compiler.version": version,
+            "compiler.cppstd": "20",
+            "compiler.libcxx": "libstdc++11",
+            "os": "Linux",
+            "arch": "x86_64",
+        }
+
+    supported_clang = get_supported_compiler_versions("clang")
+    detected = detect_linux_clang_version()
+    version = pick_nearest_version(supported_clang, detected) if supported_clang else detected
+    return {
+        "compiler": "clang",
+        "compiler.version": version,
+        "compiler.cppstd": "20",
+        "compiler.libcxx": "libstdc++11",
+        "os": "Linux",
+        "arch": "x86_64",
+    }
+
+
+def profile_matches_platform(content, settings):
+    """Check if an existing profile was generated for the same platform/compiler."""
+    compiler = settings["compiler"]
+    os_name = settings["os"]
+    return f"compiler={compiler}" in content and f"os={os_name}" in content
+
+
+def update_profile_settings(content, settings):
+    """Update profile content with the target settings, preserving unknown fields."""
+    for key, value in settings.items():
+        pattern = rf'^{re.escape(key)}=.*$'
+        replacement = f"{key}={value}"
+        if re.search(pattern, content, re.MULTILINE):
+            content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
+        else:
+            content += f"\n{key}={value}"
+    return content
+
+
 def prepare_conan_profile():
-    """Ensure a project-local Conan profile exists and is valid for current Conan."""
+    """Ensure a project-local Conan profile exists and is valid for the current platform."""
     profile_dir = Path(".conan/profiles")
     profile_path = profile_dir / "default"
 
-    supported = get_supported_msvc_versions()
-    target_version = pick_msvc_version(supported)
+    settings = get_default_platform_profile()
 
     if profile_path.exists():
         content = profile_path.read_text(encoding="utf-8")
-        match = re.search(r'compiler\.version=(\d+)', content)
-        if match:
-            current_version = match.group(1)
+        if profile_matches_platform(content, settings):
+            old_version = None
+            match = re.search(r'compiler\.version=(\S+)', content)
+            if match:
+                old_version = match.group(1)
+
+            supported = get_supported_compiler_versions(settings["compiler"])
+            current_version = old_version or settings["compiler.version"]
             if supported and current_version not in supported:
-                # Profile outdated (Conan dropped the old version), update it
-                new_content = re.sub(
-                    r'compiler\.version=\d+',
-                    f'compiler.version={target_version}',
-                    content
-                )
+                settings["compiler.version"] = pick_nearest_version(supported, current_version)
+
+            new_content = update_profile_settings(content, settings)
+            if new_content != content:
                 profile_path.write_text(new_content, encoding="utf-8")
-                print(f"[Build] Updated local Conan profile: {current_version} -> {target_version}")
+                if old_version and settings["compiler.version"] != old_version:
+                    print(f"[Build] Updated local Conan profile: {old_version} -> {settings['compiler.version']}")
+                else:
+                    print(f"[Build] Updated local Conan profile")
             return str(profile_path)
 
     # Generate new profile
     profile_dir.mkdir(parents=True, exist_ok=True)
-    profile_content = f"""[settings]
-arch=x86_64
-build_type=Release
-compiler=msvc
-compiler.cppstd=14
-compiler.runtime=dynamic
-compiler.version={target_version}
-os=Windows
-"""
+    lines = ["[settings]"]
+    for key, value in settings.items():
+        lines.append(f"{key}={value}")
+    profile_content = "\n".join(lines) + "\n"
     profile_path.write_text(profile_content, encoding="utf-8")
-    print(f"[Build] Generated local Conan profile (compiler.version={target_version})")
+    print(f"[Build] Generated local Conan profile ({settings['compiler']} {settings['compiler.version']})")
     return str(profile_path)
 
 

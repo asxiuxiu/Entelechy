@@ -182,6 +182,12 @@
   - 文件：`launch/generator.py`
 - [ ] Build System | `main.cpp.in` 模板中硬编码了大量跨模块 include（如 `#include "glfw_window.h"`、`#include "render/opengl_backend.h"`），未通过模块依赖自动推导。未来应让各模块在 `entelechy_module()` 中声明「需要暴露给 main 的头文件」，或由 CMake 自动生成 include 列表。
   - 文件：`launch/templates/main.cpp.in`
+- [x] Build System | 保留 `Visual Studio` generator 的同时新增 `build_ninja/` 用于生成 `compile_commands.json`。已通过项目本地 `.venv` 固定 `conan==2.30.0`，并在 Windows 下跑两次 `conan install`（Debug/Release）补齐 VS Multi-Config 所需依赖信息，构建已跑通。
+  - 文件：`scripts/build/build.py`、`requirements.txt`、`scripts/tools/setup_env.py`
+- [ ] Build System | CMake 配置阶段仍会打印 `IMPORTED_LOCATION not set for imported target "CONAN_LIB::xxx_DEBUG" configuration "Release"` 等错误（CMakeDeps 对兼容包的 Multi-config target 处理不完整），虽不影响编译与 `compile_commands.json` 生成，但污染输出。已新增 `--strict-build` 参数可作为消除该噪音的入口，但当前环境因 `bmlib`  remote 中的定制 `cmake/3.25.3.5` 指向私有 GitLab，启用 `--strict-build` 会触发无权限错误，因此 task 中未默认启用。
+  - 文件：`scripts/build/build.py`、`.zed/tasks.json`、`.vscode/tasks.json`、`AGENTS-BUILD.md`
+- [ ] Build System | Conan install 阶段仍会打印 `env_info`、`cpp_info.filenames/names/build_modules` 等 Conan 1.X 特性 deprecated warnings，来自 conan-center 上游包，暂无法在本项目消除。待 conan-center 包更新或 Conan 弃用这些 warning 后自然消失。
+  - 文件：`conanfile.py`（依赖上游）
 
 ## ThreadPool / 线程池
 

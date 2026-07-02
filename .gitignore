@@ -1,7 +1,12 @@
 ﻿# Build outputs
 /build/
+build_ninja/
 out/
 cmake-build-*/
+compile_commands.json
+
+# Python virtual environment
+.venv/
 
 # Visual Studio
 .vs/
@@ -32,7 +37,9 @@ Thumbs.db
 # Local vault context config
 .vault-context.json
 
+# Conan / CMake generated
 .conan
+CMakeUserPresets.json
 logs
 
 # Claude Code: skills is a generated link to .agents/skills

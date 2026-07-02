@@ -1,0 +1,208 @@
+[
+    {
+        "label": "Init: Setup Python Environment",
+        "command": "python3",
+        "args": [
+            "scripts/tools/setup_env.py"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Build: Engine Only (Debug)",
+        "command": "python3",
+        "args": [
+            "scripts/build/build.py",
+            "--config",
+            "configs/engine_only.json",
+            "--debug",
+            "--build"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Build: Engine Only (Release)",
+        "command": "python3",
+        "args": [
+            "scripts/build/build.py",
+            "--config",
+            "configs/engine_only.json",
+            "--release",
+            "--build"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Build: Full (Debug)",
+        "command": "python3",
+        "args": [
+            "scripts/build/build.py",
+            "--config",
+            "configs/full_build.json",
+            "--debug",
+            "--build"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Build: Full (Release)",
+        "command": "python3",
+        "args": [
+            "scripts/build/build.py",
+            "--config",
+            "configs/full_build.json",
+            "--release",
+            "--build"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Compile: Debug",
+        "command": "cmake",
+        "args": [
+            "--build",
+            "build",
+            "--config",
+            "Debug",
+            "--parallel"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Compile: Release",
+        "command": "cmake",
+        "args": [
+            "--build",
+            "build",
+            "--config",
+            "Release",
+            "--parallel"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Generate: Engine Only (Debug)",
+        "command": "python3",
+        "args": [
+            "scripts/build/build.py",
+            "--config",
+            "configs/engine_only.json",
+            "--debug"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Generate: Engine Only (Release)",
+        "command": "python3",
+        "args": [
+            "scripts/build/build.py",
+            "--config",
+            "configs/engine_only.json",
+            "--release"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Generate: Full (Debug)",
+        "command": "python3",
+        "args": [
+            "scripts/build/build.py",
+            "--config",
+            "configs/full_build.json",
+            "--debug"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Generate: Full (Release)",
+        "command": "python3",
+        "args": [
+            "scripts/build/build.py",
+            "--config",
+            "configs/full_build.json",
+            "--release"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Clean: Remove Build Directory",
+        "command": "python3",
+        "args": [
+            "scripts/tools/clean.py"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    },
+    {
+        "label": "Clean: Deep Clean (Include .conan/)",
+        "command": "python3",
+        "args": [
+            "scripts/tools/clean.py",
+            "--deep"
+        ],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "reveal": "always",
+        "hide": "never",
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "shell": "system"
+    }
+]

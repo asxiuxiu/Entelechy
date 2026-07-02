@@ -2,21 +2,21 @@
     "configurations": [
         {
             "name": "Mac",
-            "configurationProvider": "ms-vscode.cmake-tools",
+            "compileCommands": "${workspaceFolder}/build_ninja/compile_commands.json",
             "cStandard": "c11",
             "cppStandard": "c++20",
             "intelliSenseMode": "macos-clang-x64"
         },
         {
             "name": "Win32",
-            "configurationProvider": "ms-vscode.cmake-tools",
+            "compileCommands": "${workspaceFolder}/build_ninja/compile_commands.json",
             "cStandard": "c11",
             "cppStandard": "c++20",
             "intelliSenseMode": "windows-msvc-x64"
         },
         {
             "name": "Linux",
-            "configurationProvider": "ms-vscode.cmake-tools",
+            "compileCommands": "${workspaceFolder}/build_ninja/compile_commands.json",
             "cStandard": "c11",
             "cppStandard": "c++20",
             "intelliSenseMode": "linux-clang-x64"

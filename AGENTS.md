@@ -4,6 +4,12 @@
 
 ## 构建入口
 
+首次构建前先初始化项目本地 Python 环境（安装固定版本 Conan 等到 `.venv`）：
+
+```bash
+python scripts/tools/setup_env.py
+```
+
 ```bash
 # 默认构建（引擎 + 游戏运行时）
 python scripts/build/build.py
@@ -16,6 +22,12 @@ python scripts/build/build.py --release
 ```
 
 产物：可执行文件 → `build/bin/`，静态库 → `build/lib/`。
+
+### 跨机器开发前提
+
+- Python 3.12+ 与 `bash`（Git for Windows）需在 PATH 中。
+- `build.py` 会优先使用项目 `.venv/` 里的 `conan`，无需在宿主机安装/维护 Conan 版本。
+- VS Code 推荐终端：`Git Bash`；Zed 已配置为 `bash`。
 
 ## 子文档
 

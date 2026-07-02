@@ -55,6 +55,12 @@ CMake 会自动发现并链接新模块。
 
 ## 构建入口
 
+首次构建前初始化项目本地环境（创建 `.venv` 并安装 `requirements.txt` 中的 pinned Conan）：
+
+```bash
+python scripts/tools/setup_env.py
+```
+
 ```bash
 # 默认配置 + 编译
 python scripts/build/build.py --debug --build
@@ -62,6 +68,20 @@ python scripts/build/build.py --debug --build
 # Release
 python scripts/build/build.py --release --build
 ```
+
+`build.py` 会优先使用 `.venv/Scripts/conan.exe`（Windows）或 `.venv/bin/conan`（Unix），避免受宿主机 Conan 版本影响。
+
+### `--strict-build`（可选）
+
+Windows 上 Conan 默认会把 `compiler.version=194` 的依赖 fallback 到 `compiler.version=193` 的预编译 binary。该兼容包在 Visual Studio Multi-config generator 下会导致 CMake 配置阶段打印 `IMPORTED_LOCATION not set...` 错误（不影响最终编译）。
+
+`build.py` 支持 `--strict-build` 参数，强制从源码编译 host 依赖以生成与当前编译器完全匹配的 binary，从而消除上述噪音：
+
+```bash
+python scripts/build/build.py --debug --build --strict-build
+```
+
+> ⚠️ 当前环境受限：本机 Conan 配置中 `bmlib` 等 booming-inc 内部 remote 提供了一个定制版 `cmake/3.25.3.5`，其源码指向私有 GitLab。启用 `--strict-build` 时 Conan 会尝试重建 cmake 并触发无权限错误。因此 Zed / VS Code 的 Build 任务**没有默认启用** `--strict-build`，保持普通 `--build=missing` 流程以保证构建稳定。若未来需要启用 strict-build，需先解决 cmake 包来源问题（例如切换到 conan-center 的公共 cmake 包或采用项目级独立 Conan home）。
 
 ---
 

@@ -2,11 +2,8 @@
     "formatter": {
         "external": {
             "command": "clang-format",
-            "arguments": [
-                "--style=file",
-                "--assume-filename={buffer_path}"
-            ]
-        }
+            "arguments": ["--style=file", "--assume-filename={buffer_path}"],
+        },
     },
     "languages": {
         "C++": {
@@ -15,11 +12,11 @@
                     "command": "clang-format",
                     "arguments": [
                         "--style=file",
-                        "--assume-filename={buffer_path}"
-                    ]
-                }
-            }
-        }
+                        "--assume-filename={buffer_path}",
+                    ],
+                },
+            },
+        },
     },
     "lsp": {
         "clangd": {
@@ -30,15 +27,15 @@
                     "--header-insertion=never",
                     "--completion-style=bundled",
                     "--pch-storage=memory",
-                    "--cross-file-rename"
-                ]
-            }
-        }
+                    "--cross-file-rename",
+                ],
+            },
+        },
     },
     "show_wrap_guides": false,
     "tab_size": 4,
     "hard_tabs": false,
     "terminal": {
-        "shell": "bash"
-    }
+        "shell": "system",
+    },
 }

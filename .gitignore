@@ -39,8 +39,12 @@ Thumbs.db
 
 # Conan / CMake generated
 .conan
+.conan_home/
 CMakeUserPresets.json
 logs
+
+# Local environment overrides
+configs/environment.local.json
 
 # Claude Code: skills is a generated link to .agents/skills
 .claude/skills

@@ -1,0 +1,23 @@
+{
+    "python": {
+        "min_version": "3.12"
+    },
+    "conan": {
+        "version": "2.30.0",
+        "home": ".conan_home"
+    },
+    "cmake": {
+        "version": "3.31.10",
+        "install_in_venv": true
+    },
+    "ninja": {
+        "version": "1.13.0",
+        "install_in_venv": true
+    },
+    "msvc": {
+        "search_paths": [
+            "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional",
+            "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community"
+        ]
+    }
+}

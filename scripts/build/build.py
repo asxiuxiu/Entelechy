@@ -425,7 +425,7 @@ def prepare_conan_profile():
                         f"[Build] Updated local Conan profile: {old_version} -> {settings['compiler.version']}"
                     )
                 else:
-                    print(f"[Build] Updated local Conan profile")
+                    print("[Build] Updated local Conan profile")
             return str(profile_path)
 
     # Generate new profile

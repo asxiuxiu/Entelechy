@@ -168,7 +168,7 @@ def update_module_cmake(module_dir: Path, dry_run: bool = False):
 
         if not dry_run:
             cmake_file.write_text(new_content, encoding="utf-8")
-        print(f"  CMakeLists.txt rewritten (imgui special: auto-discovery + external SOURCES)")
+        print("  CMakeLists.txt rewritten (imgui special: auto-discovery + external SOURCES)")
         return
 
     elif module_name == "test_runner":
@@ -198,7 +198,7 @@ def update_module_cmake(module_dir: Path, dry_run: bool = False):
 
         if not dry_run:
             cmake_file.write_text(new_content, encoding="utf-8")
-        print(f"  CMakeLists.txt rewritten (test_runner special: auto-discovery + TEST_OBJECTS)")
+        print("  CMakeLists.txt rewritten (test_runner special: auto-discovery + TEST_OBJECTS)")
         return
 
     # Standard module: auto-discovery (no SOURCES)
@@ -248,7 +248,7 @@ def update_module_cmake(module_dir: Path, dry_run: bool = False):
 
     if not dry_run:
         cmake_file.write_text(new_content, encoding="utf-8")
-    print(f"  CMakeLists.txt rewritten (auto-discovery)")
+    print("  CMakeLists.txt rewritten (auto-discovery)")
 
 
 def build_include_map(file_manifest):

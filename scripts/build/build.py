@@ -6,16 +6,23 @@ Usage: python build.py [ --config <json> ] [ --debug | --release ]
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+# Allow importing project environment config and skills helper from sibling directories.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+from env_config import get_project_root, load_env_config
 from setup_skills import setup_skills_link
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = get_project_root()
 VENV_DIR = PROJECT_ROOT / ".venv"
+ENV_CONFIG = load_env_config()
+CONAN_HOME = PROJECT_ROOT / ENV_CONFIG["conan"]["home"]
+os.environ["CONAN_HOME"] = str(CONAN_HOME)
 
 
 def get_project_tool(name):
@@ -35,10 +42,26 @@ def get_conan_cmd():
     return "conan"
 
 
-def run(cmd):
+def get_cmake_cmd():
+    """Return the cmake command to use, preferring the project venv."""
+    project_cmake = get_project_tool("cmake")
+    if project_cmake:
+        return str(project_cmake)
+    return "cmake"
+
+
+def get_ninja_cmd():
+    """Return the ninja command to use, preferring the project venv."""
+    project_ninja = get_project_tool("ninja")
+    if project_ninja:
+        return str(project_ninja)
+    return "ninja"
+
+
+def run(cmd, env=None):
     """Run a command and forward stdout/stderr. Exit on failure."""
     print(f"[Build] {' '.join(cmd)}")
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, env=env)
     if result.returncode != 0:
         sys.exit(result.returncode)
 
@@ -47,7 +70,7 @@ def get_cmake_version():
     """Detect installed CMake version as (major, minor, patch) tuple."""
     try:
         result = subprocess.run(
-            ["cmake", "--version"], capture_output=True, text=True, check=True
+            [get_cmake_cmd(), "--version"], capture_output=True, text=True, check=True
         )
         match = re.search(r"cmake version (\d+)\.(\d+)\.(\d+)", result.stdout)
         if match:
@@ -58,8 +81,8 @@ def get_cmake_version():
 
 
 def get_supported_compiler_versions(compiler_name):
-    """Parse ~/.conan2/settings.yml to get supported versions for a compiler."""
-    settings_path = Path.home() / ".conan2" / "settings.yml"
+    """Parse project-local Conan settings.yml to get supported versions for a compiler."""
+    settings_path = CONAN_HOME / "settings.yml"
     if not settings_path.exists():
         return None
 
@@ -147,16 +170,106 @@ def pick_nearest_version(supported_versions, detected_version):
     return min(parsed_supported, key=lambda x: x[0])[1]
 
 
-def pick_msvc_version(supported_versions):
-    """Choose the best MSVC version from the supported list."""
+def pick_msvc_version(supported_versions, detected_version=None):
+    """Choose the best MSVC version from the supported list.
+
+    If a detected_version is provided (e.g. from cl.exe), prefer it if it is
+    supported; otherwise pick the nearest supported version that is <= the
+    detected version. This avoids Conan constantly falling back from 194 to
+    193 when only a v143 compiler is actually installed.
+    """
     if not supported_versions:
-        return "193"
-    if "194" in supported_versions:
-        return "194"
+        return detected_version or "193"
+
+    if detected_version and detected_version in supported_versions:
+        return detected_version
+
     numeric = [v for v in supported_versions if v.isdigit()]
-    if numeric:
-        return max(numeric, key=int)
-    return supported_versions[-1]
+    if not numeric:
+        return supported_versions[-1]
+
+    if detected_version and detected_version.isdigit():
+        detected_int = int(detected_version)
+        candidates = [v for v in numeric if int(v) <= detected_int]
+        if candidates:
+            return max(candidates, key=int)
+
+    return max(numeric, key=int)
+
+
+def detect_msvc_version():
+    """Detect the installed MSVC version as a Conan compiler.version string.
+
+    Inspects each candidate VS installation's VC/Tools/MSVC directory to find
+    the toolset that matches the Visual Studio version's default toolset. For
+    Visual Studio 2022 the default is v143 (14.3x -> Conan 193). If the
+    matching toolset family is not present, falls back to the latest installed
+    toolset. Returns None if no working MSVC is found.
+    """
+    msvc_search_paths = ENV_CONFIG.get("msvc", {}).get("search_paths", [])
+    if not msvc_search_paths:
+        return None
+
+    def toolset_to_conan(toolset_dir):
+        """Map '14.38.33130' to Conan compiler.version '193'."""
+        parts = toolset_dir.name.split(".")
+        if len(parts) < 2:
+            return None
+        try:
+            major = int(parts[0])
+            minor = int(parts[1])
+        except ValueError:
+            return None
+        # 14.0x -> 190, 14.1x -> 191, 14.2x -> 192, 14.3x -> 193, ...
+        return str(190 + minor // 10) if major == 14 else None
+
+    # Map a VS installation path to its default toolset minor family.
+    # D:\...\vs2022_pro  => Visual Studio 2022 => v143 => 14.3x => 193
+    def default_toolset_family(base):
+        lower = base.lower()
+        if "2022" in lower:
+            return 3  # v143
+        if "2019" in lower:
+            return 2  # v142
+        if "2017" in lower:
+            return 1  # v141
+        return None
+
+    for base in msvc_search_paths:
+        msvc_tools_dir = Path(base) / "VC" / "Tools" / "MSVC"
+        if not msvc_tools_dir.exists():
+            continue
+
+        toolset_dirs = [
+            d
+            for d in msvc_tools_dir.iterdir()
+            if d.is_dir() and d.name.startswith("14.")
+        ]
+        if not toolset_dirs:
+            continue
+
+        # Prefer the default toolset family for this VS version.
+        preferred_family = default_toolset_family(base)
+        if preferred_family is not None:
+            matching = [
+                d
+                for d in toolset_dirs
+                if d.name.split(".")[1].startswith(str(preferred_family))
+            ]
+            if matching:
+                toolset_dirs = matching
+
+        # Pick the lexicographically latest toolset version in the family.
+        latest = max(toolset_dirs, key=lambda d: d.name)
+        conan_version = toolset_to_conan(latest)
+        if conan_version:
+            print(
+                f"[Build] Detected MSVC toolset {latest.name} "
+                f"(Conan compiler.version={conan_version})"
+            )
+            return conan_version
+
+    return None
 
 
 def detect_apple_clang_version():
@@ -205,7 +318,13 @@ def get_default_platform_profile():
     """Return default Conan profile settings for the current host platform."""
     if sys.platform == "win32":
         supported = get_supported_compiler_versions("msvc")
-        version = pick_msvc_version(supported)
+        detected = detect_msvc_version()
+        version = pick_msvc_version(supported, detected)
+        if detected and version != detected:
+            print(
+                f"[Build] Conan does not support compiler.version={detected}; "
+                f"falling back to {version}"
+            )
         return {
             "compiler": "msvc",
             "compiler.version": version,
@@ -396,7 +515,7 @@ def generate_ninja_compile_commands(build_type, shipping):
         ninja_toolchain = original_toolchain
 
     ninja_cmd = [
-        "cmake",
+        get_cmake_cmd(),
         "-S",
         ".",
         "-B",
@@ -413,17 +532,19 @@ def generate_ninja_compile_commands(build_type, shipping):
 
     if sys.platform == "win32":
         # Ninja needs the MSVC environment; drive cmake through a VS developer
-        # prompt so cl.exe/link.exe are available.
-        vcvars = (
-            "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional\\"
-            "VC\\Auxiliary\\Build\\vcvarsall.bat"
-        )
-        if not Path(vcvars).exists():
-            vcvars = (
-                "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\"
-                "VC\\Auxiliary\\Build\\vcvarsall.bat"
-            )
-        if not Path(vcvars).exists():
+        # prompt so cl.exe/link.exe are available. Paths come from
+        # configs/environment.json and the optional environment.local.json.
+        msvc_search_paths = ENV_CONFIG.get("msvc", {}).get("search_paths", [])
+        vcvars_candidates = [
+            str(Path(base) / "VC" / "Auxiliary" / "Build" / "vcvarsall.bat")
+            for base in msvc_search_paths
+        ]
+        vcvars = None
+        for candidate in vcvars_candidates:
+            if Path(candidate).exists():
+                vcvars = candidate
+                break
+        if vcvars is None:
             print(
                 "[Build] Warning: Could not find vcvarsall.bat; "
                 "Ninja configuration may fail without MSVC environment."
@@ -432,10 +553,13 @@ def generate_ninja_compile_commands(build_type, shipping):
         else:
             # Write a temporary batch file to avoid quoting/escaping issues
             # when passing vcvarsall + cmake through cmd /C.
+            # Ensure the venv ninja is on PATH so CMake's Ninja generator finds it.
+            ninja_dir = Path(get_ninja_cmd()).parent
             batch = Path("build_ninja_setup.bat")
             batch.write_text(
                 f"@echo off\n"
                 f'call "{vcvars}" amd64\n'
+                f"set PATH={ninja_dir};%PATH%\n"
                 f"{' '.join(str(c) for c in ninja_cmd)}\n",
                 encoding="utf-8",
             )
@@ -444,6 +568,10 @@ def generate_ninja_compile_commands(build_type, shipping):
             finally:
                 batch.unlink(missing_ok=True)
     else:
+        # On non-Windows, ensure project venv ninja is available in PATH.
+        env = os.environ.copy()
+        ninja_dir = Path(get_ninja_cmd()).parent
+        env["PATH"] = f"{ninja_dir}{os.pathsep}{env.get('PATH', '')}"
         run(ninja_cmd)
     copy_compile_commands_to_root()
 
@@ -491,6 +619,12 @@ def main():
         "(uses --build=*) to avoid Conan MSVC "
         "compatibility fallback issues",
     )
+    parser.add_argument(
+        "--compile-only",
+        action="store_true",
+        help="Skip Conan/CMake configuration and only run "
+        "cmake --build (uses the project venv cmake)",
+    )
     args = parser.parse_args()
 
     build_type = "Debug" if args.debug else "Release"
@@ -500,6 +634,19 @@ def main():
     config_path = args.config
     print(f"[Build] Config: {config_path}")
     print(f"[Build] Type: {build_type}")
+
+    # Fast path: just compile the already-configured build directory.
+    if args.compile_only:
+        if not Path("build").exists():
+            print(
+                "[Build] Error: build/ directory not found. "
+                "Run without --compile-only first."
+            )
+            sys.exit(1)
+        print(f"[Build] Compile-only: building {build_type}...")
+        run([get_cmake_cmd(), "--build", "build", "--config", build_type, "--parallel"])
+        print("[Build] Success! Output: build/bin/")
+        return
 
     # Prepare project-local Conan profile (adapts to current Conan version)
     profile_path = prepare_conan_profile()
@@ -575,7 +722,7 @@ def main():
 
     # Step 2: Run CMake (Visual Studio generator keeps .sln for VS IDE)
     print("[Build] Step 2: Running CMake...")
-    cmake_cmd = ["cmake", "-S", ".", "-B", "build"]
+    cmake_cmd = [get_cmake_cmd(), "-S", ".", "-B", "build"]
     if sys.platform == "win32":
         cmake_cmd += [
             "-G",
@@ -599,7 +746,7 @@ def main():
     # Step 3: Build (optional)
     if args.build:
         print(f"[Build] Step 3: Building {build_type}...")
-        run(["cmake", "--build", "build", "--config", build_type, "--parallel"])
+        run([get_cmake_cmd(), "--build", "build", "--config", build_type, "--parallel"])
         print("[Build] Success! Output: build/bin/")
     else:
         print("[Build] Done. (Use --build to also compile)")

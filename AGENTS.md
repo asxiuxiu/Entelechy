@@ -4,10 +4,17 @@
 
 ## 构建入口
 
-首次构建前先初始化项目本地 Python 环境（安装固定版本 Conan 等到 `.venv`）：
+首次构建前先初始化项目本地 Python 环境（创建 `.venv`、安装指定版本 Conan / CMake、初始化项目级 Conan home）：
 
 ```bash
 python scripts/tools/setup_env.py
+```
+
+Windows 上若 Visual Studio 安装在非默认路径，需先复制模板并填写本机路径：
+
+```bash
+cp configs/environment.local.json.template configs/environment.local.json
+# 然后编辑 environment.local.json 中的 msvc.search_paths
 ```
 
 ```bash
@@ -25,9 +32,21 @@ python scripts/build/build.py --release
 
 ### 跨机器开发前提
 
-- Python 3.12+ 与 `bash`（Git for Windows）需在 PATH 中。
-- `build.py` 会优先使用项目 `.venv/` 里的 `conan`，无需在宿主机安装/维护 Conan 版本。
-- VS Code 推荐终端：`Git Bash`；Zed 已配置为 `bash`。
+- Python 3.12+ 需在 PATH 中；Windows 上推荐同时安装 Git for Windows 以便使用 bash 终端，但构建脚本本身已兼容 cmd/PowerShell。
+- 工具版本由 `configs/environment.json` 锁定（Conan、CMake、Python 最低版本等）。
+- 项目隔离：
+  - Python 依赖装在项目 `.venv/`。
+  - Conan 使用项目级 `.conan_home/`，不与其他项目共享 `~/.conan2`。
+  - CMake 优先使用 `.venv/Scripts/cmake.exe`（Windows）或 `.venv/bin/cmake`（Unix）。
+- `build.py` 会优先使用 `.venv/` 里的 `conan` 和 `cmake`，无需在宿主机维护版本。
+- VS Code 推荐终端：`Git Bash`；Zed 默认终端使用系统 shell（Windows 上通常为 PowerShell/cmd）。
+
+### 环境配置分层
+
+- `configs/environment.json`（进 git）：项目级不变量，如 Conan/CMake 版本、默认 VS 搜索路径。
+- `configs/environment.local.json`（gitignore）：机器级覆盖，如本机 VS 自定义安装路径。
+
+新增机器相关路径时，优先加到 `environment.local.json`，不要修改 `environment.json`。
 
 ## 子文档
 

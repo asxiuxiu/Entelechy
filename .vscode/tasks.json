@@ -27,7 +27,7 @@
             },
             "group": "build",
             "problemMatcher": [],
-            "detail": "创建 .venv 并安装 requirements.txt 中的依赖（含 conan）"
+            "detail": "创建 .venv 并按 configs/environment.json 安装指定版本的 Conan、CMake 等依赖，初始化项目级 .conan_home"
         },
         // ============================================================
         // 一键构建：生成 Source Forest + 配置 CMake + 编译
@@ -199,14 +199,30 @@
             "label": "Compile: Debug",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "${workspaceFolder}/build",
-                "--config",
-                "Debug",
-                "--parallel"
-            ],
+            "windows": {
+                "command": "python",
+                "args": [
+                    "${workspaceFolder}/scripts/build/build.py",
+                    "--debug",
+                    "--compile-only"
+                ]
+            },
+            "linux": {
+                "command": "python3",
+                "args": [
+                    "${workspaceFolder}/scripts/build/build.py",
+                    "--debug",
+                    "--compile-only"
+                ]
+            },
+            "osx": {
+                "command": "python3",
+                "args": [
+                    "${workspaceFolder}/scripts/build/build.py",
+                    "--debug",
+                    "--compile-only"
+                ]
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -214,25 +230,41 @@
             "problemMatcher": [
                 "$msCompile"
             ],
-            "detail": "仅编译 Debug（不重新生成 Source Forest）"
+            "detail": "仅编译 Debug（不重新生成 Source Forest，使用项目 venv 内的 cmake）"
         },
         {
             "label": "Compile: Release",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "${workspaceFolder}/build",
-                "--config",
-                "Release",
-                "--parallel"
-            ],
+            "windows": {
+                "command": "python",
+                "args": [
+                    "${workspaceFolder}/scripts/build/build.py",
+                    "--release",
+                    "--compile-only"
+                ]
+            },
+            "linux": {
+                "command": "python3",
+                "args": [
+                    "${workspaceFolder}/scripts/build/build.py",
+                    "--release",
+                    "--compile-only"
+                ]
+            },
+            "osx": {
+                "command": "python3",
+                "args": [
+                    "${workspaceFolder}/scripts/build/build.py",
+                    "--release",
+                    "--compile-only"
+                ]
+            },
             "group": "build",
             "problemMatcher": [
                 "$msCompile"
             ],
-            "detail": "仅编译 Release（不重新生成 Source Forest）"
+            "detail": "仅编译 Release（不重新生成 Source Forest，使用项目 venv 内的 cmake）"
         },
         // ============================================================
         // 仅生成+配置（不编译）
@@ -433,7 +465,7 @@
             },
             "group": "build",
             "problemMatcher": [],
-            "detail": "深度清理：删除 build/ + .conan/（下次构建需重新 conan install）"
+            "detail": "深度清理：删除 build/ + .conan/ + .conan_home/（下次构建需重新 conan install）"
         }
     ]
 }

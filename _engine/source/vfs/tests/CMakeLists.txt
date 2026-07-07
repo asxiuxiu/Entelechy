@@ -1,13 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 
-add_library(VFSTests OBJECT
-    ${CMAKE_CURRENT_LIST_DIR}/test_vfs.cpp
+entelechy_module(
+    NAME VFSTests
+    TYPE OBJECT
+    SOURCES
+        ${CMAKE_CURRENT_LIST_DIR}/test_vfs.cpp
+    PUBLIC_DEPS
+        VFSLib
+        TestFrameworkLib
+    NO_TESTS
 )
 
-target_link_libraries(VFSTests PUBLIC VFSLib TestFrameworkLib)
-
-target_include_directories(VFSTests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../private)
-
-target_compile_features(VFSTests PUBLIC cxx_std_20)
-
-set_property(GLOBAL APPEND PROPERTY ENTELECHY_ENABLED_MODULES VFSTests)
+entelechy_module_parent_private_include(VFSTests)

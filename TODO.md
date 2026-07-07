@@ -151,7 +151,16 @@
 - [ ] Module / 模块架构 | 当前 `window/` 只含窗口和输入，未来需加入线程池抽象、文件 IO 底层、网络 Socket、CPU/SIMD 硬件检测、动态库加载，需扩展为 `platform/` 下设 `window/`、`input/`、`thread/`、`filesystem/`、`network/` 子目录。
 - [ ] Module / 模块架构 | 反射系统（atom_registry、type_registry、inspector_reflection）与资源管理（prefab、scene_serializer）已独立为多个文件，文件数 > 5，值得独立，需从 `core/` 拆分出 `reflect/` 和 `asset/`，`reflect/` 负责类型注册/属性遍历/序列化/Inspector 自动生成，`asset/` 负责 Handle/异步加载/引用计数/热重载。
 - [ ] Module / 模块架构 | `core/` 与具体业务之间缺少"比 core 更业务、比 gameplay 更通用"的层，需引入 `common/` 通用中间件层，包含场景图（Transform 层级脏标记传播）、Prefab 资产结构、序列化框架、状态机基础、调试绘制接口。
-- [ ] Module / 模块架构 | `render/` 下所有文件平铺，随着 RHI、材质、后处理加入会越来越混乱，需按 `render/rhi/`（RHI 抽象层 + 各后端）、`render/renderer/`（RenderGraph、RenderPass）、`render/material/`（Material、ShaderCache）、`render/2d/`（Sprite、UI）、`render/post_process/`（后处理栈）分层。
+- [ ] Module / 模块架构 | `render/CMakeLists.txt` 直接 `PUBLIC_DEPS EcsLib`，导致整个渲染模块与 ECS 框架强耦合。当前 `RenderLib` 内部混合了两层职责：底层渲染能力（RHI、GPU 资源、RenderPhase、SortKey）和上层 ECS 驱动的渲染管线（`RenderWorld`、`ExtractSchedule`、各类 extract/cull/queue systems）。未来应拆分为 `RenderCoreLib`（零 ECS 依赖，可被 headless 工具/服务端/测试复用）和 `RenderSystemLib`（依赖 `RenderCoreLib` + `EcsLib`，容纳 ECS 组件与 systems）。短期可先记录，待 RHI 后端稳定后再动手拆分。
+  - 涉及文件：`_engine/source/render/CMakeLists.txt`、`render/public/render_world/*`、`render/public/extract/*`、`render/public/culling/*`、`render/public/queue/*`、`render/public/components/*`、`render/private/**/*`。
+
+- [ ] Module / 模块架构 | `imgui/CMakeLists.txt` 直接 `PUBLIC_DEPS EcsLib`，仅因为 `imgui_panels.cpp` 提供了 `buildECSInspector(World&, Scheduler&, ...)` 这一调试面板。ImGui 作为 UI 框架封装层不应依赖 ECS；ECS Inspector 属于 Editor/调试工具层，应迁到独立的 `EditorLib` 或 `_game/source/editor_debug` 模块，只保留 `ImGuiManager`、`initImGui()`、`buildDockSpace()`、`buildDebugPanel()`、`buildLogPanel()` 在 `ImGuiLib` 中。
+  - 涉及文件：`_engine/source/imgui/CMakeLists.txt`、`imgui/public/imgui_panels.h`、`imgui/private/imgui_panels.cpp`。
+
+- [ ] Module / 模块架构 | `BridgeLib` 命名过于模糊，当前依赖 `EcsLib` + `MotorLib` + `LogLib`，职责是「AI 与引擎的桥接 + 运行时装配」。未来应明确其边界：若是 AI 协议适配器，应改名为 `AgentBridgeLib` 并只负责协议翻译；若是 ECS 与 Motor 的胶水层，应独立为 `MotorEcsAdapterLib`；若是运行时插件/系统注册，应上提到 `RuntimeLib` 或 `App` 层。
+  - 涉及文件：`_engine/source/bridge/CMakeLists.txt`、`bridge/private/agent_bridge.cpp`、`bridge/private/tool_registry.cpp`。
+
+- [ ] Module / 模块架构 | 当前 VS 解决方案已通过 `FOLDER` 属性按源码树分组（`Engine\core`、`Engine\ecs`、…、`Game\runtime`、`Launcher`、`Tests`），新增模块会自动按路径进入对应文件夹。未来若引入 `Plugins/` 或 `Tools/` 顶层目录，需扩展 `cmake/EntelechyModule.cmake` 中的 folder 映射规则。
 - [ ] Module / 模块架构 | `math/aabb.h:42` 注册了 ECS 组件 `REFLECT_COMPONENT(AABB)`，迫使 `math` 模块依赖 `core/type_registry.h`，破坏底层纯净性，需在 `render/components/` 下新建 `WorldAabb.h`（主世界）与 `RenderAabb.h`（渲染世界）作为专用 ECS 组件，`math/aabb.h` 移除 `type_registry.h` 依赖，恢复零依赖。
 
 ## Core Runtime / 阶段 4 差距（尚未实施）

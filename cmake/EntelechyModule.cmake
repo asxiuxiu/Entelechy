@@ -65,6 +65,32 @@ function(entelechy_module)
         add_library(${MOD_NAME} ${MOD_TYPE} ${MOD_SOURCES})
     endif()
 
+    # ---- Visual Studio / IDE folder grouping ----
+    # Derive a folder path from the module's location in the source tree so that
+    # generated IDE projects are organized instead of being dumped flat at the
+    # solution root. Tests are grouped separately.
+    get_filename_component(_MODULE_DIR_NAME "${CMAKE_CURRENT_LIST_DIR}" NAME)
+    file(RELATIVE_PATH _REL_MODULE_PATH "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_LIST_DIR}")
+
+    # Normalize path separators for Visual Studio folder syntax (use '/' so that
+    # the VS generator creates nested Solution Folders instead of treating the
+    # whole string as a single flat folder name).
+    string(REPLACE "\\" "/" _VS_FOLDER "${_REL_MODULE_PATH}")
+
+    # Collapse repository roots:
+    #   _engine/source/core   -> Engine/core
+    #   _game/source/runtime  -> Game/runtime
+    string(REGEX REPLACE "^_engine/source/" "Engine/" _VS_FOLDER "${_VS_FOLDER}")
+    string(REGEX REPLACE "^_game/source/" "Game/" _VS_FOLDER "${_VS_FOLDER}")
+
+    # Strip trailing /tests so that per-module tests live under the module folder.
+    string(REGEX REPLACE "/tests$" "" _VS_FOLDER "${_VS_FOLDER}")
+
+    # If the folder is just a bare module name, keep it simple; otherwise keep hierarchy.
+    if(NOT _VS_FOLDER STREQUAL "")
+        set_target_properties(${MOD_NAME} PROPERTIES FOLDER "${_VS_FOLDER}")
+    endif()
+
     # ---- C++ standard ----
     target_compile_features(${MOD_NAME} PUBLIC cxx_std_20)
 
@@ -145,9 +171,17 @@ function(entelechy_module)
     endif()
 
     # ---- Automatic test subdirectory ----
+    # NOTE: Tests are expected to use entelechy_module(NAME XxxTests TYPE OBJECT NO_TESTS)
+    # so that target naming, include paths, C++ standard, and IDE folder grouping are uniform.
     if(NOT MOD_NO_TESTS AND NOT SHIPPING_BUILD AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/tests")
         add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_BINARY_DIR}/tests)
     endif()
+endfunction()
+
+# Convenience helper for test subdirectories that need access to the parent module's
+# private headers while still using the unified module macro.
+function(entelechy_module_parent_private_include target_name)
+    target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../private)
 endfunction()
 
 function(entelechy_get_enabled_modules out_var)

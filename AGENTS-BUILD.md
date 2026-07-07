@@ -110,6 +110,34 @@ python scripts/build/build.py --debug --compile-only
 
 ---
 
+## Visual Studio 集成
+
+本项目不推荐使用 VS 的 **"打开本地文件夹"** 功能（即 VS 的 CMake 工作区模式），因为该模式会忽略 Conan 生成的 toolchain，导致 `find_package(glad)` 等依赖查找失败。
+
+正确做法：先运行构建脚本生成 VS 解决方案，再直接双击 `.sln` 打开：
+
+```bash
+python scripts/build/build.py --debug
+# 产物：build/Entelechy.sln
+```
+
+在 VS 中选择 **Debug / x64**，按 F5 即可调试。`build.py` 生成的 `.sln` 与 Ninja 配置共用同一份 Conan toolchain，因此 VS IDE 构建和脚本构建结果一致。
+
+### Zed / VS Code
+
+Zed 使用 `compile_commands.json` 为 clangd 提供补全。`build.py` 会额外生成 `build_ninja/` 下的 `compile_commands.json` 并复制到项目根目录，Zed 打开项目后自动识别。
+
+如需手动配置，可直接运行：
+
+```bash
+cmake -S . -B build_ninja -G Ninja \
+    -DCMAKE_TOOLCHAIN_FILE=build/conan/conan_toolchain_ninja.cmake \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+```
+
+---
+
 ## 环境配置文件
 
 项目通过两层 JSON 管理构建环境，避免机器相关路径写死在脚本里。

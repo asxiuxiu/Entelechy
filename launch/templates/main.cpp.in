@@ -73,8 +73,10 @@ int main() {
     // App + Plugins
     // ------------------------------------------------------------------
     Entelechy::App app;
-    auto gamePlugin = std::make_unique<game::GamePlugin>();
-    app.addPlugin(gamePlugin.release());
+    // Use App's emplacement so the plugin is allocated and freed by the same
+    // allocator (DefaultAllocator / mimalloc). Mixing std::make_unique (global
+    // new) with DefaultAllocator::free causes a crash on shutdown.
+    app.emplacePlugin<game::GamePlugin>();
     app.build();
     app.setup();
 

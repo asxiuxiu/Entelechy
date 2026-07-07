@@ -3,43 +3,60 @@
 #include "core/container/dynamic_array.h"
 #include "core/allocator/allocator.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // Sparse-dense set with paged sparse array.
 // Avoids linear sparse table blow-up for large EntityIDs.
 // O(1) add / remove (swap-and-pop) / has / indexOf.
-class SparseSet {
+class SparseSet
+{
 public:
     static constexpr u32 PAGE_SIZE = 1024;
     static constexpr u32 INVALID = 0xFFFFFFFFu;
 
-    explicit SparseSet(IAllocator* allocator = GetGlobalAllocator());
+    explicit SparseSet(IAllocator *allocator = GetGlobalAllocator());
     ~SparseSet();
 
-    SparseSet(const SparseSet&) = delete;
-    SparseSet& operator=(const SparseSet&) = delete;
+    SparseSet(const SparseSet &) = delete;
+    SparseSet &operator=(const SparseSet &) = delete;
 
-    SparseSet(SparseSet&& other) noexcept;
-    SparseSet& operator=(SparseSet&& other) noexcept;
+    SparseSet(SparseSet &&other) noexcept;
+    SparseSet &operator=(SparseSet &&other) noexcept;
 
     [[nodiscard]] bool has(u32 id) const;
     void add(u32 id);
     void remove(u32 id);
     [[nodiscard]] u32 indexOf(u32 id) const; // dense index, or INVALID
-    [[nodiscard]] u32 count() const { return static_cast<u32>(m_dense.size()); }
-    [[nodiscard]] bool empty() const { return m_dense.empty(); }
+    [[nodiscard]] u32 count() const
+    {
+        return static_cast<u32>(m_dense.size());
+    }
+    [[nodiscard]] bool empty() const
+    {
+        return m_dense.empty();
+    }
 
-    [[nodiscard]] const u32* denseData() const { return m_dense.data(); }
-    [[nodiscard]] u32* denseData() { return m_dense.data(); }
+    [[nodiscard]] const u32 *denseData() const
+    {
+        return m_dense.data();
+    }
+    [[nodiscard]] u32 *denseData()
+    {
+        return m_dense.data();
+    }
 
-    [[nodiscard]] u32 denseAt(u32 index) const { return m_dense[index]; }
+    [[nodiscard]] u32 denseAt(u32 index) const
+    {
+        return m_dense[index];
+    }
 
 private:
     void ensurePage(u32 id);
     void freePages();
 
-    IAllocator* m_allocator = nullptr;
-    DynamicArray<u32*> m_pages;
+    IAllocator *m_allocator = nullptr;
+    DynamicArray<u32 *> m_pages;
     DynamicArray<u32> m_dense; // compact entity IDs
 };
 

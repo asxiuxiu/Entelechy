@@ -1,7 +1,8 @@
 #pragma once
 #include "ecs/world/world.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 class ThreadPool;
 
@@ -12,17 +13,21 @@ class ThreadPool;
 // Phase 2: when a ThreadPool is supplied and the entity count exceeds a
 // threshold, the visible list is built in parallel using thread-local buffers
 // and merged deterministically in batch order.
-class FrustumCullSystem {
+class FrustumCullSystem
+{
 public:
     FrustumCullSystem() = default;
-    explicit FrustumCullSystem(ThreadPool* threadPool);
+    explicit FrustumCullSystem(ThreadPool *threadPool);
 
-    void setThreadPool(ThreadPool* threadPool) { m_thread_pool = threadPool; }
+    void setThreadPool(ThreadPool *threadPool)
+    {
+        m_thread_pool = threadPool;
+    }
 
-    void run(World& renderWorld);
+    void run(World &renderWorld);
 
 private:
-    ThreadPool* m_thread_pool = nullptr;
+    ThreadPool *m_thread_pool = nullptr;
 };
 
 } // namespace Entelechy

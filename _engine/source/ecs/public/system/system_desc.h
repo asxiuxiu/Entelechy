@@ -5,13 +5,15 @@
 #include "ecs/type/type_registry.h"
 #include "ecs/world/phase.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 class System;
 
-struct SystemDesc {
+struct SystemDesc
+{
     StringId name;
-    System* system = nullptr;
+    System *system = nullptr;
     u8 phase = static_cast<u8>(DefaultPhase::Update);
     DynamicArray<ComponentTypeID> reads;
     DynamicArray<ComponentTypeID> writes;

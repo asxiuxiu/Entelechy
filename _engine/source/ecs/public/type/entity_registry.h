@@ -2,19 +2,26 @@
 #include "core/foundation_types.h"
 #include "core/container/dynamic_array.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-struct Entity {
+struct Entity
+{
     u32 id{0xFFFFFFFFu};
     u32 generation{0};
 
-    [[nodiscard]] bool valid() const { return id != 0xFFFFFFFFu; }
-    constexpr auto operator<=>(const Entity& other) const = default;
-    constexpr bool operator==(const Entity& other) const = default;
+    [[nodiscard]] bool valid() const
+    {
+        return id != 0xFFFFFFFFu;
+    }
+    constexpr auto operator<=>(const Entity &other) const = default;
+    constexpr bool operator==(const Entity &other) const = default;
 };
 
-struct EntityRegistry {
-    struct Slot {
+struct EntityRegistry
+{
+    struct Slot
+    {
         u32 generation = 0;
         bool alive = false;
     };
@@ -22,8 +29,8 @@ struct EntityRegistry {
     EntityRegistry() = default;
     ~EntityRegistry() = default;
 
-    EntityRegistry(const EntityRegistry&) = delete;
-    EntityRegistry& operator=(const EntityRegistry&) = delete;
+    EntityRegistry(const EntityRegistry &) = delete;
+    EntityRegistry &operator=(const EntityRegistry &) = delete;
 
     [[nodiscard]] Entity create();
     [[nodiscard]] DynamicArray<Entity> allocateIDs(usize count);

@@ -1,7 +1,8 @@
 ﻿#pragma once
 #include "log/core/queued_log_entry.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ============================================================
 // Log output device interface (FOutputDevice-style abstraction)
@@ -16,12 +17,13 @@ namespace Entelechy {
 //   I/O. Logger does not interpret device-specific behaviour.
 // - Example extensions: NetworkOutput (TCP/UDP syslog), TelemetryOutput
 //   (metrics backend), EditorOutput (forward to ImGui console panel).
-class LogOutputDevice {
+class LogOutputDevice
+{
 public:
     virtual ~LogOutputDevice() = default;
 
     // Write a single log entry to this device.
-    virtual void write(const QueuedLogEntry& entry) = 0;
+    virtual void write(const QueuedLogEntry &entry) = 0;
 
     // Flush any buffered output.
     virtual void flush() = 0;

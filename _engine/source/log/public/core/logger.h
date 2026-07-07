@@ -10,7 +10,8 @@
 #include "log/core/queued_log_entry.h"
 #include "log/output/log_output_device.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ============================================================
 // Asynchronous double-buffered logger
@@ -34,14 +35,15 @@ namespace Entelechy {
 //   >1000 logs/frame from many worker threads.
 // - Future evolution (Phase 1+): ECS can emit LogEvent components; a
 //   LogSinkSystem reads them and forwards to Logger::instance().log().
-class Logger {
+class Logger
+{
 public:
     static constexpr usize MAX_HISTORY = 4096;
 
-    static Logger& instance();
+    static Logger &instance();
 
     // Initialize with default devices (console + file + jsonl).
-    bool init(const char* filePath = "logs/engine.log");
+    bool init(const char *filePath = "logs/engine.log");
 
     // Add a custom output device. Logger takes ownership.
     void addOutputDevice(std::unique_ptr<LogOutputDevice> device);
@@ -51,7 +53,7 @@ public:
 
     // Thread-safe: called from any producer thread.
     // Fast path: atomic level check without lock.
-    void log(const LogEntry& entry);
+    void log(const LogEntry &entry);
 
     // Called once per frame from the main thread.
     // Swaps the double buffer and drains all pending entries to devices and history.
@@ -71,7 +73,10 @@ public:
     LogLevel getMinLevel() const;
 
     // Ordered from oldest to newest. Should only be accessed from the thread that calls flush().
-    const FixedRingQueue<QueuedLogEntry, MAX_HISTORY>& history() const { return m_history; }
+    const FixedRingQueue<QueuedLogEntry, MAX_HISTORY> &history() const
+    {
+        return m_history;
+    }
 
 private:
     Logger() : m_min_level(LogLevel::Debug) {}
@@ -87,7 +92,7 @@ private:
 
     std::atomic<LogLevel> m_min_level;
 
-    void pushToHistory(const QueuedLogEntry& entry);
+    void pushToHistory(const QueuedLogEntry &entry);
 };
 
 } // namespace Entelechy

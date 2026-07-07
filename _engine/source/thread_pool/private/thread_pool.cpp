@@ -2,34 +2,42 @@
 #include "core/allocator/allocator.h"
 #include <memory>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ---------- WorkStealingQueue ----------
 
-WorkStealingQueue::WorkStealingQueue(usize capacity) {
+WorkStealingQueue::WorkStealingQueue(usize capacity)
+{
     usize cap = 1;
-    while (cap < capacity) cap <<= 1;
+    while (cap < capacity)
+        cap <<= 1;
     m_capacity = cap;
     m_mask = cap - 1;
-    void* mem = DefaultAllocator::alloc(cap * sizeof(std::function<void()>), alignof(std::function<void()>));
-    m_buffer = static_cast<std::function<void()>*>(mem);
-    for (usize i = 0; i < cap; ++i) {
+    void *mem = DefaultAllocator::alloc(cap * sizeof(std::function<void()>), alignof(std::function<void()>));
+    m_buffer = static_cast<std::function<void()> *>(mem);
+    for (usize i = 0; i < cap; ++i)
+    {
         new (&m_buffer[i]) std::function<void()>();
     }
 }
 
-WorkStealingQueue::~WorkStealingQueue() {
-    for (usize i = 0; i < m_capacity; ++i) {
+WorkStealingQueue::~WorkStealingQueue()
+{
+    for (usize i = 0; i < m_capacity; ++i)
+    {
         m_buffer[i].~function();
     }
     DefaultAllocator::free(m_buffer);
 }
 
-bool WorkStealingQueue::push(std::function<void()> task) {
+bool WorkStealingQueue::push(std::function<void()> task)
+{
     usize b = m_bottom.load(std::memory_order_relaxed);
     usize t = m_top.load(std::memory_order_acquire);
 
-    if (b - t >= m_capacity) {
+    if (b - t >= m_capacity)
+    {
         return false;
     }
 
@@ -39,10 +47,12 @@ bool WorkStealingQueue::push(std::function<void()> task) {
     return true;
 }
 
-std::function<void()> WorkStealingQueue::pop() {
+std::function<void()> WorkStealingQueue::pop()
+{
     usize b = m_bottom.load(std::memory_order_relaxed);
     usize t = m_top.load(std::memory_order_relaxed);
-    if (t >= b) {
+    if (t >= b)
+    {
         return nullptr;
     }
 
@@ -51,13 +61,15 @@ std::function<void()> WorkStealingQueue::pop() {
     std::atomic_thread_fence(std::memory_order_seq_cst);
 
     t = m_top.load(std::memory_order_relaxed);
-    if (t <= b) {
+    if (t <= b)
+    {
         // Non-empty after the fence: either multiple elements or we won
         // the race against steal() for the last element.
-        if (t == b) {
+        if (t == b)
+        {
             // Exactly one element — compete with steal().
-            if (!m_top.compare_exchange_strong(t, t + 1,
-                    std::memory_order_seq_cst, std::memory_order_relaxed)) {
+            if (!m_top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst, std::memory_order_relaxed))
+            {
                 // steal() already took it (or another pop).
                 m_bottom.store(b + 1, std::memory_order_relaxed);
                 return nullptr;
@@ -65,7 +77,9 @@ std::function<void()> WorkStealingQueue::pop() {
             m_bottom.store(b + 1, std::memory_order_relaxed);
         }
         return std::move(m_buffer[b & m_mask]);
-    } else {
+    }
+    else
+    {
         // t > b: steal() already took the last element between our first
         // check and the fence. Restore bottom and report empty.
         m_bottom.store(b + 1, std::memory_order_relaxed);
@@ -73,16 +87,18 @@ std::function<void()> WorkStealingQueue::pop() {
     }
 }
 
-std::function<void()> WorkStealingQueue::steal() {
+std::function<void()> WorkStealingQueue::steal()
+{
     usize t = m_top.load(std::memory_order_acquire);
     std::atomic_thread_fence(std::memory_order_seq_cst);
     usize b = m_bottom.load(std::memory_order_acquire);
 
-    if (t < b) {
+    if (t < b)
+    {
         // Win the CAS before moving from buffer. If CAS fails, another
         // thread (pop or another steal) already took this element.
-        if (m_top.compare_exchange_strong(t, t + 1,
-                std::memory_order_seq_cst, std::memory_order_relaxed)) {
+        if (m_top.compare_exchange_strong(t, t + 1, std::memory_order_seq_cst, std::memory_order_relaxed))
+        {
             return std::move(m_buffer[t & m_mask]);
         }
     }
@@ -91,39 +107,46 @@ std::function<void()> WorkStealingQueue::steal() {
 
 // ---------- ThreadPool ----------
 
-ThreadPool::ThreadPool(usize numThreads) : m_num_threads(numThreads) {
-    for (usize i = 0; i < numThreads; ++i) {
-        void* mem = DefaultAllocator::alloc(sizeof(Worker), alignof(Worker));
-        Worker* w = new (mem) Worker();
-        w->thread = std::thread([this, w]() {
-            runWorkerLoop(w);
-        });
+ThreadPool::ThreadPool(usize numThreads) : m_num_threads(numThreads)
+{
+    for (usize i = 0; i < numThreads; ++i)
+    {
+        void *mem = DefaultAllocator::alloc(sizeof(Worker), alignof(Worker));
+        Worker *w = new (mem) Worker();
+        w->thread = std::thread([this, w]() { runWorkerLoop(w); });
         m_workers.pushBack(w);
     }
 }
 
-ThreadPool::~ThreadPool() {
+ThreadPool::~ThreadPool()
+{
     m_stop.store(true, std::memory_order_release);
 
-    for (usize i = 0; i < m_workers.size(); ++i) {
-        if (m_workers[i]->thread.joinable()) {
+    for (usize i = 0; i < m_workers.size(); ++i)
+    {
+        if (m_workers[i]->thread.joinable())
+        {
             m_workers[i]->thread.join();
         }
     }
 
-    for (usize i = 0; i < m_workers.size(); ++i) {
+    for (usize i = 0; i < m_workers.size(); ++i)
+    {
         m_workers[i]->~Worker();
         DefaultAllocator::free(m_workers[i]);
     }
     m_workers.clear();
 }
 
-void ThreadPool::submit(std::function<void()> task) {
-    if (!task) return;
+void ThreadPool::submit(std::function<void()> task)
+{
+    if (!task)
+        return;
 
     m_pending_tasks.fetch_add(1, std::memory_order_relaxed);
 
-    auto wrapped = [this, t = std::move(task)]() mutable {
+    auto wrapped = [this, t = std::move(task)]() mutable
+    {
         t();
         m_pending_tasks.fetch_sub(1, std::memory_order_release);
     };
@@ -131,43 +154,54 @@ void ThreadPool::submit(std::function<void()> task) {
     static std::atomic<usize> s_next{0};
     usize idx = s_next.fetch_add(1, std::memory_order_relaxed) % m_workers.size();
 
-    if (!m_workers[idx]->queue.push(std::move(wrapped))) {
+    if (!m_workers[idx]->queue.push(std::move(wrapped)))
+    {
         std::lock_guard<std::mutex> lock(m_overflow_mutex);
         m_overflow_tasks.push(std::move(wrapped));
     }
 }
 
-void ThreadPool::waitForAll() {
-    while (m_pending_tasks.load(std::memory_order_acquire) > 0) {
+void ThreadPool::waitForAll()
+{
+    while (m_pending_tasks.load(std::memory_order_acquire) > 0)
+    {
         std::this_thread::yield();
     }
 }
 
-void ThreadPool::runWorkerLoop(Worker* self) {
-    while (!m_stop.load(std::memory_order_acquire)) {
+void ThreadPool::runWorkerLoop(Worker *self)
+{
+    while (!m_stop.load(std::memory_order_acquire))
+    {
         std::function<void()> task = self->queue.pop();
-        if (task) {
+        if (task)
+        {
             task();
             continue;
         }
 
         bool stolen = false;
-        for (usize i = 0; i < m_workers.size(); ++i) {
-            if (m_workers[i] == self) continue;
+        for (usize i = 0; i < m_workers.size(); ++i)
+        {
+            if (m_workers[i] == self)
+                continue;
             task = m_workers[i]->queue.steal();
-            if (task) {
+            if (task)
+            {
                 task();
                 stolen = true;
                 break;
             }
         }
-        if (stolen) continue;
+        if (stolen)
+            continue;
 
         {
             std::lock_guard<std::mutex> lock(m_overflow_mutex);
             m_overflow_tasks.pop(task);
         }
-        if (task) {
+        if (task)
+        {
             task();
             continue;
         }

@@ -3,10 +3,13 @@
 #include <GLFW/glfw3.h>
 #include <cstdio>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-void initWindow() {
-    if (!glfwInit()) {
+void initWindow()
+{
+    if (!glfwInit())
+    {
         LOG_ERROR(LogCategories::kWindow, "glfwInit() failed!");
         return;
     }

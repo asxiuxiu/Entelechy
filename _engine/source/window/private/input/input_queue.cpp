@@ -1,21 +1,26 @@
 ﻿#include "window/input/input_queue.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-InputQueue& InputQueue::instance() {
+InputQueue &InputQueue::instance()
+{
     static InputQueue s_instance;
     return s_instance;
 }
 
-void InputQueue::push(const RawInputEvent& event) {
+void InputQueue::push(const RawInputEvent &event)
+{
     m_events.pushBack(event);
 }
 
-void InputQueue::clear() {
+void InputQueue::clear()
+{
     m_events.clear();
 }
 
-const DynamicArray<RawInputEvent>& InputQueue::events() const {
+const DynamicArray<RawInputEvent> &InputQueue::events() const
+{
     return m_events;
 }
 

@@ -5,7 +5,8 @@
 #include "core/container/hash_map.h"
 #include "core/string/string_id.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ------------------------------------------------------------------
 // ShaderCache
@@ -14,32 +15,36 @@ namespace Entelechy {
 // Phase 1: in-memory cache only. No async compilation, no DDC.
 // Future: add file-system derived data cache and async build queue.
 // ------------------------------------------------------------------
-class ShaderCache {
+class ShaderCache
+{
 public:
     ShaderCache() = default;
     ~ShaderCache() = default;
 
-    ShaderCache(const ShaderCache&) = delete;
-    ShaderCache& operator=(const ShaderCache&) = delete;
-    ShaderCache(ShaderCache&&) = delete;
-    ShaderCache& operator=(ShaderCache&&) = delete;
+    ShaderCache(const ShaderCache &) = delete;
+    ShaderCache &operator=(const ShaderCache &) = delete;
+    ShaderCache(ShaderCache &&) = delete;
+    ShaderCache &operator=(ShaderCache &&) = delete;
 
     // Get cached shader or compile new one. Returns nullptr on failure.
-    RHIShaderRef getOrCreateShader(IRHIDevice* device, ShaderStage stage,
-                                    const char* source, usize length);
+    RHIShaderRef getOrCreateShader(IRHIDevice *device, ShaderStage stage, const char *source, usize length);
 
     void clear();
 
 private:
-    struct CacheKey {
+    struct CacheKey
+    {
         ShaderStage stage;
         u64 sourceHash;
-        bool operator==(const CacheKey& other) const {
+        bool operator==(const CacheKey &other) const
+        {
             return stage == other.stage && sourceHash == other.sourceHash;
         }
     };
-    struct CacheKeyHash {
-        u64 operator()(const CacheKey& key) const {
+    struct CacheKeyHash
+    {
+        u64 operator()(const CacheKey &key) const
+        {
             u64 h = static_cast<u64>(key.stage);
             h = hashCombine(h, key.sourceHash);
             return h;

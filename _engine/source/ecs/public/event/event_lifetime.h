@@ -2,15 +2,15 @@
 #include "core/foundation_types.h"
 #include "ecs/type/type_registry.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // Attached to every event entity so EventCleanupSystem knows when to destroy it.
-struct EventLifetime {
+struct EventLifetime
+{
     u64 frameCreated = 0;
 };
 
-REFLECT_COMPONENT(EventLifetime,
-    REG_FIELD(EventLifetime, frameCreated, u64)
-)
+REFLECT_COMPONENT(EventLifetime, REG_FIELD(EventLifetime, frameCreated, u64))
 
 } // namespace Entelechy

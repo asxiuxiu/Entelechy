@@ -2,7 +2,8 @@
 using namespace Entelechy;
 using namespace MathTest;
 
-TEST(Quat, Identity) {
+TEST(Quat, Identity)
+{
     Quat q = Quat::identity();
     ASSERT_EQ(q.x, 0.0f);
     ASSERT_EQ(q.y, 0.0f);
@@ -10,32 +11,37 @@ TEST(Quat, Identity) {
     ASSERT_EQ(q.w, 1.0f);
 }
 
-TEST(Quat, DefaultIsIdentity) {
+TEST(Quat, DefaultIsIdentity)
+{
     Quat q;
     ASSERT_TRUE(QuatNear(q, Quat::identity()));
 }
 
-TEST(Quat, FromAxisAngle) {
+TEST(Quat, FromAxisAngle)
+{
     Quat q = Quat::fromAxisAngle(Vec3{0.0f, 0.0f, 1.0f}, 3.14159f / 2.0f);
     Vec3 v{1.0f, 0.0f, 0.0f};
     Vec3 r = rotate(q, v);
     ASSERT_TRUE(Vec3Near(r, Vec3{0.0f, 1.0f, 0.0f}, 1e-3f));
 }
 
-TEST(Quat, RotateIdentity) {
+TEST(Quat, RotateIdentity)
+{
     Vec3 v{1.0f, 2.0f, 3.0f};
     Vec3 r = rotate(Quat::identity(), v);
     ASSERT_TRUE(Vec3Near(r, v));
 }
 
-TEST(Quat, ConjugateAndInverse) {
+TEST(Quat, ConjugateAndInverse)
+{
     Quat q = Quat::fromAxisAngle(Vec3{0.0f, 1.0f, 0.0f}, 0.5f);
     Quat inv = q.inverse();
     Quat prod = q * inv;
     ASSERT_TRUE(QuatNear(prod, Quat::identity(), 1e-3f));
 }
 
-TEST(Quat, Normalized) {
+TEST(Quat, Normalized)
+{
     Quat q{1.0f, 2.0f, 3.0f, 4.0f};
     Quat n = q.normalized();
     ASSERT_TRUE(NearEq(n.length(), 1.0f));
@@ -45,7 +51,8 @@ TEST(Quat, Normalized) {
     ASSERT_TRUE(QuatNear(zn, Quat::identity()));
 }
 
-TEST(Quat, NLerpEndpoints) {
+TEST(Quat, NLerpEndpoints)
+{
     Quat a = Quat::identity();
     Quat b = Quat::fromAxisAngle(Vec3{0.0f, 0.0f, 1.0f}, 3.14159f / 2.0f);
 
@@ -56,27 +63,31 @@ TEST(Quat, NLerpEndpoints) {
     ASSERT_TRUE(QuatNear(r1, b, 1e-3f));
 }
 
-TEST(Quat, SLerpSameQuat) {
+TEST(Quat, SLerpSameQuat)
+{
     Quat a = Quat::fromAxisAngle(Vec3{1.0f, 0.0f, 0.0f}, 0.5f);
     Quat r = slerp(a, a, 0.5f);
     ASSERT_TRUE(QuatNear(r, a, 1e-3f));
 }
 
-TEST(Quat, SLerpNearThreshold) {
+TEST(Quat, SLerpNearThreshold)
+{
     Quat a = Quat::identity();
     Quat b = Quat::fromAxisAngle(Vec3{0.0f, 0.0f, 1.0f}, 0.001f);
     Quat r = slerp(a, b, 0.5f);
     ASSERT_TRUE(QuatNear(r, nlerp(a, b, 0.5f), 1e-3f));
 }
 
-TEST(Quat, HamiltonProduct) {
+TEST(Quat, HamiltonProduct)
+{
     Quat i{1.0f, 0.0f, 0.0f, 0.0f};
     Quat j{0.0f, 1.0f, 0.0f, 0.0f};
     Quat k = i * j;
     ASSERT_TRUE(QuatNear(k, Quat{0.0f, 0.0f, 1.0f, 0.0f}));
 }
 
-TEST(Quat, FromEuler) {
+TEST(Quat, FromEuler)
+{
     // In this Z-Y-X convention, yaw controls rotation around Z axis
     Quat q = Quat::fromEuler(0.0f, 3.14159f / 2.0f, 0.0f);
     Vec3 v{1.0f, 0.0f, 0.0f};

@@ -2,16 +2,18 @@
 #include "render/rhi/render_backend.h"
 #include "core/foundation_types.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 class IWindow;
 
-class OpenGLBackend : public IRenderBackend {
+class OpenGLBackend : public IRenderBackend
+{
 public:
-    explicit OpenGLBackend(IWindow* window);
+    explicit OpenGLBackend(IWindow *window);
     ~OpenGLBackend() override;
 
-    bool init(void* nativeWindow) override;
+    bool init(void *nativeWindow) override;
     void shutdown() override;
     void beginFrame() override;
     void endFrame() override;
@@ -21,7 +23,7 @@ public:
     void present() override;
 
 private:
-    IWindow* m_window;
+    IWindow *m_window;
     RenderSettings m_settings;
 };
 

@@ -5,18 +5,23 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 ImGuiManager::ImGuiManager() = default;
 
-ImGuiManager::~ImGuiManager() {
-    if (m_initialized) {
+ImGuiManager::~ImGuiManager()
+{
+    if (m_initialized)
+    {
         shutdown();
     }
 }
 
-bool ImGuiManager::init(GLFWwindow* window) {
-    if (!window) {
+bool ImGuiManager::init(GLFWwindow *window)
+{
+    if (!window)
+    {
         LOG_ERROR(LogCategories::kEngine, "ImGuiManager::init: window is null");
         return false;
     }
@@ -24,7 +29,7 @@ bool ImGuiManager::init(GLFWwindow* window) {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
 
     // Enable Docking for in-window panel snapping/splitting.
     // Multi-Viewport is kept off for now so panels stay inside the game
@@ -41,26 +46,29 @@ bool ImGuiManager::init(GLFWwindow* window) {
     f32 xscale = 1.0f, yscale = 1.0f;
     glfwGetWindowContentScale(window, &xscale, &yscale);
     f32 scale = (xscale > yscale) ? xscale : yscale;
-    if (scale > 1.0f) {
-        ImGuiIO& io = ImGui::GetIO();
+    if (scale > 1.0f)
+    {
+        ImGuiIO &io = ImGui::GetIO();
         io.FontGlobalScale = scale;
         ImGui::GetStyle().ScaleAllSizes(scale);
         LOG_INFO(LogCategories::kEngine, "HiDPI detected (scale=%.2f); ImGui UI scaled accordingly", scale);
     }
 
     // Initialize Platform + Renderer backends.
-    if (!ImGui_ImplGlfw_InitForOpenGL(window, true)) {
+    if (!ImGui_ImplGlfw_InitForOpenGL(window, true))
+    {
         LOG_ERROR(LogCategories::kEngine, "ImGui_ImplGlfw_InitForOpenGL failed");
         ImGui::DestroyContext();
         return false;
     }
 
 #if defined(__APPLE__)
-    const char* glsl_version = "#version 410";
+    const char *glsl_version = "#version 410";
 #else
-    const char* glsl_version = "#version 460";
+    const char *glsl_version = "#version 460";
 #endif
-    if (!ImGui_ImplOpenGL3_Init(glsl_version)) {
+    if (!ImGui_ImplOpenGL3_Init(glsl_version))
+    {
         LOG_ERROR(LogCategories::kEngine, "ImGui_ImplOpenGL3_Init failed");
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
@@ -72,8 +80,10 @@ bool ImGuiManager::init(GLFWwindow* window) {
     return true;
 }
 
-void ImGuiManager::shutdown() {
-    if (!m_initialized) {
+void ImGuiManager::shutdown()
+{
+    if (!m_initialized)
+    {
         return;
     }
 
@@ -87,8 +97,10 @@ void ImGuiManager::shutdown() {
     LOG_INFO(LogCategories::kEngine, "ImGui shutdown");
 }
 
-void ImGuiManager::newFrame() {
-    if (!m_initialized) {
+void ImGuiManager::newFrame()
+{
+    if (!m_initialized)
+    {
         return;
     }
     // Order matters: renderer newFrame first, then platform, then ImGui.
@@ -97,27 +109,34 @@ void ImGuiManager::newFrame() {
     ImGui::NewFrame();
 }
 
-void ImGuiManager::render() {
-    if (!m_initialized) {
+void ImGuiManager::render()
+{
+    if (!m_initialized)
+    {
         return;
     }
     ImGui::Render();
 }
 
-void ImGuiManager::renderDrawData() {
-    if (!m_initialized) {
+void ImGuiManager::renderDrawData()
+{
+    if (!m_initialized)
+    {
         return;
     }
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void ImGuiManager::updatePlatformWindows() {
-    if (!m_initialized) {
+void ImGuiManager::updatePlatformWindows()
+{
+    if (!m_initialized)
+    {
         return;
     }
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        GLFWwindow* backup = glfwGetCurrentContext();
+    ImGuiIO &io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        GLFWwindow *backup = glfwGetCurrentContext();
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
         glfwMakeContextCurrent(backup);

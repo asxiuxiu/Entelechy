@@ -5,19 +5,21 @@
 #include "core/container/dynamic_array.h"
 #include "core/container/hash_map.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ------------------------------------------------------------------
 // Atom type registry — one function pointer per atomic type for
 // Inspector drawing, JSON serialisation, etc.
 // ------------------------------------------------------------------
 
-using AtomInspectorFn = void(*)(const char* label, void* ptr);
-using AtomSerializeFn = void(*)(void* ptr, String& outJson);
-using AtomDeserializeFn = void(*)(void* ptr, const char* json);
-using AtomCopyFn = void(*)(void* dst, const void* src);
+using AtomInspectorFn = void (*)(const char *label, void *ptr);
+using AtomSerializeFn = void (*)(void *ptr, String &outJson);
+using AtomDeserializeFn = void (*)(void *ptr, const char *json);
+using AtomCopyFn = void (*)(void *dst, const void *src);
 
-struct AtomType {
+struct AtomType
+{
     StringId name;
     usize size = 0;
     AtomInspectorFn inspectorDraw = nullptr;
@@ -26,15 +28,16 @@ struct AtomType {
     AtomCopyFn copy = nullptr;
 };
 
-class AtomRegistry {
+class AtomRegistry
+{
 public:
-    static AtomRegistry& instance();
+    static AtomRegistry &instance();
 
-    void registerAtom(const AtomType& type);
-    const AtomType* find(StringId name) const;
+    void registerAtom(const AtomType &type);
+    const AtomType *find(StringId name) const;
 
     // Convenience: draw a field if its type is registered as an atom
-    bool tryDraw(StringId typeName, const char* label, void* ptr) const;
+    bool tryDraw(StringId typeName, const char *label, void *ptr) const;
 
     void registerBuiltinAtoms();
 

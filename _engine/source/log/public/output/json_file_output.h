@@ -5,22 +5,22 @@
 #include "log/output/log_output_device.h"
 #include "log/core/queued_log_entry.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ============================================================
 // JSON Lines output device with rolling support
 // ============================================================
 // Writes structured JSON Lines (.jsonl) output.
 // Each line is a self-contained JSON object for machine consumption.
-class JsonFileOutput : public LogOutputDevice {
+class JsonFileOutput : public LogOutputDevice
+{
 public:
-    explicit JsonFileOutput(const char* basePath = "logs/engine.jsonl",
-                            u32 maxSizeMb = 10,
-                            u32 maxFiles = 5);
+    explicit JsonFileOutput(const char *basePath = "logs/engine.jsonl", u32 maxSizeMb = 10, u32 maxFiles = 5);
     ~JsonFileOutput() override;
 
     bool init();
-    void write(const QueuedLogEntry& entry) override;
+    void write(const QueuedLogEntry &entry) override;
     void flush() override;
 
 private:
@@ -34,7 +34,7 @@ private:
     bool openLogFile();
     void rollFile();
     bool checkAndRoll();
-    static void writeJsonEscaped(std::ostream& out, const char* str);
+    static void writeJsonEscaped(std::ostream &out, const char *str);
 };
 
 } // namespace Entelechy

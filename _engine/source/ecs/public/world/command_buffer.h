@@ -4,53 +4,68 @@
 #include "core/memory/frame_arena.h"
 #include <cstring>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-class CommandBuffer {
-    struct ICommand {
+class CommandBuffer
+{
+    struct ICommand
+    {
         virtual ~ICommand() = default;
-        virtual void apply(World& world) = 0;
+        virtual void apply(World &world) = 0;
     };
 
-    template<typename T>
-    struct SetCommand : ICommand {
+    template <typename T>
+    struct SetCommand : ICommand
+    {
         Entity entity;
         T value;
-        SetCommand(Entity e, const T& v) : entity(e), value(v) {}
-        void apply(World& world) override {
+        SetCommand(Entity e, const T &v) : entity(e), value(v) {}
+        void apply(World &world) override
+        {
             world.addComponentRaw(entity, TypeRegistry::instance().getTypeID<T>(), &value);
         }
     };
 
-    template<typename T>
-    struct RemoveCommand : ICommand {
+    template <typename T>
+    struct RemoveCommand : ICommand
+    {
         Entity entity;
         RemoveCommand(Entity e) : entity(e) {}
-        void apply(World& world) override {
+        void apply(World &world) override
+        {
             world.removeComponentRaw(entity, TypeRegistry::instance().getTypeID<T>());
         }
     };
 
-    struct DestroyCommand : ICommand {
+    struct DestroyCommand : ICommand
+    {
         Entity entity;
         DestroyCommand(Entity e) : entity(e) {}
-        void apply(World& world) override {
+        void apply(World &world) override
+        {
             world.destroyImmediate(entity);
         }
     };
 
-    struct DestroyWithChildrenCommand : ICommand {
+    struct DestroyWithChildrenCommand : ICommand
+    {
         Entity entity;
         DestroyWithChildrenCommand(Entity e) : entity(e) {}
-        void apply(World& world) override {
+        void apply(World &world) override
+        {
             DynamicArray<Entity> toDestroy;
-            struct Collector {
-                World& w;
-                DynamicArray<Entity>& out;
-                void collect(Entity e) {
-                    const Children* children = w.getComponent<Children>(e);
-                    if (children) {
-                        for (const auto& child : children->entities) {
+            struct Collector
+            {
+                World &w;
+                DynamicArray<Entity> &out;
+                void collect(Entity e)
+                {
+                    const Children *children = w.getComponent<Children>(e);
+                    if (children)
+                    {
+                        for (const auto &child : children->entities)
+                        {
                             collect(child);
                             out.pushBack(child);
                         }
@@ -58,23 +73,27 @@ class CommandBuffer {
                 }
             };
             Collector{world, toDestroy}.collect(entity);
-            for (const auto& e : toDestroy) {
+            for (const auto &e : toDestroy)
+            {
                 world.destroyImmediate(e);
             }
             world.destroyImmediate(entity);
         }
     };
 
-    struct SetParentCommand : ICommand {
+    struct SetParentCommand : ICommand
+    {
         Entity child;
         Entity parent;
         SetParentCommand(Entity c, Entity p) : child(c), parent(p) {}
-        void apply(World& world) override {
+        void apply(World &world) override
+        {
             world.setParentImmediate(child, parent);
         }
     };
 
-    struct BatchRange {
+    struct BatchRange
+    {
         usize start;
         usize end;
     };
@@ -82,51 +101,63 @@ class CommandBuffer {
 public:
     using BatchID = u32;
 
-    explicit CommandBuffer(usize arenaCapacity = 64 * 1024)
-        : m_arena(arenaCapacity) {}
-    ~CommandBuffer() { clear(); }
+    explicit CommandBuffer(usize arenaCapacity = 64 * 1024) : m_arena(arenaCapacity) {}
+    ~CommandBuffer()
+    {
+        clear();
+    }
 
-    template<typename T>
-    void set(Entity e, const T& value) {
-        void* mem = m_arena.allocate(sizeof(SetCommand<T>), alignof(SetCommand<T>));
+    template <typename T>
+    void set(Entity e, const T &value)
+    {
+        void *mem = m_arena.allocate(sizeof(SetCommand<T>), alignof(SetCommand<T>));
         m_commands.pushBack(new (mem) SetCommand<T>(e, value));
     }
 
-    template<typename T>
-    void remove(Entity e) {
-        void* mem = m_arena.allocate(sizeof(RemoveCommand<T>), alignof(RemoveCommand<T>));
+    template <typename T>
+    void remove(Entity e)
+    {
+        void *mem = m_arena.allocate(sizeof(RemoveCommand<T>), alignof(RemoveCommand<T>));
         m_commands.pushBack(new (mem) RemoveCommand<T>(e));
     }
 
-    void destroy(Entity e) {
-        void* mem = m_arena.allocate(sizeof(DestroyCommand), alignof(DestroyCommand));
+    void destroy(Entity e)
+    {
+        void *mem = m_arena.allocate(sizeof(DestroyCommand), alignof(DestroyCommand));
         m_commands.pushBack(new (mem) DestroyCommand(e));
     }
 
-    void destroyWithChildren(Entity e) {
-        void* mem = m_arena.allocate(sizeof(DestroyWithChildrenCommand), alignof(DestroyWithChildrenCommand));
+    void destroyWithChildren(Entity e)
+    {
+        void *mem = m_arena.allocate(sizeof(DestroyWithChildrenCommand), alignof(DestroyWithChildrenCommand));
         m_commands.pushBack(new (mem) DestroyWithChildrenCommand(e));
     }
 
-    void setParent(Entity child, Entity parent) {
-        void* mem = m_arena.allocate(sizeof(SetParentCommand), alignof(SetParentCommand));
+    void setParent(Entity child, Entity parent)
+    {
+        void *mem = m_arena.allocate(sizeof(SetParentCommand), alignof(SetParentCommand));
         m_commands.pushBack(new (mem) SetParentCommand(child, parent));
     }
 
-    BatchID beginBatch() {
+    BatchID beginBatch()
+    {
         BatchID id = static_cast<u32>(m_batches.size());
         m_batches.pushBack({m_commands.size(), 0});
         return id;
     }
 
-    void endBatch(BatchID id) {
-        if (id < m_batches.size()) {
+    void endBatch(BatchID id)
+    {
+        if (id < m_batches.size())
+        {
             m_batches[id].end = m_commands.size();
         }
     }
 
-    void apply(World& world) {
-        for (auto* cmd : m_commands) {
+    void apply(World &world)
+    {
+        for (auto *cmd : m_commands)
+        {
             cmd->apply(world);
             cmd->~ICommand();
         }
@@ -135,8 +166,10 @@ public:
         m_arena.reset();
     }
 
-    void clear() {
-        for (auto* cmd : m_commands) {
+    void clear()
+    {
+        for (auto *cmd : m_commands)
+        {
             cmd->~ICommand();
         }
         m_commands.clear();
@@ -144,13 +177,14 @@ public:
         m_arena.reset();
     }
 
-    [[nodiscard]] bool empty() const {
+    [[nodiscard]] bool empty() const
+    {
         return m_commands.empty();
     }
 
 private:
     FrameArena m_arena;
-    DynamicArray<ICommand*> m_commands;
+    DynamicArray<ICommand *> m_commands;
     DynamicArray<BatchRange> m_batches;
 };
 

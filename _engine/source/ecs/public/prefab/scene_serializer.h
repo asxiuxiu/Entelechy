@@ -3,7 +3,8 @@
 #include "core/string/string.h"
 #include "core/path/path.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 class World;
 
@@ -13,19 +14,20 @@ class World;
 // Uses TypeRegistry + AtomRegistry to recursively serialize component
 // fields. No hand-written per-component code is required.
 // ------------------------------------------------------------------
-class SceneSerializer {
+class SceneSerializer
+{
 public:
     // Serialize the entire world to a JSON string.
-    String serialize(const World& world) const;
+    String serialize(const World &world) const;
 
     // Deserialize JSON into the given world. Clears existing entities first.
-    bool deserialize(World& world, const String& json) const;
+    bool deserialize(World &world, const String &json) const;
 
     // Convenience: write to file (uses fopen; VFS wrapper can be added later).
-    bool saveToFile(const World& world, const Path& path) const;
+    bool saveToFile(const World &world, const Path &path) const;
 
     // Convenience: read from file.
-    bool loadFromFile(World& world, const Path& path) const;
+    bool loadFromFile(World &world, const Path &path) const;
 };
 
 } // namespace Entelechy

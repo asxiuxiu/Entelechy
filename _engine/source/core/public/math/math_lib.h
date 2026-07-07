@@ -12,11 +12,12 @@
 #include "core/math/ray.h"
 #include "core/math/frustum.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 inline constexpr int MATH_LIB_VERSION = 2;
 
 // Batch vector add exposed for testing / benchmarking
-void BatchVec4Add(const f32* a, const f32* b, f32* out, usize count);
+void BatchVec4Add(const f32 *a, const f32 *b, f32 *out, usize count);
 
 } // namespace Entelechy

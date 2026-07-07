@@ -3,7 +3,8 @@
 #include <cstddef>
 #include <type_traits>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // Adapter that wraps an engine allocator (static dispatch: alloc(size, align) / free(ptr))
 // into a C++ standard allocator interface for use with std:: containers.
@@ -14,8 +15,9 @@ namespace Entelechy {
 //
 // This adapter is stateless and always equal, matching the behavior of
 // engine allocators which are typically global or thread-local singletons.
-template<typename T, typename EngineAllocatorT>
-class StdAllocatorAdapter {
+template <typename T, typename EngineAllocatorT>
+class StdAllocatorAdapter
+{
 public:
     using value_type = T;
     using size_type = std::size_t;
@@ -28,24 +30,35 @@ public:
     StdAllocatorAdapter() = default;
     ~StdAllocatorAdapter() = default;
 
-    template<typename U>
-    StdAllocatorAdapter(const StdAllocatorAdapter<U, EngineAllocatorT>&) noexcept {}
-
-    T* allocate(std::size_t n) {
-        return static_cast<T*>(EngineAllocatorT::alloc(n * sizeof(T), alignof(T)));
+    template <typename U>
+    StdAllocatorAdapter(const StdAllocatorAdapter<U, EngineAllocatorT> &) noexcept
+    {
     }
 
-    void deallocate(T* p, std::size_t) noexcept {
+    T *allocate(std::size_t n)
+    {
+        return static_cast<T *>(EngineAllocatorT::alloc(n * sizeof(T), alignof(T)));
+    }
+
+    void deallocate(T *p, std::size_t) noexcept
+    {
         EngineAllocatorT::free(p);
     }
 
-    template<typename U>
-    struct rebind {
+    template <typename U>
+    struct rebind
+    {
         using other = StdAllocatorAdapter<U, EngineAllocatorT>;
     };
 
-    bool operator==(const StdAllocatorAdapter&) const noexcept { return true; }
-    bool operator!=(const StdAllocatorAdapter&) const noexcept { return false; }
+    bool operator==(const StdAllocatorAdapter &) const noexcept
+    {
+        return true;
+    }
+    bool operator!=(const StdAllocatorAdapter &) const noexcept
+    {
+        return false;
+    }
 };
 
 } // namespace Entelechy

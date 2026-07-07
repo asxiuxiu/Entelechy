@@ -5,7 +5,8 @@
 #include <mutex>
 #include <cstring>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ============================================================
 // StringInternPool — Runtime string deduplication & collision detection
@@ -23,20 +24,21 @@ namespace Entelechy {
 //       Do NOT intern dynamically-generated unique strings (e.g. "Entity_12345")
 //       or the pool will grow unbounded.
 
-class StringInternPool {
+class StringInternPool
+{
 public:
-    static StringInternPool& instance();
+    static StringInternPool &instance();
 
-    StringId intern(const char* str);
+    StringId intern(const char *str);
     StringId intern(StringView sv);
-    const char* resolve(StringId id) const;
+    const char *resolve(StringId id) const;
 
     bool has(StringId id) const;
     usize count() const;
 
 private:
     mutable std::mutex m_mutex;
-    HashMap<u64, const char*> m_pool;
+    HashMap<u64, const char *> m_pool;
 };
 
 } // namespace Entelechy

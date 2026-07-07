@@ -1,11 +1,13 @@
 ﻿#pragma once
 #include "ecs/world/scheduler.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-class MovementSystem : public System {
+class MovementSystem : public System
+{
 public:
-    void tick(World& world, FrameArena& arena, f32 dt) override;
+    void tick(World &world, FrameArena &arena, f32 dt) override;
 };
 
 } // namespace Entelechy

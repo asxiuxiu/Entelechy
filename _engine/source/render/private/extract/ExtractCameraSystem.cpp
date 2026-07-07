@@ -8,36 +8,43 @@
 #include "core/math/mat4.h"
 #include "ecs/query/query.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-void ExtractCameraSystem::extract(const World& mainWorld, World& renderWorld, FrameArena& arena, f32 dt) {
-    if (!m_window) return;
+void ExtractCameraSystem::extract(const World &mainWorld, World &renderWorld, FrameArena &arena, f32 dt)
+{
+    if (!m_window)
+        return;
 
     int w = 0, h = 0;
     m_window->getSize(w, h);
-    if (w <= 0 || h <= 0) return;
+    if (w <= 0 || h <= 0)
+        return;
 
     f32 aspect = static_cast<f32>(w) / static_cast<f32>(h);
 
     ConstQuery<Camera, GlobalTransform> q(mainWorld);
-    for (auto [entity, camera, transform] : q) {
+    for (auto [entity, camera, transform] : q)
+    {
         Mat4 view_matrix = transform->matrix.inverse();
         Mat4 proj_matrix;
 
-        if (camera->orthographic) {
+        if (camera->orthographic)
+        {
             f32 half_h = camera->ortho_size;
             f32 half_w = half_h * aspect;
-            proj_matrix = Mat4::ortho(-half_w, half_w, -half_h, half_h,
-                                       camera->near_plane, camera->far_plane);
-        } else {
-            proj_matrix = Mat4::perspective(camera->fov_y, aspect,
-                                             camera->near_plane, camera->far_plane);
+            proj_matrix = Mat4::ortho(-half_w, half_w, -half_h, half_h, camera->near_plane, camera->far_plane);
+        }
+        else
+        {
+            proj_matrix = Mat4::perspective(camera->fov_y, aspect, camera->near_plane, camera->far_plane);
         }
 
         // Update existing ExtractedView or create a new one.
         Query<ExtractedView> rq(renderWorld);
         bool found = false;
-        for (auto [re, ev] : rq) {
+        for (auto [re, ev] : rq)
+        {
             ev->view_matrix = view_matrix;
             ev->proj_matrix = proj_matrix;
             ev->frustum = Frustum::fromMatrix(proj_matrix * view_matrix);
@@ -48,7 +55,8 @@ void ExtractCameraSystem::extract(const World& mainWorld, World& renderWorld, Fr
             break;
         }
 
-        if (!found) {
+        if (!found)
+        {
             Entity viewEntity = renderWorld.spawn();
             ExtractedView view{};
             view.view_matrix = view_matrix;

@@ -1,7 +1,8 @@
 ﻿#pragma once
 #include "asset/handle/handle_table.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ------------------------------------------------------------------
 // Assets<T> — type-safe resource storage facade
@@ -15,11 +16,13 @@ namespace Entelechy {
 //   Handle<Mesh> h = meshAssets.insert(Mesh{...});
 //   Mesh* m = meshAssets.get(h);
 // ------------------------------------------------------------------
-template<typename T>
-class Assets {
+template <typename T>
+class Assets
+{
 public:
     // Insert a fully-constructed asset and return its handle.
-    Handle<T> insert(T value) {
+    Handle<T> insert(T value)
+    {
         auto handle = m_table.allocate();
         m_table.fill(handle, std::move(value));
         return handle;
@@ -27,44 +30,54 @@ public:
 
     // Allocate an empty handle (for async loading).
     // The slot is reserved but contains no valid data yet.
-    Handle<T> allocateEmpty() {
+    Handle<T> allocateEmpty()
+    {
         return m_table.allocate();
     }
 
     // Fill a previously allocated empty handle.
-    void fill(Handle<T> handle, T value) {
+    void fill(Handle<T> handle, T value)
+    {
         m_table.fill(handle, std::move(value));
     }
 
-    [[nodiscard]] T* get(Handle<T> handle) {
+    [[nodiscard]] T *get(Handle<T> handle)
+    {
         return m_table.tryGet(handle);
     }
 
-    [[nodiscard]] const T* get(Handle<T> handle) const {
+    [[nodiscard]] const T *get(Handle<T> handle) const
+    {
         return m_table.tryGet(handle);
     }
 
-    void remove(Handle<T> handle) {
+    void remove(Handle<T> handle)
+    {
         m_table.release(handle);
     }
 
-    void incrementRef(Handle<T> handle) {
+    void incrementRef(Handle<T> handle)
+    {
         m_table.incrementRef(handle);
     }
 
-    void decrementRef(Handle<T> handle) {
+    void decrementRef(Handle<T> handle)
+    {
         m_table.decrementRef(handle);
     }
 
-    [[nodiscard]] u32 refCount(Handle<T> handle) const {
+    [[nodiscard]] u32 refCount(Handle<T> handle) const
+    {
         return m_table.refCount(handle);
     }
 
-    [[nodiscard]] usize count() const {
+    [[nodiscard]] usize count() const
+    {
         return m_table.activeCount();
     }
 
-    void clear() {
+    void clear()
+    {
         m_table.clear();
     }
 

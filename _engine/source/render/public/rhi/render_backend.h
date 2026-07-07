@@ -1,18 +1,21 @@
 ﻿#pragma once
 #include "core/foundation_types.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-struct RenderSettings {
+struct RenderSettings
+{
     // Eye-care dark green-grey; softer than pure black/white to reduce long-term eye strain
     f32 clearColor[4] = {0.15f, 0.17f, 0.13f, 1.0f};
     bool vsync = true;
 };
 
-class IRenderBackend {
+class IRenderBackend
+{
 public:
     virtual ~IRenderBackend() = default;
-    virtual bool init(void* nativeWindow) = 0;
+    virtual bool init(void *nativeWindow) = 0;
     virtual void shutdown() = 0;
     virtual void beginFrame() = 0;
     virtual void endFrame() = 0;

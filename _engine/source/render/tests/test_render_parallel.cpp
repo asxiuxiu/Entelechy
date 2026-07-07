@@ -17,12 +17,14 @@
 
 using namespace Entelechy;
 
-namespace {
+namespace
+{
 
-class MockExtractCameraSystem : public IExtractSystem {
+class MockExtractCameraSystem : public IExtractSystem
+{
 public:
-    void extract(const World& /*mainWorld*/, World& renderWorld,
-                 FrameArena& /*arena*/, f32 /*dt*/) override {
+    void extract(const World & /*mainWorld*/, World &renderWorld, FrameArena & /*arena*/, f32 /*dt*/) override
+    {
         Entity viewEntity = renderWorld.spawn();
         ExtractedView view{};
         view.view_matrix = Mat4::identity();
@@ -38,34 +40,40 @@ public:
     }
 };
 
-void setupBoxFrustum(ExtractedView& view) {
+void setupBoxFrustum(ExtractedView &view)
+{
     // Axis-aligned box: x in [-10, 10], y in [-10, 10], z in [0, 100].
-    view.frustum.planes[Frustum::Left]   = Vec4{ 1.0f,  0.0f,  0.0f, 10.0f};
-    view.frustum.planes[Frustum::Right]  = Vec4{-1.0f,  0.0f,  0.0f, 10.0f};
-    view.frustum.planes[Frustum::Bottom] = Vec4{ 0.0f,  1.0f,  0.0f, 10.0f};
-    view.frustum.planes[Frustum::Top]    = Vec4{ 0.0f, -1.0f,  0.0f, 10.0f};
-    view.frustum.planes[Frustum::Near]   = Vec4{ 0.0f,  0.0f,  1.0f,  0.0f};
-    view.frustum.planes[Frustum::Far]    = Vec4{ 0.0f,  0.0f, -1.0f, 100.0f};
+    view.frustum.planes[Frustum::Left] = Vec4{1.0f, 0.0f, 0.0f, 10.0f};
+    view.frustum.planes[Frustum::Right] = Vec4{-1.0f, 0.0f, 0.0f, 10.0f};
+    view.frustum.planes[Frustum::Bottom] = Vec4{0.0f, 1.0f, 0.0f, 10.0f};
+    view.frustum.planes[Frustum::Top] = Vec4{0.0f, -1.0f, 0.0f, 10.0f};
+    view.frustum.planes[Frustum::Near] = Vec4{0.0f, 0.0f, 1.0f, 0.0f};
+    view.frustum.planes[Frustum::Far] = Vec4{0.0f, 0.0f, -1.0f, 100.0f};
 }
 
-void registerAABBComponent() {
-    TypeRegistry& registry = TypeRegistry::instance();
+void registerAABBComponent()
+{
+    TypeRegistry &registry = TypeRegistry::instance();
     ComponentTypeID id = registry.getOrAllocateTypeID<AABB>();
     u64 mask = 1ull << id;
     registry.registerComponent(id, mask, makeComponentDesc<AABB>("AABB"_sid, {}));
 }
 
-Entity findViewEntity(World& world) {
+Entity findViewEntity(World &world)
+{
     Query<ExtractedView> q(world);
-    for (auto [e, v] : q) {
+    for (auto [e, v] : q)
+    {
         (void)v;
         return e;
     }
     return Entity{0xFFFFFFFFu, 0};
 }
 
-void populateRenderables(World& world, usize count) {
-    for (usize i = 0; i < count; ++i) {
+void populateRenderables(World &world, usize count)
+{
+    for (usize i = 0; i < count; ++i)
+    {
         Entity e = world.spawn();
         f32 x = static_cast<f32>(i) * 0.01f - 5.0f;
         world.addComponent(e, RenderTransform{Mat4::fromTranslation(Vec3{x, 0.0f, 10.0f})});
@@ -76,9 +84,11 @@ void populateRenderables(World& world, usize count) {
     }
 }
 
-usize countBinnedItems(const BinnedRenderPhase& phase) {
+usize countBinnedItems(const BinnedRenderPhase &phase)
+{
     usize total = 0;
-    for (const auto& bin : phase.getBins()) {
+    for (const auto &bin : phase.getBins())
+    {
         total += bin.items.size();
     }
     return total;
@@ -86,13 +96,14 @@ usize countBinnedItems(const BinnedRenderPhase& phase) {
 
 } // namespace
 
-TEST(RenderParallel, CullingSerialMatchesParallel) {
+TEST(RenderParallel, CullingSerialMatchesParallel)
+{
     RenderWorld serialWorld;
     serialWorld.extractSchedule().registerSystem(new MockExtractCameraSystem());
     World mainWorld;
     serialWorld.extract(mainWorld, 0.016f);
 
-    World& world = serialWorld.world();
+    World &world = serialWorld.world();
     Entity viewEntity = findViewEntity(world);
     ASSERT_TRUE(viewEntity.valid());
     setupBoxFrustum(*world.getComponent<ExtractedView>(viewEntity));
@@ -103,12 +114,12 @@ TEST(RenderParallel, CullingSerialMatchesParallel) {
     FrustumCullSystem serial;
     serial.run(world);
 
-    const ViewVisibleList* serialList = world.getComponent<ViewVisibleList>(viewEntity);
+    const ViewVisibleList *serialList = world.getComponent<ViewVisibleList>(viewEntity);
     ASSERT_TRUE(serialList != nullptr);
     DynamicArray<Entity> serialVisible = serialList->entities;
 
     // Clear and run again with a thread pool.
-    ViewVisibleList* parallelList = world.getComponent<ViewVisibleList>(viewEntity);
+    ViewVisibleList *parallelList = world.getComponent<ViewVisibleList>(viewEntity);
     parallelList->entities.clear();
 
     ThreadPool pool(4);
@@ -116,12 +127,14 @@ TEST(RenderParallel, CullingSerialMatchesParallel) {
     parallel.run(world);
 
     ASSERT_EQ(parallelList->entities.size(), serialVisible.size());
-    for (usize i = 0; i < serialVisible.size(); ++i) {
+    for (usize i = 0; i < serialVisible.size(); ++i)
+    {
         ASSERT_EQ(parallelList->entities[i], serialVisible[i]);
     }
 }
 
-TEST(RenderParallel, QueueDrawsSerialMatchesParallel) {
+TEST(RenderParallel, QueueDrawsSerialMatchesParallel)
+{
     RenderWorld serialWorld;
     RenderWorld parallelWorld;
     serialWorld.extractSchedule().registerSystem(new MockExtractCameraSystem());
@@ -131,8 +144,8 @@ TEST(RenderParallel, QueueDrawsSerialMatchesParallel) {
     serialWorld.extract(mainWorld, 0.016f);
     parallelWorld.extract(mainWorld, 0.016f);
 
-    World& serialRender = serialWorld.world();
-    World& parallelRender = parallelWorld.world();
+    World &serialRender = serialWorld.world();
+    World &parallelRender = parallelWorld.world();
 
     Entity serialView = findViewEntity(serialRender);
     Entity parallelView = findViewEntity(parallelRender);
@@ -152,8 +165,8 @@ TEST(RenderParallel, QueueDrawsSerialMatchesParallel) {
     serialCull.run(serialRender);
     serialQueue.run(serialRender);
 
-    const ViewBinnedPhases* serialBinned = serialRender.getComponent<ViewBinnedPhases>(serialView);
-    const ViewSortedPhases* serialSorted = serialRender.getComponent<ViewSortedPhases>(serialView);
+    const ViewBinnedPhases *serialBinned = serialRender.getComponent<ViewBinnedPhases>(serialView);
+    const ViewSortedPhases *serialSorted = serialRender.getComponent<ViewSortedPhases>(serialView);
     ASSERT_TRUE(serialBinned != nullptr);
     ASSERT_TRUE(serialSorted != nullptr);
 
@@ -164,8 +177,8 @@ TEST(RenderParallel, QueueDrawsSerialMatchesParallel) {
     parallelCull.run(parallelRender);
     parallelQueue.run(parallelRender);
 
-    const ViewBinnedPhases* parallelBinned = parallelRender.getComponent<ViewBinnedPhases>(parallelView);
-    const ViewSortedPhases* parallelSorted = parallelRender.getComponent<ViewSortedPhases>(parallelView);
+    const ViewBinnedPhases *parallelBinned = parallelRender.getComponent<ViewBinnedPhases>(parallelView);
+    const ViewSortedPhases *parallelSorted = parallelRender.getComponent<ViewSortedPhases>(parallelView);
     ASSERT_TRUE(parallelBinned != nullptr);
     ASSERT_TRUE(parallelSorted != nullptr);
 
@@ -176,9 +189,10 @@ TEST(RenderParallel, QueueDrawsSerialMatchesParallel) {
     ASSERT_EQ(parallelSorted->ui.getItems().size(), serialSorted->ui.getItems().size());
 
     // Compare sorted transparent output order.
-    const auto& serialTransparent = serialSorted->transparent.getItems();
-    const auto& parallelTransparent = parallelSorted->transparent.getItems();
-    for (usize i = 0; i < serialTransparent.size(); ++i) {
+    const auto &serialTransparent = serialSorted->transparent.getItems();
+    const auto &parallelTransparent = parallelSorted->transparent.getItems();
+    for (usize i = 0; i < serialTransparent.size(); ++i)
+    {
         ASSERT_EQ(parallelTransparent[i].sort_key.value, serialTransparent[i].sort_key.value);
         ASSERT_EQ(parallelTransparent[i].render_entity, serialTransparent[i].render_entity);
     }

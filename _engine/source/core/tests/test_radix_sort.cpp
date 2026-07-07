@@ -4,40 +4,41 @@
 
 using namespace Entelechy;
 
-namespace {
+namespace
+{
 
-struct Item {
+struct Item
+{
     u64 key;
     u32 value;
 };
 
 } // namespace
 
-TEST(RadixSort64, EmptyIsNoOp) {
+TEST(RadixSort64, EmptyIsNoOp)
+{
     DynamicArray<Item> items;
     DynamicArray<Item> scratch;
     scratch.resize(items.size());
-    radixSort64(items.data(), items.size(),
-        [](const Item& item) -> u64 { return item.key; },
-        scratch.data());
+    radixSort64(items.data(), items.size(), [](const Item &item) -> u64 { return item.key; }, scratch.data());
     ASSERT_EQ(items.size(), 0u);
 }
 
-TEST(RadixSort64, SingleElement) {
+TEST(RadixSort64, SingleElement)
+{
     DynamicArray<Item> items;
     items.pushBack({42u, 1u});
 
     DynamicArray<Item> scratch;
     scratch.resize(items.size());
-    radixSort64(items.data(), items.size(),
-        [](const Item& item) -> u64 { return item.key; },
-        scratch.data());
+    radixSort64(items.data(), items.size(), [](const Item &item) -> u64 { return item.key; }, scratch.data());
 
     ASSERT_EQ(items[0].key, 42u);
     ASSERT_EQ(items[0].value, 1u);
 }
 
-TEST(RadixSort64, SortsAscending) {
+TEST(RadixSort64, SortsAscending)
+{
     DynamicArray<Item> items;
     items.pushBack({5u, 0u});
     items.pushBack({3u, 1u});
@@ -47,9 +48,7 @@ TEST(RadixSort64, SortsAscending) {
 
     DynamicArray<Item> scratch;
     scratch.resize(items.size());
-    radixSort64(items.data(), items.size(),
-        [](const Item& item) -> u64 { return item.key; },
-        scratch.data());
+    radixSort64(items.data(), items.size(), [](const Item &item) -> u64 { return item.key; }, scratch.data());
 
     ASSERT_EQ(items[0].key, 1u);
     ASSERT_EQ(items[1].key, 3u);
@@ -58,7 +57,8 @@ TEST(RadixSort64, SortsAscending) {
     ASSERT_EQ(items[4].key, 9u);
 }
 
-TEST(RadixSort64, StableForDuplicateKeys) {
+TEST(RadixSort64, StableForDuplicateKeys)
+{
     DynamicArray<Item> items;
     items.pushBack({100u, 0u});
     items.pushBack({50u, 1u});
@@ -68,9 +68,7 @@ TEST(RadixSort64, StableForDuplicateKeys) {
 
     DynamicArray<Item> scratch;
     scratch.resize(items.size());
-    radixSort64(items.data(), items.size(),
-        [](const Item& item) -> u64 { return item.key; },
-        scratch.data());
+    radixSort64(items.data(), items.size(), [](const Item &item) -> u64 { return item.key; }, scratch.data());
 
     ASSERT_EQ(items[0].key, 50u);
     ASSERT_EQ(items[0].value, 1u);
@@ -84,7 +82,8 @@ TEST(RadixSort64, StableForDuplicateKeys) {
     ASSERT_EQ(items[4].value, 4u);
 }
 
-TEST(RadixSort64, AllByteLanesExercised) {
+TEST(RadixSort64, AllByteLanesExercised)
+{
     DynamicArray<Item> items;
     items.pushBack({0x00000000000000FFu, 0u});
     items.pushBack({0x000000000000FF00u, 1u});
@@ -97,11 +96,10 @@ TEST(RadixSort64, AllByteLanesExercised) {
 
     DynamicArray<Item> scratch;
     scratch.resize(items.size());
-    radixSort64(items.data(), items.size(),
-        [](const Item& item) -> u64 { return item.key; },
-        scratch.data());
+    radixSort64(items.data(), items.size(), [](const Item &item) -> u64 { return item.key; }, scratch.data());
 
-    for (usize i = 0; i < items.size(); ++i) {
+    for (usize i = 0; i < items.size(); ++i)
+    {
         ASSERT_EQ(items[i].value, static_cast<u32>(i));
     }
 }

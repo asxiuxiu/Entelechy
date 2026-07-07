@@ -1,6 +1,7 @@
 ﻿#pragma once
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 void initWindow();
 

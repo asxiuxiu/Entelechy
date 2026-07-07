@@ -11,7 +11,8 @@
 #include "core/math/vec.h"
 #include "core/math/mat4.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ------------------------------------------------------------------
 // Material
@@ -28,44 +29,50 @@ namespace Entelechy {
 // - Async Technique compilation with fallback
 // - GPU UBO + BindGroup pool
 // ------------------------------------------------------------------
-class Material {
+class Material
+{
 public:
     Material();
     ~Material();
 
-    Material(const Material&) = delete;
-    Material& operator=(const Material&) = delete;
-    Material(Material&&) noexcept;
-    Material& operator=(Material&&) noexcept;
+    Material(const Material &) = delete;
+    Material &operator=(const Material &) = delete;
+    Material(Material &&) noexcept;
+    Material &operator=(Material &&) noexcept;
 
     // Initialize with shader source strings and parameter layout.
     // If shaderCache is null, shaders are compiled without caching.
-    bool init(IRHIDevice* device, ShaderCache* shaderCache,
-              const char* vertexSource, const char* fragmentSource,
-              const MaterialParamDesc* params, u32 paramCount,
-              const PipelineStateDesc& pipelineDesc);
+    bool init(IRHIDevice *device, ShaderCache *shaderCache, const char *vertexSource, const char *fragmentSource,
+              const MaterialParamDesc *params, u32 paramCount, const PipelineStateDesc &pipelineDesc);
 
     void shutdown();
 
     // -- Parameter setters (CPU side, uploaded on bind) --------------------
     void setFloat(StringId name, f32 value);
-    void setVec2(StringId name, const Vec2& value);
-    void setVec3(StringId name, const Vec3& value);
-    void setVec4(StringId name, const Vec4& value);
-    void setMat4(StringId name, const Mat4& value, bool transpose = false);
+    void setVec2(StringId name, const Vec2 &value);
+    void setVec3(StringId name, const Vec3 &value);
+    void setVec4(StringId name, const Vec4 &value);
+    void setMat4(StringId name, const Mat4 &value, bool transpose = false);
     void setTexture(StringId name, RHITextureRef texture);
 
     // -- Rendering ---------------------------------------------------------
     // Bind PSO and upload all parameters to GPU.
     // Must be called within a render pass.
-    void bind(IRHICommandList* cmdList);
+    void bind(IRHICommandList *cmdList);
 
     // -- Queries -----------------------------------------------------------
-    bool isValid() const { return m_valid; }
-    const PipelineStateDesc& getPipelineDesc() const { return m_pipeline_desc; }
+    bool isValid() const
+    {
+        return m_valid;
+    }
+    const PipelineStateDesc &getPipelineDesc() const
+    {
+        return m_pipeline_desc;
+    }
 
 private:
-    struct ParamSlot {
+    struct ParamSlot
+    {
         MaterialParamType type = MaterialParamType::Float;
         u32 offset = 0;      // bytes within m_uniform_data (for uniform types)
         u32 textureSlot = 0; // texture unit index (for texture types)
@@ -78,7 +85,7 @@ private:
     PipelineStateDesc m_pipeline_desc;
     RHIPipelineStateRef m_pipeline_state;
 
-    u8* m_uniform_data = nullptr;
+    u8 *m_uniform_data = nullptr;
     u32 m_uniform_data_size = 0;
 
     HashMap<StringId, ParamSlot> m_params;

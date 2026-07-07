@@ -1,9 +1,11 @@
 ﻿#include "runtime/game_runtime.h"
 #include <cstdio>
 
-namespace game {
+namespace game
+{
 
-void initRuntime() {
+void initRuntime()
+{
     printf("[game::runtime] initialized\n");
 }
 

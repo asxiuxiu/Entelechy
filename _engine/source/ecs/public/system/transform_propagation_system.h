@@ -1,18 +1,23 @@
 ﻿#pragma once
 #include "ecs/world/scheduler.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 class ThreadPool;
 
-class TransformPropagationSystem : public System {
+class TransformPropagationSystem : public System
+{
 public:
-    void tick(World& world, FrameArena& arena, f32 dt) override;
+    void tick(World &world, FrameArena &arena, f32 dt) override;
 
-    void setThreadPool(ThreadPool* tp) { m_thread_pool = tp; }
+    void setThreadPool(ThreadPool *tp)
+    {
+        m_thread_pool = tp;
+    }
 
 private:
-    ThreadPool* m_thread_pool = nullptr;
+    ThreadPool *m_thread_pool = nullptr;
 };
 
 } // namespace Entelechy

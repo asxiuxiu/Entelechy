@@ -1,10 +1,13 @@
 ﻿#pragma once
 #include "core/foundation_types.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-struct RawInputEvent {
-    enum Type {
+struct RawInputEvent
+{
+    enum Type
+    {
         KeyPress,
         KeyRelease,
         MouseMove,

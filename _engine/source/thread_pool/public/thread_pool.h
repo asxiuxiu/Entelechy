@@ -6,40 +6,50 @@
 #include <functional>
 #include <mutex>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // Simple FIFO overflow queue based on DynamicArray.
 // Replaces std::deque to avoid bypassing the engine allocator system.
-class OverflowQueue {
+class OverflowQueue
+{
 public:
-    void push(std::function<void()> task) {
+    void push(std::function<void()> task)
+    {
         m_tasks.pushBack(std::move(task));
     }
 
-    bool pop(std::function<void()>& out) {
-        if (m_head >= m_tasks.size()) return false;
+    bool pop(std::function<void()> &out)
+    {
+        if (m_head >= m_tasks.size())
+            return false;
         out = std::move(m_tasks[m_head]);
         ++m_head;
         // Compact if we've consumed more than half the array
-        if (m_head > m_tasks.size() / 2) {
+        if (m_head > m_tasks.size() / 2)
+        {
             compact();
         }
         return true;
     }
 
-    bool empty() const {
+    bool empty() const
+    {
         return m_head >= m_tasks.size();
     }
 
-    void clear() {
+    void clear()
+    {
         m_tasks.clear();
         m_head = 0;
     }
 
 private:
-    void compact() {
+    void compact()
+    {
         usize newSize = m_tasks.size() - m_head;
-        for (usize i = 0; i < newSize; ++i) {
+        for (usize i = 0; i < newSize; ++i)
+        {
             m_tasks[i] = std::move(m_tasks[m_head + i]);
         }
         m_tasks.resize(newSize);
@@ -54,7 +64,8 @@ private:
 // No dynamic resizing — this avoids the use-after-free race condition
 // that occurs when grow() runs concurrently with steal().
 // When full, tasks fall back to the ThreadPool's global overflow queue.
-class WorkStealingQueue {
+class WorkStealingQueue
+{
 public:
     explicit WorkStealingQueue(usize capacity = 4096);
     ~WorkStealingQueue();
@@ -69,18 +80,22 @@ public:
     // Called by other worker threads.
     std::function<void()> steal();
 
-    [[nodiscard]] usize capacity() const { return m_capacity; }
+    [[nodiscard]] usize capacity() const
+    {
+        return m_capacity;
+    }
 
 private:
     usize m_capacity;
     usize m_mask;
-    std::function<void()>* m_buffer;
+    std::function<void()> *m_buffer;
 
     std::atomic<usize> m_top{0};
     std::atomic<usize> m_bottom{0};
 };
 
-class ThreadPool {
+class ThreadPool
+{
 public:
     explicit ThreadPool(usize numThreads);
     ~ThreadPool();
@@ -90,21 +105,25 @@ public:
     // Blocks until all currently submitted tasks complete.
     void waitForAll();
 
-    [[nodiscard]] usize workerCount() const { return m_num_threads; }
+    [[nodiscard]] usize workerCount() const
+    {
+        return m_num_threads;
+    }
 
     // Dynamic-index parallel for. Returns when all iterations complete.
-    template<typename Func>
-    void parallelFor(usize count, usize minBatchSize, Func&& fn);
+    template <typename Func>
+    void parallelFor(usize count, usize minBatchSize, Func &&fn);
 
 private:
-    struct Worker {
+    struct Worker
+    {
         WorkStealingQueue queue;
         std::thread thread;
     };
 
-    void runWorkerLoop(Worker* self);
+    void runWorkerLoop(Worker *self);
 
-    DynamicArray<Worker*> m_workers;
+    DynamicArray<Worker *> m_workers;
     std::atomic<bool> m_stop{false};
     std::atomic<usize> m_pending_tasks{0};
     usize m_num_threads = 0;
@@ -116,41 +135,54 @@ private:
 
 // ---------- Template implementation ----------
 
-template<typename Func>
-void ThreadPool::parallelFor(usize count, usize minBatchSize, Func&& fn) {
-    if (m_num_threads == 0 || count <= minBatchSize) {
-        for (usize i = 0; i < count; ++i) {
+template <typename Func>
+void ThreadPool::parallelFor(usize count, usize minBatchSize, Func &&fn)
+{
+    if (m_num_threads == 0 || count <= minBatchSize)
+    {
+        for (usize i = 0; i < count; ++i)
+        {
             fn(i);
         }
         return;
     }
 
     usize numBatches = (count + minBatchSize - 1) / minBatchSize;
-    if (numBatches > m_num_threads * 4) {
+    if (numBatches > m_num_threads * 4)
+    {
         numBatches = m_num_threads * 4;
     }
     usize batchSize = count / numBatches;
-    if (batchSize < 1) batchSize = 1;
+    if (batchSize < 1)
+        batchSize = 1;
 
     std::atomic<usize> nextIndex{0};
     std::atomic<usize> completed{0};
 
-    for (usize b = 0; b < numBatches; ++b) {
-        submit([&nextIndex, &completed, count, batchSize, &fn]() {
-            while (true) {
-                usize start = nextIndex.fetch_add(batchSize, std::memory_order_relaxed);
-                if (start >= count) break;
-                usize end = start + batchSize;
-                if (end > count) end = count;
-                for (usize i = start; i < end; ++i) {
-                    fn(i);
+    for (usize b = 0; b < numBatches; ++b)
+    {
+        submit(
+            [&nextIndex, &completed, count, batchSize, &fn]()
+            {
+                while (true)
+                {
+                    usize start = nextIndex.fetch_add(batchSize, std::memory_order_relaxed);
+                    if (start >= count)
+                        break;
+                    usize end = start + batchSize;
+                    if (end > count)
+                        end = count;
+                    for (usize i = start; i < end; ++i)
+                    {
+                        fn(i);
+                    }
                 }
-            }
-            completed.fetch_add(1, std::memory_order_release);
-        });
+                completed.fetch_add(1, std::memory_order_release);
+            });
     }
 
-    while (completed.load(std::memory_order_acquire) < numBatches) {
+    while (completed.load(std::memory_order_acquire) < numBatches)
+    {
         std::this_thread::yield();
     }
 }

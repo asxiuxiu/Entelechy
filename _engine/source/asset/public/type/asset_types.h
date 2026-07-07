@@ -1,12 +1,14 @@
 ﻿#pragma once
 #include "core/foundation_types.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ------------------------------------------------------------------
 // AssetLoadState — precise lifecycle of an asset
 // ------------------------------------------------------------------
-enum class AssetLoadState : u8 {
+enum class AssetLoadState : u8
+{
     Unloaded,  // not started
     Pending,   // load request submitted, waiting for IO thread
     Loading,   // IO thread is reading/decoding

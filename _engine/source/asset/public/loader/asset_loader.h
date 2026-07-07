@@ -2,7 +2,8 @@
 #include "vfs/vfs_types.h"
 #include "core/path/path.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ------------------------------------------------------------------
 // IAssetLoader<T> — per-type deserialization interface
@@ -18,11 +19,12 @@ namespace Entelechy {
 //       }
 //   };
 // ------------------------------------------------------------------
-template<typename T>
-class IAssetLoader {
+template <typename T>
+class IAssetLoader
+{
 public:
     virtual ~IAssetLoader() = default;
-    virtual T load(const FileData& data, const Path& path) = 0;
+    virtual T load(const FileData &data, const Path &path) = 0;
 };
 
 } // namespace Entelechy

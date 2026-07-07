@@ -4,10 +4,12 @@
 #include "core/math/frustum.h"
 #include "ecs/type/type_registry.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // Viewport rectangle in pixel coordinates.
-struct Rect {
+struct Rect
+{
     f32 x = 0.0f;
     f32 y = 0.0f;
     f32 width = 0.0f;
@@ -16,7 +18,8 @@ struct Rect {
 
 // ExtractedView — the camera snapshot living in the render world.
 // Produced by ExtractCameraSystem each frame from (Camera + GlobalTransform).
-struct ExtractedView {
+struct ExtractedView
+{
     Mat4 view_matrix;
     Mat4 proj_matrix;
     Frustum frustum;
@@ -25,13 +28,9 @@ struct ExtractedView {
     f32 far_plane = 1000.0f;
 };
 
-REFLECT_COMPONENT(ExtractedView,
-    REG_FIELD(ExtractedView, view_matrix, Mat4),
-    REG_FIELD(ExtractedView, proj_matrix, Mat4),
-    REG_FIELD(ExtractedView, frustum, Frustum),
-    REG_FIELD(ExtractedView, viewport, Rect),
-    REG_FIELD(ExtractedView, near_plane, f32),
-    REG_FIELD(ExtractedView, far_plane, f32)
-)
+REFLECT_COMPONENT(ExtractedView, REG_FIELD(ExtractedView, view_matrix, Mat4),
+                  REG_FIELD(ExtractedView, proj_matrix, Mat4), REG_FIELD(ExtractedView, frustum, Frustum),
+                  REG_FIELD(ExtractedView, viewport, Rect), REG_FIELD(ExtractedView, near_plane, f32),
+                  REG_FIELD(ExtractedView, far_plane, f32))
 
 } // namespace Entelechy

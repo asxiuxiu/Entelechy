@@ -1,9 +1,11 @@
 ﻿#pragma once
 #include "core/foundation_types.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-enum class DefaultPhase : u8 {
+enum class DefaultPhase : u8
+{
     First = 0,
     PreUpdate = 1,
     Update = 2,

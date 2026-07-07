@@ -12,35 +12,45 @@
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-static void glfwKeyCallback(GLFWwindow* /*window*/, int key, int /*scancode*/, int action, int /*mods*/) {
+static void glfwKeyCallback(GLFWwindow * /*window*/, int key, int /*scancode*/, int action, int /*mods*/)
+{
     RawInputEvent event;
-    if (action == GLFW_PRESS) {
+    if (action == GLFW_PRESS)
+    {
         event.type = RawInputEvent::KeyPress;
-    } else if (action == GLFW_RELEASE) {
+    }
+    else if (action == GLFW_RELEASE)
+    {
         event.type = RawInputEvent::KeyRelease;
-    } else {
+    }
+    else
+    {
         return;
     }
     event.keyCode = key;
     InputQueue::instance().push(event);
 }
 
-static void glfwMouseButtonCallback(GLFWwindow* /*window*/, int button, int action, int /*mods*/) {
+static void glfwMouseButtonCallback(GLFWwindow * /*window*/, int button, int action, int /*mods*/)
+{
     RawInputEvent event;
     event.type = (action == GLFW_PRESS) ? RawInputEvent::MouseButtonPress : RawInputEvent::MouseButtonRelease;
     event.mouseButton = button;
     InputQueue::instance().push(event);
 }
 
-static void glfwCursorPosCallback(GLFWwindow* window, double x, double y) {
+static void glfwCursorPosCallback(GLFWwindow *window, double x, double y)
+{
     int width, height;
     glfwGetWindowSize(window, &width, &height);
 
     // Filter out cursor movement outside the window client area
     // (GLFW still fires this callback during drag-outside-window)
-    if (x < 0 || y < 0 || x >= width || y >= height) {
+    if (x < 0 || y < 0 || x >= width || y >= height)
+    {
         return;
     }
 
@@ -51,7 +61,8 @@ static void glfwCursorPosCallback(GLFWwindow* window, double x, double y) {
     InputQueue::instance().push(event);
 }
 
-static void glfwWindowSizeCallback(GLFWwindow* /*window*/, int width, int height) {
+static void glfwWindowSizeCallback(GLFWwindow * /*window*/, int width, int height)
+{
     RawInputEvent event;
     event.type = RawInputEvent::WindowResize;
     event.width = width;
@@ -59,23 +70,25 @@ static void glfwWindowSizeCallback(GLFWwindow* /*window*/, int width, int height
     InputQueue::instance().push(event);
 }
 
-static void glfwWindowCloseCallback(GLFWwindow* /*window*/) {
+static void glfwWindowCloseCallback(GLFWwindow * /*window*/)
+{
     RawInputEvent event;
     event.type = RawInputEvent::Close;
     InputQueue::instance().push(event);
 }
 
-GlfwWindow::GlfwWindow()
-    : m_window(nullptr) {
-}
+GlfwWindow::GlfwWindow() : m_window(nullptr) {}
 
-GlfwWindow::~GlfwWindow() {
-    if (m_window) {
+GlfwWindow::~GlfwWindow()
+{
+    if (m_window)
+    {
         destroy();
     }
 }
 
-bool GlfwWindow::create(int width, int height, const char* title) {
+bool GlfwWindow::create(int width, int height, const char *title)
+{
 #if defined(__APPLE__)
     // macOS 最高只支持 OpenGL 4.1（且 Core Profile 需要 FORWARD_COMPAT）。
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -89,7 +102,8 @@ bool GlfwWindow::create(int width, int height, const char* title) {
 #endif
 
     m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
-    if (!m_window) {
+    if (!m_window)
+    {
         return false;
     }
 
@@ -104,18 +118,22 @@ bool GlfwWindow::create(int width, int height, const char* title) {
     return true;
 }
 
-void GlfwWindow::centerOnScreen() {
-    if (!m_window) {
+void GlfwWindow::centerOnScreen()
+{
+    if (!m_window)
+    {
         return;
     }
 
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    if (!monitor) {
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    if (!monitor)
+    {
         return;
     }
 
-    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-    if (!mode) {
+    const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+    if (!mode)
+    {
         return;
     }
 
@@ -127,35 +145,41 @@ void GlfwWindow::centerOnScreen() {
     glfwSetWindowPos(m_window, x, y);
 }
 
-void GlfwWindow::getPrimaryMonitorSize(int& width, int& height) {
+void GlfwWindow::getPrimaryMonitorSize(int &width, int &height)
+{
     width = 1920;
     height = 1080;
 
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    if (!monitor) {
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    if (!monitor)
+    {
         return;
     }
 
-    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-    if (mode) {
+    const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+    if (mode)
+    {
         width = mode->width;
         height = mode->height;
     }
 }
 
-void GlfwWindow::getPrimaryMonitorContentScale(f32& xscale, f32& yscale) {
+void GlfwWindow::getPrimaryMonitorContentScale(f32 &xscale, f32 &yscale)
+{
     xscale = 1.0f;
     yscale = 1.0f;
 
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    if (!monitor) {
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    if (!monitor)
+    {
         return;
     }
 
     glfwGetMonitorContentScale(monitor, &xscale, &yscale);
 }
 
-void GlfwWindow::getRecommendedWindowSize(int& width, int& height, f32 fraction) {
+void GlfwWindow::getRecommendedWindowSize(int &width, int &height, f32 fraction)
+{
     int monitorW, monitorH;
     getPrimaryMonitorSize(monitorW, monitorH);
 
@@ -166,50 +190,68 @@ void GlfwWindow::getRecommendedWindowSize(int& width, int& height, f32 fraction)
     const int minW = 1280, minH = 720;
     const int maxW = 1920, maxH = 1080;
 
-    if (width < minW)  width = minW;
-    if (height < minH) height = minH;
-    if (width > maxW)  width = maxW;
-    if (height > maxH) height = maxH;
+    if (width < minW)
+        width = minW;
+    if (height < minH)
+        height = minH;
+    if (width > maxW)
+        width = maxW;
+    if (height > maxH)
+        height = maxH;
 }
 
-void GlfwWindow::destroy() {
-    if (m_window) {
+void GlfwWindow::destroy()
+{
+    if (m_window)
+    {
         glfwDestroyWindow(m_window);
         m_window = nullptr;
     }
 }
 
-void GlfwWindow::pollEvents() {
+void GlfwWindow::pollEvents()
+{
     glfwPollEvents();
 }
 
-bool GlfwWindow::shouldClose() const {
+bool GlfwWindow::shouldClose() const
+{
     return m_window ? glfwWindowShouldClose(m_window) : true;
 }
 
-void GlfwWindow::requestClose() {
-    if (m_window) {
+void GlfwWindow::requestClose()
+{
+    if (m_window)
+    {
         glfwSetWindowShouldClose(m_window, GLFW_TRUE);
     }
 }
 
-void GlfwWindow::getSize(int& width, int& height) const {
-    if (m_window) {
+void GlfwWindow::getSize(int &width, int &height) const
+{
+    if (m_window)
+    {
         glfwGetWindowSize(m_window, &width, &height);
-    } else {
+    }
+    else
+    {
         width = 0;
         height = 0;
     }
 }
 
-void GlfwWindow::setSize(int width, int height) {
-    if (m_window) {
+void GlfwWindow::setSize(int width, int height)
+{
+    if (m_window)
+    {
         glfwSetWindowSize(m_window, width, height);
     }
 }
 
-void* GlfwWindow::getNativeHandle() const {
-    if (!m_window) {
+void *GlfwWindow::getNativeHandle() const
+{
+    if (!m_window)
+    {
         return nullptr;
     }
 #if defined(_WIN32)
@@ -217,14 +259,16 @@ void* GlfwWindow::getNativeHandle() const {
 #elif defined(__APPLE__)
     return glfwGetCocoaWindow(m_window);
 #elif defined(__linux__)
-    return reinterpret_cast<void*>(glfwGetX11Window(m_window));
+    return reinterpret_cast<void *>(glfwGetX11Window(m_window));
 #else
     return nullptr;
 #endif
 }
 
-void* GlfwWindow::getNativeDisplay() const {
-    if (!m_window) {
+void *GlfwWindow::getNativeDisplay() const
+{
+    if (!m_window)
+    {
         return nullptr;
     }
     // Phase 1 stub: reserved for Vulkan surface creation.
@@ -235,14 +279,18 @@ void* GlfwWindow::getNativeDisplay() const {
     return nullptr;
 }
 
-void GlfwWindow::swapBuffers() {
-    if (m_window) {
+void GlfwWindow::swapBuffers()
+{
+    if (m_window)
+    {
         glfwSwapBuffers(m_window);
     }
 }
 
-void GlfwWindow::makeContextCurrent() {
-    if (m_window) {
+void GlfwWindow::makeContextCurrent()
+{
+    if (m_window)
+    {
         glfwMakeContextCurrent(m_window);
     }
 }

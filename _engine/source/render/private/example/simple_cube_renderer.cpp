@@ -3,9 +3,10 @@
 #include "log/core/log_macros.h"
 #include <cstring>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-static const char* s_vertexShader = R"(#version 330 core
+static const char *s_vertexShader = R"(#version 330 core
 layout(location = 0) in vec3 aPos;
 uniform mat4 uMVP;
 void main() {
@@ -13,7 +14,7 @@ void main() {
 }
 )";
 
-static const char* s_fragmentShader = R"(#version 330 core
+static const char *s_fragmentShader = R"(#version 330 core
 uniform vec3 uColor;
 out vec4 FragColor;
 void main() {
@@ -23,39 +24,66 @@ void main() {
 
 // Cube vertices (8 corners, centered at origin, edge length 1)
 static const f32 s_cubeVertices[8 * 3] = {
-    -0.5f, -0.5f, -0.5f,
-     0.5f, -0.5f, -0.5f,
-     0.5f,  0.5f, -0.5f,
-    -0.5f,  0.5f, -0.5f,
-    -0.5f, -0.5f,  0.5f,
-     0.5f, -0.5f,  0.5f,
-     0.5f,  0.5f,  0.5f,
-    -0.5f,  0.5f,  0.5f,
+    -0.5f, -0.5f, -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f,
+    -0.5f, -0.5f, 0.5f,  0.5f, -0.5f, 0.5f,  0.5f, 0.5f, 0.5f,  -0.5f, 0.5f, 0.5f,
 };
 
 // Indices for 12 triangles (6 faces * 2)
 static const u32 s_cubeIndices[36] = {
     // front
-    4, 5, 6, 4, 6, 7,
+    4,
+    5,
+    6,
+    4,
+    6,
+    7,
     // back
-    1, 0, 3, 1, 3, 2,
+    1,
+    0,
+    3,
+    1,
+    3,
+    2,
     // left
-    0, 4, 7, 0, 7, 3,
+    0,
+    4,
+    7,
+    0,
+    7,
+    3,
     // right
-    5, 1, 2, 5, 2, 6,
+    5,
+    1,
+    2,
+    5,
+    2,
+    6,
     // top
-    3, 2, 6, 3, 6, 7,
+    3,
+    2,
+    6,
+    3,
+    6,
+    7,
     // bottom
-    0, 1, 5, 0, 5, 4,
+    0,
+    1,
+    5,
+    0,
+    5,
+    4,
 };
 
 SimpleCubeRenderer::SimpleCubeRenderer() = default;
 
-SimpleCubeRenderer::~SimpleCubeRenderer() {
-    if (m_initialized) shutdown();
+SimpleCubeRenderer::~SimpleCubeRenderer()
+{
+    if (m_initialized)
+        shutdown();
 }
 
-bool SimpleCubeRenderer::createMesh() {
+bool SimpleCubeRenderer::createMesh()
+{
     VertexAttributeDesc attr{};
     attr.location = 0;
     attr.components = 3;
@@ -70,7 +98,8 @@ bool SimpleCubeRenderer::createMesh() {
     vbDesc.vertexAttributeCount = 1;
 
     m_vertex_buffer = m_device->createBuffer(vbDesc, s_cubeVertices);
-    if (!m_vertex_buffer) {
+    if (!m_vertex_buffer)
+    {
         LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to create vertex buffer");
         return false;
     }
@@ -80,7 +109,8 @@ bool SimpleCubeRenderer::createMesh() {
     ibDesc.usage = BufferUsage::Index;
 
     m_index_buffer = m_device->createBuffer(ibDesc, s_cubeIndices);
-    if (!m_index_buffer) {
+    if (!m_index_buffer)
+    {
         LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to create index buffer");
         return false;
     }
@@ -88,11 +118,14 @@ bool SimpleCubeRenderer::createMesh() {
     return true;
 }
 
-bool SimpleCubeRenderer::init() {
-    if (m_initialized) return true;
+bool SimpleCubeRenderer::init()
+{
+    if (m_initialized)
+        return true;
 
     m_device = std::make_unique<GLRHIDevice>();
-    if (!m_device->initialize()) {
+    if (!m_device->initialize())
+    {
         LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to initialize GLRHIDevice");
         return false;
     }
@@ -101,7 +134,7 @@ bool SimpleCubeRenderer::init() {
 
     // Parameter layout: matches shader uniforms
     MaterialParamDesc params[] = {
-        {"uMVP"_sid,  MaterialParamType::Mat4},
+        {"uMVP"_sid, MaterialParamType::Mat4},
         {"uColor"_sid, MaterialParamType::Vec3},
     };
 
@@ -111,14 +144,15 @@ bool SimpleCubeRenderer::init() {
     pipelineDesc.depthStencilState.depthTest = true;
     pipelineDesc.depthStencilState.depthWrite = true;
 
-    if (!m_material.init(m_device.get(), m_shader_cache.get(),
-                         s_vertexShader, s_fragmentShader,
-                         params, 2, pipelineDesc)) {
+    if (!m_material.init(m_device.get(), m_shader_cache.get(), s_vertexShader, s_fragmentShader, params, 2,
+                         pipelineDesc))
+    {
         LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to init material");
         return false;
     }
 
-    if (!createMesh()) {
+    if (!createMesh())
+    {
         m_material.shutdown();
         return false;
     }
@@ -128,24 +162,29 @@ bool SimpleCubeRenderer::init() {
     return true;
 }
 
-void SimpleCubeRenderer::shutdown() {
-    if (!m_initialized) return;
+void SimpleCubeRenderer::shutdown()
+{
+    if (!m_initialized)
+        return;
 
     m_material.shutdown();
     m_index_buffer.reset();
     m_vertex_buffer.reset();
     m_shader_cache.reset();
-    if (m_device) {
+    if (m_device)
+    {
         m_device->shutdown();
         m_device.reset();
     }
     m_initialized = false;
 }
 
-void SimpleCubeRenderer::drawCube(const Mat4& mvp, const Vec3& color) {
-    if (!m_initialized) return;
+void SimpleCubeRenderer::drawCube(const Mat4 &mvp, const Vec3 &color)
+{
+    if (!m_initialized)
+        return;
 
-    auto* cmdList = m_device->createCommandList();
+    auto *cmdList = m_device->createCommandList();
 
     m_material.setMat4("uMVP"_sid, mvp);
     m_material.setVec3("uColor"_sid, color);
@@ -158,12 +197,15 @@ void SimpleCubeRenderer::drawCube(const Mat4& mvp, const Vec3& color) {
     m_device->submit(cmdList);
 }
 
-void SimpleCubeRenderer::drawCube(const Mat4& world, const Mat4& view, const Mat4& proj, const Vec3& color) {
+void SimpleCubeRenderer::drawCube(const Mat4 &world, const Mat4 &view, const Mat4 &proj, const Vec3 &color)
+{
     drawCube(proj * view * world, color);
 }
 
-void SimpleCubeRenderer::endFrame() {
-    if (!m_initialized || !m_device) return;
+void SimpleCubeRenderer::endFrame()
+{
+    if (!m_initialized || !m_device)
+        return;
     m_device->signalFrame();
     m_device->flushPendingDeletes();
 }

@@ -9,28 +9,37 @@
 #include <sys/stat.h>
 #endif
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-static bool ensureDirExists(const char* path) {
+static bool ensureDirExists(const char *path)
+{
     char buf[512];
     usize len = std::strlen(path);
-    if (len >= sizeof(buf)) len = sizeof(buf) - 1;
+    if (len >= sizeof(buf))
+        len = sizeof(buf) - 1;
     std::memcpy(buf, path, len);
     buf[len] = '\0';
 
     // Trim to last separator.
-    char* sep = nullptr;
-    for (char* p = buf; *p; ++p) {
-        if (*p == '/' || *p == '\\') sep = p;
+    char *sep = nullptr;
+    for (char *p = buf; *p; ++p)
+    {
+        if (*p == '/' || *p == '\\')
+            sep = p;
     }
-    if (!sep) return true; // no directory component
+    if (!sep)
+        return true; // no directory component
     *sep = '\0';
 
-    if (buf[0] == '\0') return true;
+    if (buf[0] == '\0')
+        return true;
 
     // Recursively create parent directories (e.g. a/b/c when a or a/b don't exist).
-    for (char* p = buf; *p; ++p) {
-        if (*p == '/' || *p == '\\') {
+    for (char *p = buf; *p; ++p)
+    {
+        if (*p == '/' || *p == '\\')
+        {
             char save = *p;
             *p = '\0';
 #if PLATFORM_WINDOWS
@@ -53,51 +62,61 @@ static bool ensureDirExists(const char* path) {
 
 // ---------- FileSystemMountPoint ----------
 
-FileSystemMountPoint::FileSystemMountPoint(const char* root) {
+FileSystemMountPoint::FileSystemMountPoint(const char *root)
+{
     m_root = root;
 }
 
-void FileSystemMountPoint::buildFullPath(const char* path, char* out, usize outSize) const {
-    const char* root = m_root.c_str();
+void FileSystemMountPoint::buildFullPath(const char *path, char *out, usize outSize) const
+{
+    const char *root = m_root.c_str();
     usize rootLen = m_root.length();
 
     usize i = 0;
-    for (; i < rootLen && i < outSize - 1; ++i) {
+    for (; i < rootLen && i < outSize - 1; ++i)
+    {
         out[i] = root[i];
     }
 
-    if (i > 0 && out[i - 1] != '/' && out[i - 1] != '\\' && i < outSize - 1) {
+    if (i > 0 && out[i - 1] != '/' && out[i - 1] != '\\' && i < outSize - 1)
+    {
         out[i++] = '/';
     }
 
-    const char* p = path;
-    if (*p == '/' || *p == '\\') ++p;
+    const char *p = path;
+    if (*p == '/' || *p == '\\')
+        ++p;
 
-    for (; *p && i < outSize - 1; ++p) {
+    for (; *p && i < outSize - 1; ++p)
+    {
         out[i++] = (*p == '\\') ? '/' : *p;
     }
 
     out[i] = '\0';
 }
 
-bool FileSystemMountPoint::exists(const char* path) {
+bool FileSystemMountPoint::exists(const char *path)
+{
     char fullPath[512];
     buildFullPath(path, fullPath, sizeof(fullPath));
 
-    FILE* f = std::fopen(fullPath, "rb");
-    if (f) {
+    FILE *f = std::fopen(fullPath, "rb");
+    if (f)
+    {
         std::fclose(f);
         return true;
     }
     return false;
 }
 
-FileData FileSystemMountPoint::readFile(const char* path) {
+FileData FileSystemMountPoint::readFile(const char *path)
+{
     char fullPath[512];
     buildFullPath(path, fullPath, sizeof(fullPath));
 
-    FILE* f = std::fopen(fullPath, "rb");
-    if (!f) {
+    FILE *f = std::fopen(fullPath, "rb");
+    if (!f)
+    {
         return FileData{};
     }
 
@@ -106,7 +125,8 @@ FileData FileSystemMountPoint::readFile(const char* path) {
     std::fseek(f, 0, SEEK_SET);
 
     FileData result;
-    if (fileSize > 0) {
+    if (fileSize > 0)
+    {
         result.bytes.resize(static_cast<usize>(fileSize));
         std::fread(result.bytes.data(), 1, static_cast<usize>(fileSize), f);
     }
@@ -116,18 +136,21 @@ FileData FileSystemMountPoint::readFile(const char* path) {
     return result;
 }
 
-bool FileSystemMountPoint::writeFile(const char* path, const u8* data, usize size) {
+bool FileSystemMountPoint::writeFile(const char *path, const u8 *data, usize size)
+{
     char fullPath[512];
     buildFullPath(path, fullPath, sizeof(fullPath));
 
     ensureDirExists(fullPath);
 
-    FILE* f = std::fopen(fullPath, "wb");
-    if (!f) {
+    FILE *f = std::fopen(fullPath, "wb");
+    if (!f)
+    {
         return false;
     }
 
-    if (size > 0) {
+    if (size > 0)
+    {
         std::fwrite(data, 1, size, f);
     }
     std::fclose(f);
@@ -136,24 +159,30 @@ bool FileSystemMountPoint::writeFile(const char* path, const u8* data, usize siz
 
 // ---------- MemoryMountPoint ----------
 
-void MemoryMountPoint::registerFile(const char* path, const u8* data, usize size) {
+void MemoryMountPoint::registerFile(const char *path, const u8 *data, usize size)
+{
     DynamicArray<u8> copy;
-    if (size > 0) {
+    if (size > 0)
+    {
         copy.resize(size);
-        for (usize i = 0; i < size; ++i) {
+        for (usize i = 0; i < size; ++i)
+        {
             copy[i] = data[i];
         }
     }
     m_files.insert(StringInternPool::instance().intern(path), std::move(copy));
 }
 
-bool MemoryMountPoint::exists(const char* path) {
+bool MemoryMountPoint::exists(const char *path)
+{
     return m_files.find(StringInternPool::instance().intern(path)) != nullptr;
 }
 
-FileData MemoryMountPoint::readFile(const char* path) {
-    auto* entry = m_files.find(StringInternPool::instance().intern(path));
-    if (!entry) {
+FileData MemoryMountPoint::readFile(const char *path)
+{
+    auto *entry = m_files.find(StringInternPool::instance().intern(path));
+    if (!entry)
+    {
         return FileData{};
     }
 
@@ -163,11 +192,14 @@ FileData MemoryMountPoint::readFile(const char* path) {
     return result;
 }
 
-bool MemoryMountPoint::writeFile(const char* path, const u8* data, usize size) {
+bool MemoryMountPoint::writeFile(const char *path, const u8 *data, usize size)
+{
     DynamicArray<u8> copy;
-    if (size > 0) {
+    if (size > 0)
+    {
         copy.resize(size);
-        for (usize i = 0; i < size; ++i) {
+        for (usize i = 0; i < size; ++i)
+        {
             copy[i] = data[i];
         }
     }

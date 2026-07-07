@@ -1,12 +1,16 @@
 ﻿#include "motor/movement_system.h"
 #include "ecs/query/query.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-void MovementSystem::tick(World& world, FrameArena& arena, f32 dt) {
+void MovementSystem::tick(World &world, FrameArena &arena, f32 dt)
+{
     (void)arena;
-    for (auto [e, pos, vel] : Query<Position, Velocity>(world)) {
-        if (pos && vel) {
+    for (auto [e, pos, vel] : Query<Position, Velocity>(world))
+    {
+        if (pos && vel)
+        {
             pos->x += vel->vx * dt;
             pos->y += vel->vy * dt;
         }

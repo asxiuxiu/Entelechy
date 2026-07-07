@@ -1,7 +1,8 @@
 ﻿#pragma once
 #include "core/foundation_types.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ========================================================================
 // Archetype Chunk Storage — Interface Sketch (Phase 4.1 Pre-research)
@@ -22,19 +23,21 @@ using ArchetypeID = u64;
 // Chunk header — 64-byte aligned so that the payload area after it is also
 // cache-line aligned.  The payload is NOT a struct member; it lives in the
 // same allocation immediately after the header.
-struct alignas(64) Chunk {
+struct alignas(64) Chunk
+{
     static constexpr usize CAPACITY = 16 * 1024; // 16 KiB payload
 
     ArchetypeID archetype = 0;
-    struct Archetype* archetypePtr = nullptr; // fast reverse lookup
-    Chunk* next = nullptr;           // intrusive linked list
-    u16 entityCount = 0;             // how many entities currently live here
-    u16 entityCapacity = 0;          // derived from component sizes
+    struct Archetype *archetypePtr = nullptr; // fast reverse lookup
+    Chunk *next = nullptr;                    // intrusive linked list
+    u16 entityCount = 0;                      // how many entities currently live here
+    u16 entityCapacity = 0;                   // derived from component sizes
 };
 
 // Helper: derive ArchetypeID from a set of ComponentTypeIDs.
 // In the current 32-component system this is simply a u32 mask stored in u64.
-inline ArchetypeID makeArchetypeID(u32 componentMask) {
+inline ArchetypeID makeArchetypeID(u32 componentMask)
+{
     return static_cast<ArchetypeID>(componentMask);
 }
 

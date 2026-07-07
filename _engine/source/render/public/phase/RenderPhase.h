@@ -1,9 +1,11 @@
 ﻿#pragma once
 #include "core/foundation_types.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-enum class RenderPhase : u8 {
+enum class RenderPhase : u8
+{
     ShadowMap = 0,
     Opaque3D = 1,
     AlphaMask = 2,

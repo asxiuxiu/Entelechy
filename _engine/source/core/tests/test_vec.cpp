@@ -2,7 +2,8 @@
 using namespace Entelechy;
 using namespace MathTest;
 
-TEST(Vec, Vec2Arithmetic) {
+TEST(Vec, Vec2Arithmetic)
+{
     Vec2 a{1.0f, 2.0f};
     Vec2 b{3.0f, 4.0f};
     Vec2 c = a + b;
@@ -34,14 +35,16 @@ TEST(Vec, Vec2Arithmetic) {
     ASSERT_EQ(c.y, -2.0f);
 }
 
-TEST(Vec, Vec2DotAndLength) {
+TEST(Vec, Vec2DotAndLength)
+{
     Vec2 a{3.0f, 4.0f};
     ASSERT_EQ(a.dot(a), 25.0f);
     ASSERT_EQ(a.lengthSq(), 25.0f);
     ASSERT_TRUE(NearEq(a.length(), 5.0f));
 }
 
-TEST(Vec, Vec2Normalized) {
+TEST(Vec, Vec2Normalized)
+{
     Vec2 a{3.0f, 4.0f};
     Vec2 n = a.normalized();
     ASSERT_TRUE(NearEq(n.length(), 1.0f));
@@ -54,7 +57,8 @@ TEST(Vec, Vec2Normalized) {
     ASSERT_EQ(zn.y, 0.0f);
 }
 
-TEST(Vec, Vec3Arithmetic) {
+TEST(Vec, Vec3Arithmetic)
+{
     Vec3 a{1.0f, 2.0f, 3.0f};
     Vec3 b{4.0f, 5.0f, 6.0f};
     Vec3 c = a + b;
@@ -68,7 +72,8 @@ TEST(Vec, Vec3Arithmetic) {
     ASSERT_EQ(c.z, 6.0f);
 }
 
-TEST(Vec, Vec3DotCross) {
+TEST(Vec, Vec3DotCross)
+{
     Vec3 i{1.0f, 0.0f, 0.0f};
     Vec3 j{0.0f, 1.0f, 0.0f};
     Vec3 k{0.0f, 0.0f, 1.0f};
@@ -90,7 +95,8 @@ TEST(Vec, Vec3DotCross) {
     ASSERT_TRUE(Vec3Near(a.cross(b), -(b.cross(a))));
 }
 
-TEST(Vec, Vec3Normalized) {
+TEST(Vec, Vec3Normalized)
+{
     Vec3 a{1.0f, 2.0f, 2.0f};
     Vec3 n = a.normalized();
     ASSERT_TRUE(NearEq(n.length(), 1.0f));
@@ -102,7 +108,8 @@ TEST(Vec, Vec3Normalized) {
     ASSERT_EQ(zn.z, 0.0f);
 }
 
-TEST(Vec, Vec3Index) {
+TEST(Vec, Vec3Index)
+{
     Vec3 a{1.0f, 2.0f, 3.0f};
     ASSERT_EQ(a[0], 1.0f);
     ASSERT_EQ(a[1], 2.0f);
@@ -112,7 +119,8 @@ TEST(Vec, Vec3Index) {
     ASSERT_EQ(a[1], 5.0f);
 }
 
-TEST(Vec, Vec4Arithmetic) {
+TEST(Vec, Vec4Arithmetic)
+{
     Vec4 a{1.0f, 2.0f, 3.0f, 4.0f};
     Vec4 b{2.0f, 3.0f, 4.0f, 5.0f};
     Vec4 c = a + b;
@@ -128,7 +136,8 @@ TEST(Vec, Vec4Arithmetic) {
     ASSERT_EQ(c.w, 8.0f);
 }
 
-TEST(Vec, Vec4Normalized) {
+TEST(Vec, Vec4Normalized)
+{
     Vec4 a{1.0f, 1.0f, 1.0f, 1.0f};
     Vec4 n = a.normalized();
     ASSERT_TRUE(NearEq(n.length(), 1.0f));

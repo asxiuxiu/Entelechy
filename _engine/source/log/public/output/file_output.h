@@ -5,12 +5,14 @@
 #include "log/output/log_output_device.h"
 #include "log/core/queued_log_entry.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ============================================================
 // File output configuration
 // ============================================================
-struct LogFileConfig {
+struct LogFileConfig
+{
     String m_base_path = "logs/engine.log";
     u32 m_max_size_mb = 10;
     u32 m_max_files = 5;
@@ -21,13 +23,14 @@ struct LogFileConfig {
 // ============================================================
 // Writes human-readable log lines to a text file.
 // Automatically rolls over when size exceeds threshold.
-class FileOutput : public LogOutputDevice {
+class FileOutput : public LogOutputDevice
+{
 public:
-    explicit FileOutput(const LogFileConfig& config = LogFileConfig{});
+    explicit FileOutput(const LogFileConfig &config = LogFileConfig{});
     ~FileOutput() override;
 
     bool init();
-    void write(const QueuedLogEntry& entry) override;
+    void write(const QueuedLogEntry &entry) override;
     void flush() override;
 
 private:

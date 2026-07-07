@@ -10,7 +10,8 @@
 #include "ecs/component/transform_component.h"
 #include "ecs/type/types.h"
 
-namespace game {
+namespace game
+{
 
 // ------------------------------------------------------------------
 // GamePlugin -- demo game logic plugin
@@ -19,33 +20,42 @@ namespace game {
 // transform propagation, event cleanup) and spawns the demo cube
 // hierarchy.
 // ------------------------------------------------------------------
-class GamePlugin : public Entelechy::IPlugin {
+class GamePlugin : public Entelechy::IPlugin
+{
 public:
-    const char* name() const override { return "GamePlugin"; }
-    Entelechy::LoadingPhase phase() const override {
+    const char *name() const override
+    {
+        return "GamePlugin";
+    }
+    Entelechy::LoadingPhase phase() const override
+    {
         return Entelechy::LoadingPhase::Gameplay;
     }
-    Entelechy::DynamicArray<Entelechy::StringId> dependencies() const override {
+    Entelechy::DynamicArray<Entelechy::StringId> dependencies() const override
+    {
         // Gameplay layer depends on core systems being registered first.
         // In a multi-plugin setup, this would list plugins like "Render", "Input", etc.
         return {};
     }
-    void build(Entelechy::App& app) override;
-    void setup(Entelechy::App& app) override;
+    void build(Entelechy::App &app) override;
+    void setup(Entelechy::App &app) override;
 
 private:
     Entelechy::MovementSystem m_movement;
 
-    struct RotationSystem : Entelechy::System {
-        void tick(Entelechy::World& w, Entelechy::FrameArena&, f32 dt) override;
+    struct RotationSystem : Entelechy::System
+    {
+        void tick(Entelechy::World &w, Entelechy::FrameArena &, f32 dt) override;
     } m_rotation;
 
-    struct WobbleSystem : Entelechy::System {
-        void tick(Entelechy::World& w, Entelechy::FrameArena&, f32 dt) override;
+    struct WobbleSystem : Entelechy::System
+    {
+        void tick(Entelechy::World &w, Entelechy::FrameArena &, f32 dt) override;
     } m_wobble;
 
-    struct ColorChangeSystem : Entelechy::System {
-        void tick(Entelechy::World& w, Entelechy::FrameArena&, f32) override;
+    struct ColorChangeSystem : Entelechy::System
+    {
+        void tick(Entelechy::World &w, Entelechy::FrameArena &, f32) override;
     } m_color_change;
 
     Entelechy::TransformPropagationSystem m_transform_system;

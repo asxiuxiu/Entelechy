@@ -3,9 +3,11 @@
 
 using namespace Entelechy;
 
-namespace {
+namespace
+{
 
-PhaseItem makeItem(u32 materialId, Entity entity) {
+PhaseItem makeItem(u32 materialId, Entity entity)
+{
     PhaseItem item{};
     item.sort_key.packed.material_id = static_cast<u16>(materialId);
     item.render_entity = entity;
@@ -15,7 +17,8 @@ PhaseItem makeItem(u32 materialId, Entity entity) {
 
 } // namespace
 
-TEST(BinnedRenderPhase, GroupsItemsByMaterial) {
+TEST(BinnedRenderPhase, GroupsItemsByMaterial)
+{
     BinnedRenderPhase phase;
     phase.addItem(makeItem(1, Entity{1, 0}));
     phase.addItem(makeItem(2, Entity{2, 0}));
@@ -23,7 +26,7 @@ TEST(BinnedRenderPhase, GroupsItemsByMaterial) {
     phase.addItem(makeItem(3, Entity{4, 0}));
     phase.addItem(makeItem(2, Entity{5, 0}));
 
-    const auto& bins = phase.getBins();
+    const auto &bins = phase.getBins();
     ASSERT_EQ(bins.size(), 3u);
 
     ASSERT_EQ(bins[0].material_id, 1u);
@@ -38,7 +41,8 @@ TEST(BinnedRenderPhase, GroupsItemsByMaterial) {
     ASSERT_EQ(bins[2].items.size(), 1u);
 }
 
-TEST(BinnedRenderPhase, PreservesFirstSeenOrder) {
+TEST(BinnedRenderPhase, PreservesFirstSeenOrder)
+{
     BinnedRenderPhase phase;
     phase.addItem(makeItem(5, Entity{1, 0}));
     phase.addItem(makeItem(2, Entity{2, 0}));
@@ -47,14 +51,15 @@ TEST(BinnedRenderPhase, PreservesFirstSeenOrder) {
     phase.addItem(makeItem(2, Entity{5, 0}));
     phase.addItem(makeItem(7, Entity{6, 0}));
 
-    const auto& bins = phase.getBins();
+    const auto &bins = phase.getBins();
     ASSERT_EQ(bins.size(), 3u);
     ASSERT_EQ(bins[0].material_id, 5u);
     ASSERT_EQ(bins[1].material_id, 2u);
     ASSERT_EQ(bins[2].material_id, 7u);
 }
 
-TEST(BinnedRenderPhase, ClearEmptiesAllBins) {
+TEST(BinnedRenderPhase, ClearEmptiesAllBins)
+{
     BinnedRenderPhase phase;
     phase.addItem(makeItem(1, Entity{1, 0}));
     phase.addItem(makeItem(2, Entity{2, 0}));

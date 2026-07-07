@@ -4,23 +4,28 @@
 
 struct GLFWwindow;
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-class GlfwWindow : public IWindow {
+class GlfwWindow : public IWindow
+{
 public:
     GlfwWindow();
     ~GlfwWindow() override;
 
-    bool create(int width, int height, const char* title) override;
+    bool create(int width, int height, const char *title) override;
     void destroy() override;
     void pollEvents() override;
     bool shouldClose() const override;
     void requestClose() override;
-    void getSize(int& width, int& height) const override;
+    void getSize(int &width, int &height) const override;
     void setSize(int width, int height) override;
-    void* getNativeHandle() const override;
-    void* getNativeDisplay() const override;
-    GLFWwindow* getGlfwWindow() const { return m_window; }
+    void *getNativeHandle() const override;
+    void *getNativeDisplay() const override;
+    GLFWwindow *getGlfwWindow() const
+    {
+        return m_window;
+    }
     void swapBuffers() override;
     void makeContextCurrent() override;
 
@@ -28,16 +33,16 @@ public:
     void centerOnScreen();
 
     // Static helpers for monitor / DPI queries.
-    static void getPrimaryMonitorSize(int& width, int& height);
-    static void getPrimaryMonitorContentScale(f32& xscale, f32& yscale);
+    static void getPrimaryMonitorSize(int &width, int &height);
+    static void getPrimaryMonitorContentScale(f32 &xscale, f32 &yscale);
 
     // Compute a sensible default window size based on the primary monitor.
     // Returns size as a fraction of the monitor (default 75%), clamped to
     // a minimum of 1280x720 and a maximum of 1920x1080.
-    static void getRecommendedWindowSize(int& width, int& height, f32 fraction = 0.75f);
+    static void getRecommendedWindowSize(int &width, int &height, f32 fraction = 0.75f);
 
 private:
-    GLFWwindow* m_window;
+    GLFWwindow *m_window;
 };
 
 } // namespace Entelechy

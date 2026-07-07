@@ -3,7 +3,8 @@
 #include "ecs/world/world.h"
 #include "ecs/query/query.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ------------------------------------------------------------------
 // EventWriter<T> -- type-safe event emission API
@@ -18,23 +19,27 @@ namespace Entelechy {
 //       writer.emit(KeyboardEvent{32, true});
 //   }
 // ------------------------------------------------------------------
-template<typename T>
-class EventWriter {
+template <typename T>
+class EventWriter
+{
 public:
-    explicit EventWriter(World& world) : m_world(world) {}
+    explicit EventWriter(World &world) : m_world(world) {}
 
     // Emit a new event by spawning an entity with the event component.
-    [[nodiscard]] Entity emit(const T& event) {
+    [[nodiscard]] Entity emit(const T &event)
+    {
         Entity e = m_world.spawn();
         m_world.addComponent<T>(e, event);
-        if constexpr (requires { EventLifetime{}; }) {
+        if constexpr (requires { EventLifetime{}; })
+        {
             m_world.addComponent<EventLifetime>(e, EventLifetime{});
         }
         return e;
     }
 
     // Convenience: emit with EventLifetime attached (if event type supports it).
-    [[nodiscard]] Entity emit(const T& event, const EventLifetime& lifetime) {
+    [[nodiscard]] Entity emit(const T &event, const EventLifetime &lifetime)
+    {
         Entity e = m_world.spawn();
         m_world.addComponent<T>(e, event);
         m_world.addComponent<EventLifetime>(e, lifetime);
@@ -42,7 +47,7 @@ public:
     }
 
 private:
-    World& m_world;
+    World &m_world;
 };
 
 // ------------------------------------------------------------------
@@ -60,47 +65,56 @@ private:
 //       }
 //   }
 // ------------------------------------------------------------------
-template<typename T>
-class EventReader {
+template <typename T>
+class EventReader
+{
 public:
-    explicit EventReader(World& world) : m_world(world) {}
+    explicit EventReader(World &world) : m_world(world) {}
 
     // Read all current events of type T.
     // Returns a lightweight iterable view (not owning storage).
     // Note: events are entities; this iterates the component array.
-    auto read() {
+    auto read()
+    {
         return Query<T>(m_world);
     }
 
     // Drain all current events of type T, invoking callback for each.
     // Events are NOT destroyed; use EventCleanupSystem or manual destroy.
-    template<typename F>
-    void drain(F&& callback) {
-        for (auto [e, evt] : Query<T>(m_world)) {
-            if (evt) {
+    template <typename F>
+    void drain(F &&callback)
+    {
+        for (auto [e, evt] : Query<T>(m_world))
+        {
+            if (evt)
+            {
                 callback(*evt);
             }
         }
     }
 
     // Drain and return a copy of all event values into a FrameArena-backed array.
-    template<typename F>
-    void drainWithEntity(F&& callback) {
-        for (auto [e, evt] : Query<T>(m_world)) {
-            if (evt) {
+    template <typename F>
+    void drainWithEntity(F &&callback)
+    {
+        for (auto [e, evt] : Query<T>(m_world))
+        {
+            if (evt)
+            {
                 callback(e, *evt);
             }
         }
     }
 
     // Check if any events of this type are pending.
-    [[nodiscard]] bool isEmpty() const {
-        auto* array = m_world.getComponentArray<T>();
+    [[nodiscard]] bool isEmpty() const
+    {
+        auto *array = m_world.getComponentArray<T>();
         return !array || array->size() == 0;
     }
 
 private:
-    World& m_world;
+    World &m_world;
 };
 
 } // namespace Entelechy

@@ -1,7 +1,8 @@
 #pragma once
 #include "core/allocator/allocator.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // Universal persistent objects: route through global allocator (Mimalloc).
 using HeapAllocator = DefaultAllocator;

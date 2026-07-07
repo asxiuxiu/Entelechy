@@ -11,13 +11,15 @@
 
 using namespace Entelechy;
 
-namespace {
+namespace
+{
 
 // Minimal stand-in for ExtractCameraSystem that does not require a window.
-class MockExtractCameraSystem : public IExtractSystem {
+class MockExtractCameraSystem : public IExtractSystem
+{
 public:
-    void extract(const World& /*mainWorld*/, World& renderWorld,
-                 FrameArena& /*arena*/, f32 /*dt*/) override {
+    void extract(const World & /*mainWorld*/, World &renderWorld, FrameArena & /*arena*/, f32 /*dt*/) override
+    {
         // Since RenderWorld::clear() destroys everything each frame, the view
         // entity is recreated here. In addition to ExtractedView we pre-bind the
         // downstream view resources so that Cull/Queue systems can find them on
@@ -41,7 +43,8 @@ public:
 
 } // namespace
 
-TEST(RenderViewResources, SingleViewEntityAfterFullPipeline) {
+TEST(RenderViewResources, SingleViewEntityAfterFullPipeline)
+{
     RenderWorld renderWorld;
     renderWorld.extractSchedule().registerSystem(new MockExtractCameraSystem());
 
@@ -58,7 +61,8 @@ TEST(RenderViewResources, SingleViewEntityAfterFullPipeline) {
 
     usize combinedCount = 0;
     Query<ExtractedView, ViewVisibleList, ViewBinnedPhases, ViewSortedPhases> combinedQuery(renderWorld.world());
-    for (auto [e, ev, vl, bp, sp] : combinedQuery) {
+    for (auto [e, ev, vl, bp, sp] : combinedQuery)
+    {
         ++combinedCount;
         ASSERT_TRUE(ev != nullptr);
         ASSERT_TRUE(vl != nullptr);
@@ -68,7 +72,8 @@ TEST(RenderViewResources, SingleViewEntityAfterFullPipeline) {
     ASSERT_EQ(combinedCount, 1u);
 }
 
-TEST(RenderViewResources, TwoExtractFramesStillOneEntity) {
+TEST(RenderViewResources, TwoExtractFramesStillOneEntity)
+{
     RenderWorld renderWorld;
     renderWorld.extractSchedule().registerSystem(new MockExtractCameraSystem());
 

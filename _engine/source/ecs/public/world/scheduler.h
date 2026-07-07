@@ -6,46 +6,53 @@
 #include "ecs/world/phase.h"
 #include "ecs/system/system_desc.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-class System {
+class System
+{
 public:
     virtual ~System() = default;
-    virtual void tick(World& world, FrameArena& arena, f32 dt) = 0;
+    virtual void tick(World &world, FrameArena &arena, f32 dt) = 0;
 };
 
-class Scheduler {
+class Scheduler
+{
 public:
     // Legacy API: default Update phase, no dependencies.
-    void registerSystem(System* system);
+    void registerSystem(System *system);
 
     // New API: full descriptor with phase, reads, writes, before, after.
-    void registerSystem(const SystemDesc& desc);
+    void registerSystem(const SystemDesc &desc);
 
     // Build dependency graph, topological sort, and ambiguity detection.
     // Must be called after all systems are registered and before first tick.
     void build();
 
     // Tick with fixed timestep. raw_dt is accumulated; fixed steps are executed.
-    void tick(World& world, f32 raw_dt);
+    void tick(World &world, f32 raw_dt);
 
     // Tick exactly once with the given dt (for Inspector "Tick Once" button).
-    void tickOnce(World& world, f32 dt);
+    void tickOnce(World &world, f32 dt);
 
-    FrameArena& frameArena();
-    CommandBuffer& commandBuffer();
+    FrameArena &frameArena();
+    CommandBuffer &commandBuffer();
 
-    [[nodiscard]] u64 currentFrame() const { return m_current_frame; }
+    [[nodiscard]] u64 currentFrame() const
+    {
+        return m_current_frame;
+    }
 
 private:
     static constexpr f32 FIXED_DT = 1.0f / 60.0f;
 
-    void tickFixed(World& world, f32 dt);
+    void tickFixed(World &world, f32 dt);
     void detectAmbiguities();
 
-    struct PhaseGroup {
+    struct PhaseGroup
+    {
         u8 phaseIndex = 0;
-        DynamicArray<SystemDesc*> systems;
+        DynamicArray<SystemDesc *> systems;
     };
 
     DynamicArray<SystemDesc> m_systems;

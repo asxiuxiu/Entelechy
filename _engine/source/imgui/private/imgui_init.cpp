@@ -1,9 +1,11 @@
 #include "imgui/imgui_init.h"
 #include "log/core/log_macros.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-void initImGui() {
+void initImGui()
+{
     // Actual ImGui context + backend initialization happens in ImGuiManager::init(),
     // which requires a live GLFW window and OpenGL context. That call is made
     // from the generated main.cpp after window creation.

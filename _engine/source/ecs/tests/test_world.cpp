@@ -3,7 +3,8 @@
 #include "ecs/world/scheduler.h"
 #include "ecs/world/command_buffer.h"
 
-TEST(Core, WorldSpawnAndDestroy) {
+TEST(Core, WorldSpawnAndDestroy)
+{
     Entelechy::World world;
     Entelechy::Scheduler scheduler;
     world.bindCommandBuffer(&scheduler.commandBuffer());
@@ -22,7 +23,8 @@ TEST(Core, WorldSpawnAndDestroy) {
     ASSERT_TRUE(world.valid(e2));
 }
 
-TEST(Core, CommandBufferDestroyWithChildren) {
+TEST(Core, CommandBufferDestroyWithChildren)
+{
     Entelechy::World world;
     Entelechy::Scheduler scheduler;
     world.bindCommandBuffer(&scheduler.commandBuffer());
@@ -49,7 +51,8 @@ TEST(Core, CommandBufferDestroyWithChildren) {
     ASSERT_FALSE(world.valid(grandchild));
 }
 
-TEST(Core, BatchSpawnWithHierarchy) {
+TEST(Core, BatchSpawnWithHierarchy)
+{
     Entelechy::World world;
     Entelechy::Scheduler scheduler;
     world.bindCommandBuffer(&scheduler.commandBuffer());
@@ -59,7 +62,8 @@ TEST(Core, BatchSpawnWithHierarchy) {
 
     auto batch = scheduler.commandBuffer().beginBatch();
     auto entities = world.spawnBatch(50);
-    for (usize i = 0; i < entities.size(); ++i) {
+    for (usize i = 0; i < entities.size(); ++i)
+    {
         world.addComponent<Entelechy::Position>(entities[i], {static_cast<f32>(i), 0.0f});
         world.setParent(entities[i], root);
     }
@@ -72,7 +76,7 @@ TEST(Core, BatchSpawnWithHierarchy) {
     scheduler.tickOnce(world, 0.016f);
 
     ASSERT_TRUE(world.hasComponent<Entelechy::Children>(root));
-    const auto* children = world.getComponent<Entelechy::Children>(root);
+    const auto *children = world.getComponent<Entelechy::Children>(root);
     ASSERT_TRUE(children != nullptr);
     ASSERT_EQ(children->entities.size(), 50u);
 }

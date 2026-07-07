@@ -8,7 +8,8 @@
 #include <utility>
 #include <memory>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ------------------------------------------------------------------
 // App -- top-level application container
@@ -32,20 +33,22 @@ namespace Entelechy {
 //   }
 //   app.teardown();
 // ------------------------------------------------------------------
-class App {
+class App
+{
 public:
     App();
     ~App();
 
     // Add a plugin. App takes ownership.
-    void addPlugin(IPlugin* plugin);
+    void addPlugin(IPlugin *plugin);
 
     // Convenience: construct and add in one call.
-    template<typename T, typename... Args>
-    T& emplacePlugin(Args&&... args) {
+    template <typename T, typename... Args>
+    T &emplacePlugin(Args &&...args)
+    {
         static_assert(std::is_base_of_v<IPlugin, T>, "T must derive from IPlugin");
-        void* mem = DefaultAllocator::alloc(sizeof(T), alignof(T));
-        T* ptr = new (mem) T(std::forward<Args>(args)...);
+        void *mem = DefaultAllocator::alloc(sizeof(T), alignof(T));
+        T *ptr = new (mem) T(std::forward<Args>(args)...);
         addPlugin(ptr);
         return *ptr;
     }
@@ -68,18 +71,42 @@ public:
     void teardown();
 
     // Request quit. isRunning() will return false next check.
-    void quit() { m_running = false; }
+    void quit()
+    {
+        m_running = false;
+    }
 
-    [[nodiscard]] bool isRunning() const { return m_running; }
-    [[nodiscard]] bool isBuilt() const { return m_built; }
+    [[nodiscard]] bool isRunning() const
+    {
+        return m_running;
+    }
+    [[nodiscard]] bool isBuilt() const
+    {
+        return m_built;
+    }
 
-    [[nodiscard]] World& world() { return m_world; }
-    [[nodiscard]] const World& world() const { return m_world; }
+    [[nodiscard]] World &world()
+    {
+        return m_world;
+    }
+    [[nodiscard]] const World &world() const
+    {
+        return m_world;
+    }
 
-    [[nodiscard]] Scheduler& scheduler() { return m_scheduler; }
-    [[nodiscard]] const Scheduler& scheduler() const { return m_scheduler; }
+    [[nodiscard]] Scheduler &scheduler()
+    {
+        return m_scheduler;
+    }
+    [[nodiscard]] const Scheduler &scheduler() const
+    {
+        return m_scheduler;
+    }
 
-    [[nodiscard]] usize pluginCount() const { return m_plugins.size(); }
+    [[nodiscard]] usize pluginCount() const
+    {
+        return m_plugins.size();
+    }
 
     // Get sorted plugin manifests for AI observability.
     [[nodiscard]] DynamicArray<PluginManifest> pluginManifests() const;
@@ -90,7 +117,7 @@ private:
 
     World m_world;
     Scheduler m_scheduler;
-    DynamicArray<IPlugin*> m_plugins;
+    DynamicArray<IPlugin *> m_plugins;
     bool m_running = false;
     bool m_built = false;
 };

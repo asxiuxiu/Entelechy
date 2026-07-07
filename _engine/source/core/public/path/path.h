@@ -4,7 +4,8 @@
 #include "core/allocator/allocator.h"
 #include <cstring>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // ------------------------------------------------------------------
 // Path — cross-platform path abstraction
@@ -12,23 +13,29 @@ namespace Entelechy {
 // Internal storage always uses '/' as the separator.
 // Platform conversion only happens when calling OS APIs.
 
-class Path {
+class Path
+{
     String m_path;
 
-    static void normalize(String& str) {
-        const char* s = str.c_str();
+    static void normalize(String &str)
+    {
+        const char *s = str.c_str();
         usize len = str.length();
-        if (len == 0) return;
+        if (len == 0)
+            return;
 
-        char* buf = static_cast<char*>(DefaultAllocator::alloc(len + 1, alignof(char)));
+        char *buf = static_cast<char *>(DefaultAllocator::alloc(len + 1, alignof(char)));
         std::memcpy(buf, s, len + 1);
 
-        for (usize i = 0; i < len; ++i) {
-            if (buf[i] == '\\') buf[i] = '/';
+        for (usize i = 0; i < len; ++i)
+        {
+            if (buf[i] == '\\')
+                buf[i] = '/';
         }
 
         // Remove trailing '/' (but preserve root "/")
-        while (len > 1 && buf[len - 1] == '/') {
+        while (len > 1 && buf[len - 1] == '/')
+        {
             --len;
         }
         buf[len] = '\0';
@@ -40,30 +47,36 @@ class Path {
 public:
     Path() = default;
 
-    explicit Path(const char* p) : m_path(p) {
+    explicit Path(const char *p) : m_path(p)
+    {
         normalize(m_path);
     }
 
-    explicit Path(const String& str) : m_path(str) {
+    explicit Path(const String &str) : m_path(str)
+    {
         normalize(m_path);
     }
 
-    Path operator/(const char* sub) const {
-        if (!sub || sub[0] == '\0') return *this;
+    Path operator/(const char *sub) const
+    {
+        if (!sub || sub[0] == '\0')
+            return *this;
 
         Path result = *this;
-        const char* s = result.m_path.c_str();
+        const char *s = result.m_path.c_str();
         usize len = result.m_path.length();
 
         // If sub is absolute, just replace
-        if (sub[0] == '/' || sub[0] == '\\') {
+        if (sub[0] == '/' || sub[0] == '\\')
+        {
             result.m_path = sub;
             normalize(result.m_path);
             return result;
         }
 
         // Append separator if needed
-        if (len > 0 && s[len - 1] != '/') {
+        if (len > 0 && s[len - 1] != '/')
+        {
             result.m_path.append('/');
         }
         result.m_path.append(sub);
@@ -71,89 +84,128 @@ public:
         return result;
     }
 
-    Path operator/(const String& sub) const {
+    Path operator/(const String &sub) const
+    {
         return operator/(sub.c_str());
     }
 
-    Path operator/(const Path& sub) const {
+    Path operator/(const Path &sub) const
+    {
         return operator/(sub.m_path.c_str());
     }
 
-    Path& operator/=(const char* sub) {
+    Path &operator/=(const char *sub)
+    {
         *this = operator/(sub);
         return *this;
     }
 
-    const char* c_str() const { return m_path.c_str(); }
-    usize length() const { return m_path.length(); }
-    bool empty() const { return m_path.empty(); }
+    const char *c_str() const
+    {
+        return m_path.c_str();
+    }
+    usize length() const
+    {
+        return m_path.length();
+    }
+    bool empty() const
+    {
+        return m_path.empty();
+    }
 
     // Returns the file extension (including the dot), or empty string if none.
-    String extension() const {
-        const char* s = m_path.c_str();
+    String extension() const
+    {
+        const char *s = m_path.c_str();
         usize len = m_path.length();
         // Find last '/'
         usize lastSlash = String::npos;
-        for (usize i = 0; i < len; ++i) {
-            if (s[i] == '/') lastSlash = i;
+        for (usize i = 0; i < len; ++i)
+        {
+            if (s[i] == '/')
+                lastSlash = i;
         }
         // Find last '.' after lastSlash
         usize lastDot = String::npos;
-        for (usize i = (lastSlash == String::npos ? 0 : lastSlash + 1); i < len; ++i) {
-            if (s[i] == '.') lastDot = i;
+        for (usize i = (lastSlash == String::npos ? 0 : lastSlash + 1); i < len; ++i)
+        {
+            if (s[i] == '.')
+                lastDot = i;
         }
-        if (lastDot == String::npos || lastDot == len - 1) return String();
+        if (lastDot == String::npos || lastDot == len - 1)
+            return String();
         return m_path.substr(lastDot);
     }
 
     // Returns the file name including extension.
-    String fileName() const {
-        const char* s = m_path.c_str();
+    String fileName() const
+    {
+        const char *s = m_path.c_str();
         usize len = m_path.length();
         usize lastSlash = String::npos;
-        for (usize i = 0; i < len; ++i) {
-            if (s[i] == '/') lastSlash = i;
+        for (usize i = 0; i < len; ++i)
+        {
+            if (s[i] == '/')
+                lastSlash = i;
         }
-        if (lastSlash == String::npos) return m_path;
-        if (lastSlash + 1 >= len) return String();
+        if (lastSlash == String::npos)
+            return m_path;
+        if (lastSlash + 1 >= len)
+            return String();
         return m_path.substr(lastSlash + 1);
     }
 
     // Returns the file name without extension.
-    String stem() const {
+    String stem() const
+    {
         String name = fileName();
-        const char* s = name.c_str();
+        const char *s = name.c_str();
         usize len = name.length();
         usize lastDot = String::npos;
-        for (usize i = 0; i < len; ++i) {
-            if (s[i] == '.') lastDot = i;
+        for (usize i = 0; i < len; ++i)
+        {
+            if (s[i] == '.')
+                lastDot = i;
         }
-        if (lastDot == String::npos || lastDot == 0) return name;
+        if (lastDot == String::npos || lastDot == 0)
+            return name;
         return name.substr(0, lastDot);
     }
 
     // Returns true if the path is absolute.
-    bool isAbsolute() const {
-        const char* s = m_path.c_str();
-        if (s[0] == '/') return true;
+    bool isAbsolute() const
+    {
+        const char *s = m_path.c_str();
+        if (s[0] == '/')
+            return true;
 #if PLATFORM_WINDOWS
         // Windows: "C:/" or "C:\" are absolute
-        if (m_path.length() >= 2 && s[1] == ':') return true;
+        if (m_path.length() >= 2 && s[1] == ':')
+            return true;
 #endif
         return false;
     }
 
-    bool operator==(const Path& other) const { return m_path == other.m_path; }
-    bool operator!=(const Path& other) const { return m_path != other.m_path; }
+    bool operator==(const Path &other) const
+    {
+        return m_path == other.m_path;
+    }
+    bool operator!=(const Path &other) const
+    {
+        return m_path != other.m_path;
+    }
 };
 
 } // namespace Entelechy
 
-namespace std {
-    template<>
-    struct hash<Entelechy::Path> {
-        usize operator()(const Entelechy::Path& path) const noexcept {
-            return std::hash<Entelechy::String>{}(Entelechy::String(path.c_str()));
-        }
-    };
+namespace std
+{
+template <>
+struct hash<Entelechy::Path>
+{
+    usize operator()(const Entelechy::Path &path) const noexcept
+    {
+        return std::hash<Entelechy::String>{}(Entelechy::String(path.c_str()));
+    }
+};
 } // namespace std

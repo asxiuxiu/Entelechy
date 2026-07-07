@@ -1,10 +1,13 @@
 ﻿#include "render/queue/BinnedRenderPhase.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-void BinnedRenderPhase::addItem(const PhaseItem& item) {
+void BinnedRenderPhase::addItem(const PhaseItem &item)
+{
     u32 binKey = item.sort_key.packed.material_id;
-    if (auto* index = m_bin_index.find(binKey)) {
+    if (auto *index = m_bin_index.find(binKey))
+    {
         m_bins[*index].items.pushBack(item);
         return;
     }
@@ -16,7 +19,8 @@ void BinnedRenderPhase::addItem(const PhaseItem& item) {
     m_bin_index.insert(binKey, newIndex);
 }
 
-void BinnedRenderPhase::clear() {
+void BinnedRenderPhase::clear()
+{
     m_bins.clear();
     m_bin_index.clear();
 }

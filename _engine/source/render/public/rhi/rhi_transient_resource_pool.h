@@ -4,7 +4,8 @@
 #include "render/rhi/rhi_types.h"
 #include "render/rhi/rhi_resources.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 class IRHIDevice;
 
@@ -22,46 +23,47 @@ class IRHIDevice;
 // reuses whole textures. Memory aliasing can be added later behind the
 // same Acquire/Release interface.
 // ------------------------------------------------------------------
-class TransientTexturePool {
+class TransientTexturePool
+{
 public:
     TransientTexturePool() = default;
     ~TransientTexturePool() = default;
 
     // Not copyable/movable (holds device-specific resources)
-    TransientTexturePool(const TransientTexturePool&) = delete;
-    TransientTexturePool& operator=(const TransientTexturePool&) = delete;
+    TransientTexturePool(const TransientTexturePool &) = delete;
+    TransientTexturePool &operator=(const TransientTexturePool &) = delete;
 
     // Acquire a texture matching desc. currentFrame is the value returned
     // by IRHIDevice::signalFrame() for the frame that will use it.
-    RHITextureRef acquire(IRHIDevice* device, const TextureDesc& desc,
-                          RHIFenceValue currentFrame);
+    RHITextureRef acquire(IRHIDevice *device, const TextureDesc &desc, RHIFenceValue currentFrame);
 
     // Release a texture back to the pool. lastUseFrame is the frame fence
     // that must complete before the texture can be reused.
-    void release(RHITexture* texture, const TextureDesc& desc,
-                 RHIFenceValue lastUseFrame);
+    void release(RHITexture *texture, const TextureDesc &desc, RHIFenceValue lastUseFrame);
 
     // Destroy all slots whose last-use frame has completed according to
     // device->getCompletedFenceValue(). This shrinks the pool after load
     // spikes. Call once per frame.
-    void purgeCompleted(IRHIDevice* device);
+    void purgeCompleted(IRHIDevice *device);
 
     // Stats
     usize slotCount() const;
 
 private:
-    struct PoolSlot {
+    struct PoolSlot
+    {
         RHITextureRef texture;
         RHIFenceValue lastUseFrame = 0;
         bool available = false;
     };
 
-    struct PoolGroup {
+    struct PoolGroup
+    {
         TextureDesc desc;
         DynamicArray<PoolSlot> slots;
     };
 
-    static bool descMatches(const TextureDesc& a, const TextureDesc& b);
+    static bool descMatches(const TextureDesc &a, const TextureDesc &b);
 
     DynamicArray<PoolGroup> m_groups;
 };

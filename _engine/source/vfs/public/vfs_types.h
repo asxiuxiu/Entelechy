@@ -2,9 +2,11 @@
 #include "core/container/dynamic_array.h"
 #include "core/foundation_types.h"
 
-namespace Entelechy {
+namespace Entelechy
+{
 
-struct FileData {
+struct FileData
+{
     DynamicArray<u8> bytes;
     bool valid = false;
 };

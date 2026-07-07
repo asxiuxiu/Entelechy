@@ -6,69 +6,60 @@
 #include "core/string/string_intern_pool.h"
 #include <cstdlib>
 
-namespace game {
+namespace game
+{
 
-void GamePlugin::build(Entelechy::App& app) {
+void GamePlugin::build(Entelechy::App &app)
+{
     using namespace Entelechy;
 
     // MovementSystem
-    app.scheduler().registerSystem({
-        .name = StringInternPool::instance().intern("MovementSystem"),
-        .system = &m_movement,
-        .phase = static_cast<u8>(DefaultPhase::Update),
-        .reads = { TypeRegistry::instance().getTypeID<Position>(),
-                   TypeRegistry::instance().getTypeID<Velocity>() },
-        .writes = { TypeRegistry::instance().getTypeID<Position>() }
-    });
+    app.scheduler().registerSystem(
+        {.name = StringInternPool::instance().intern("MovementSystem"),
+         .system = &m_movement,
+         .phase = static_cast<u8>(DefaultPhase::Update),
+         .reads = {TypeRegistry::instance().getTypeID<Position>(), TypeRegistry::instance().getTypeID<Velocity>()},
+         .writes = {TypeRegistry::instance().getTypeID<Position>()}});
 
     // RotationSystem
-    app.scheduler().registerSystem({
-        .name = StringInternPool::instance().intern("RotationSystem"),
-        .system = &m_rotation,
-        .phase = static_cast<u8>(DefaultPhase::Update),
-        .reads = { TypeRegistry::instance().getTypeID<Transform>() },
-        .writes = { TypeRegistry::instance().getTypeID<Transform>() }
-    });
+    app.scheduler().registerSystem({.name = StringInternPool::instance().intern("RotationSystem"),
+                                    .system = &m_rotation,
+                                    .phase = static_cast<u8>(DefaultPhase::Update),
+                                    .reads = {TypeRegistry::instance().getTypeID<Transform>()},
+                                    .writes = {TypeRegistry::instance().getTypeID<Transform>()}});
 
     // WobbleSystem (deliberately conflicts with RotationSystem to verify ambiguity detection)
-    app.scheduler().registerSystem({
-        .name = StringInternPool::instance().intern("WobbleSystem"),
-        .system = &m_wobble,
-        .phase = static_cast<u8>(DefaultPhase::Update),
-        .writes = { TypeRegistry::instance().getTypeID<Transform>() }
-    });
+    app.scheduler().registerSystem({.name = StringInternPool::instance().intern("WobbleSystem"),
+                                    .system = &m_wobble,
+                                    .phase = static_cast<u8>(DefaultPhase::Update),
+                                    .writes = {TypeRegistry::instance().getTypeID<Transform>()}});
 
     // TransformPropagationSystem
-    app.scheduler().registerSystem({
-        .name = StringInternPool::instance().intern("TransformPropagationSystem"),
-        .system = &m_transform_system,
-        .phase = static_cast<u8>(DefaultPhase::PostUpdate),
-        .reads = { TypeRegistry::instance().getTypeID<Transform>(),
-                   TypeRegistry::instance().getTypeID<ChildOf>() },
-        .writes = { TypeRegistry::instance().getTypeID<GlobalTransform>() }
-    });
+    app.scheduler().registerSystem(
+        {.name = StringInternPool::instance().intern("TransformPropagationSystem"),
+         .system = &m_transform_system,
+         .phase = static_cast<u8>(DefaultPhase::PostUpdate),
+         .reads = {TypeRegistry::instance().getTypeID<Transform>(), TypeRegistry::instance().getTypeID<ChildOf>()},
+         .writes = {TypeRegistry::instance().getTypeID<GlobalTransform>()}});
 
     // ColorChangeSystem
-    app.scheduler().registerSystem({
-        .name = StringInternPool::instance().intern("ColorChangeSystem"),
-        .system = &m_color_change,
-        .phase = static_cast<u8>(DefaultPhase::Update),
-        .reads = { TypeRegistry::instance().getTypeID<KeyboardEvent>() },
-        .writes = { TypeRegistry::instance().getTypeID<Color>() }
-    });
+    app.scheduler().registerSystem({.name = StringInternPool::instance().intern("ColorChangeSystem"),
+                                    .system = &m_color_change,
+                                    .phase = static_cast<u8>(DefaultPhase::Update),
+                                    .reads = {TypeRegistry::instance().getTypeID<KeyboardEvent>()},
+                                    .writes = {TypeRegistry::instance().getTypeID<Color>()}});
 
     // EventCleanupSystem
-    app.scheduler().registerSystem({
-        .name = StringInternPool::instance().intern("EventCleanupSystem"),
-        .system = &m_event_cleanup,
-        .phase = static_cast<u8>(DefaultPhase::Last),
-        .reads = { TypeRegistry::instance().getTypeID<EventLifetime>() }
-    });
+    app.scheduler().registerSystem({.name = StringInternPool::instance().intern("EventCleanupSystem"),
+                                    .system = &m_event_cleanup,
+                                    .phase = static_cast<u8>(DefaultPhase::Last),
+                                    .reads = {TypeRegistry::instance().getTypeID<EventLifetime>()}});
 }
 
-void GamePlugin::setup(Entelechy::App& app) {
+void GamePlugin::setup(Entelechy::App &app)
+{
     using namespace Entelechy;
-    World& world = app.world();
+    World &world = app.world();
 
     // Demo cubes with hierarchy
     auto parent = world.spawn();
@@ -99,29 +90,41 @@ void GamePlugin::setup(Entelechy::App& app) {
 // System tick implementations
 // ------------------------------------------------------------------
 
-void GamePlugin::RotationSystem::tick(Entelechy::World& w, Entelechy::FrameArena&, f32 dt) {
-    for (auto [e, trans] : Entelechy::Query<Entelechy::Transform>(w)) {
-        if (!trans) continue;
+void GamePlugin::RotationSystem::tick(Entelechy::World &w, Entelechy::FrameArena &, f32 dt)
+{
+    for (auto [e, trans] : Entelechy::Query<Entelechy::Transform>(w))
+    {
+        if (!trans)
+            continue;
         trans->rotation = trans->rotation * Entelechy::Quat::fromAxisAngle({0.0f, 1.0f, 0.0f}, dt);
         trans->dirty = 1;
     }
 }
 
-void GamePlugin::WobbleSystem::tick(Entelechy::World& w, Entelechy::FrameArena&, f32 dt) {
+void GamePlugin::WobbleSystem::tick(Entelechy::World &w, Entelechy::FrameArena &, f32 dt)
+{
     (void)dt;
-    for (auto [e, trans] : Entelechy::Query<Entelechy::Transform>(w)) {
-        if (!trans) continue;
+    for (auto [e, trans] : Entelechy::Query<Entelechy::Transform>(w))
+    {
+        if (!trans)
+            continue;
         trans->translation.y += 0.001f;
         trans->dirty = 1;
     }
 }
 
-void GamePlugin::ColorChangeSystem::tick(Entelechy::World& w, Entelechy::FrameArena&, f32) {
-    for (auto [evtEntity, evt] : Entelechy::Query<Entelechy::KeyboardEvent>(w)) {
-        if (!evt || !evt->pressed) continue;
-        if (evt->keyCode == 32) { // GLFW_KEY_SPACE
-            for (auto [e, color] : Entelechy::Query<Entelechy::Color>(w)) {
-                if (color) {
+void GamePlugin::ColorChangeSystem::tick(Entelechy::World &w, Entelechy::FrameArena &, f32)
+{
+    for (auto [evtEntity, evt] : Entelechy::Query<Entelechy::KeyboardEvent>(w))
+    {
+        if (!evt || !evt->pressed)
+            continue;
+        if (evt->keyCode == 32)
+        { // GLFW_KEY_SPACE
+            for (auto [e, color] : Entelechy::Query<Entelechy::Color>(w))
+            {
+                if (color)
+                {
                     color->r = 0.3f + (rand() % 100) / 100.0f;
                     color->g = 0.3f + (rand() % 100) / 100.0f;
                     color->b = 0.3f + (rand() % 100) / 100.0f;

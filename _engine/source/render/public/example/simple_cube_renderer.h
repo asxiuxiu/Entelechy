@@ -8,7 +8,8 @@
 #include "render/material/shader_cache.h"
 #include <memory>
 
-namespace Entelechy {
+namespace Entelechy
+{
 
 // Forward declaration
 class GLRHIDevice;
@@ -20,7 +21,8 @@ class GLRHIDevice;
 // Phase 1: uses an internal GLRHIDevice to exercise the RHI layer.
 // Future: cube mesh and material will be managed by ECS + render pipeline.
 // ------------------------------------------------------------------
-class SimpleCubeRenderer {
+class SimpleCubeRenderer
+{
 public:
     SimpleCubeRenderer();
     ~SimpleCubeRenderer();
@@ -29,10 +31,10 @@ public:
     void shutdown();
 
     // Draw one cube. color is RGB, mvp is model-view-projection matrix.
-    void drawCube(const Mat4& mvp, const Vec3& color);
+    void drawCube(const Mat4 &mvp, const Vec3 &color);
 
     // Convenience: draw a cube at world transform with view + projection.
-    void drawCube(const Mat4& world, const Mat4& view, const Mat4& proj, const Vec3& color);
+    void drawCube(const Mat4 &world, const Mat4 &view, const Mat4 &proj, const Vec3 &color);
 
     // Called once per frame after present(). Signals the GPU fence and flushes
     // any deferred-delete resources that are now safe to destroy.

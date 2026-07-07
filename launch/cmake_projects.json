@@ -11,7 +11,7 @@
             "name": "ecs",
             "path": "source/ecs",
             "enabled": true,
-            "init_function": "initCore",
+            "init_function": "initEcs",
             "namespace": "Entelechy"
         },
         {

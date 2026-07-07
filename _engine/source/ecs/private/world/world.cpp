@@ -382,7 +382,7 @@ void World::collectDescendants(Entity e, DynamicArray<Entity> &out) const
     }
 }
 
-void initCore()
+void initEcs()
 {
     printf("[Entelechy::core] initialized\n");
     TypeRegistry::instance().registerBuiltinTypes();

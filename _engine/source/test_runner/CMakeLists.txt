@@ -31,3 +31,5 @@ entelechy_module(
     NO_TESTS
 )
 
+set_target_properties(EntelechyTests PROPERTIES FOLDER "Tests")
+

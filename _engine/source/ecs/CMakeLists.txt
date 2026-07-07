@@ -7,7 +7,7 @@ entelechy_module(
     PRIVATE_DEPS
         LogLib
         ThreadPoolLib
-    INIT_FUNCTION initCore
+    INIT_FUNCTION initEcs
     NAMESPACE Entelechy
 )
 

@@ -217,7 +217,7 @@ private:
     u64 m_current_frame = 0;
 };
 
-void initCore();
+void initEcs();
 void registerBuiltinTypes();
 void printWorld(const World &world);
 

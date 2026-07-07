@@ -90,7 +90,7 @@ GlfwWindow::~GlfwWindow()
 bool GlfwWindow::create(int width, int height, const char *title)
 {
 #if defined(__APPLE__)
-    // macOS 最高只支持 OpenGL 4.1（且 Core Profile 需要 FORWARD_COMPAT）。
+    // macOS caps at OpenGL 4.1; Core Profile also requires FORWARD_COMPAT.
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);

@@ -12,6 +12,26 @@ python scripts/build/build.py
 python scripts/build/build.py --config configs/engine_only.json
 ```
 
+### Visual Studio
+
+本项目使用 Conan 管理依赖，**不要直接用 VS 的“打开本地文件夹”功能打开 CMake 项目**。正确流程是：
+
+```bash
+python scripts/build/build.py --debug
+```
+
+然后直接双击打开生成的 Visual Studio 解决方案：
+
+```
+build/Entelechy.sln
+```
+
+在 VS 中选择 **Debug / x64**，即可编译和调试。`build.py` 会自动处理 Conan 依赖、生成 toolchain 文件并配置 CMake。
+
+### Zed / VS Code
+
+这些编辑器依赖 `compile_commands.json` 提供代码补全。运行一次 `build.py` 后，项目根目录会生成 `compile_commands.json`（来自 `build_ninja/` 的 Ninja 配置），Zed 的 clangd 会自动识别。
+
 
 
 构建产物位于 `build/bin/` 和 `build/lib/`。

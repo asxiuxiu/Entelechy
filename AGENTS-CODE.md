@@ -89,6 +89,7 @@
 
 - **注释语言**：所有代码注释必须使用英文（含 TODO / FIXME / NOTE）。Markdown / 设计文档可用中文。
 - **Commit Message**：必须使用英文，遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范：`type[scope]: description`
+- **禁止**：Commit message 中不得包含 `Co-Authored-By:`、`Signed-off-by:` 等自动化签名尾注。项目只由实际开发者署名，不由工具/AI 代理追加。
 - **文件编码**：UTF-8（项目 CMake 已配置 MSVC `/utf-8` 编译选项，无需 BOM）
 - **换行符**：C++ / CMake / Python / JSON / Markdown 等统一使用 LF；仅 `.bat` / `.cmd` 使用 CRLF
 

@@ -6,7 +6,7 @@
 - [ ] ECS / Core Runtime | `AgentBridge`（`_engine/source/bridge/agent_bridge.cpp:12`）越界承担 System 注册职责，直接持有 `World`、`Scheduler`、`MovementSystem` 并在 `init()` 中注册，把「AI 接口桥梁」与「运行时装配」耦合在一起，需将装配逻辑上提到 Runtime / App 层，`AgentBridge` 仅通过指针/引用访问外部注入的世界与调度器。
 - [ ] ECS / Core Runtime | `ecs/type/type_registry.h` `allocateNextID()` 使用 `u64` 掩码硬限制 64 种组件类型（`CHECK(m_next_id < 64)`），当前约 10~15 个但渲染/物理/动画组件加入后将触顶，需迁移到 Archetype/Chunk 存储或改用 `DynamicArray<u64>` 位集。
 - [ ] ECS / Core Runtime | `ecs/world/world.h` `m_component_arrays` 使用 `HashMap<ComponentTypeID, IComponentArray*>` 裸指针存储，无分配器注入，生命周期由 `World` 析构手动 `delete`。
-- [ ] ECS / Core Runtime | ECS 当前没有 Resource 概念（全局数据存储），`Assets<T>` 是独立存储，后续 ECS 演进后应把 `Assets<T>` 注册为 World 级全局数据。
+- [ ] ECS / Core Runtime | ECS 当前没有 Resource 概念（全局单例数据的调度器感知存储）。`String` / `Assets<T>` / `InputState` 等全局数据目前以独立单例或全局变量形式存在。Resource 的核心价值不是存储，而是**让 Scheduler 感知 System 对全局数据的读写依赖以正确并行调度**。需在 System 并行化前引入 `insertResource<T>()` / `Res<T>` / `ResMut<T>` SystemParam。注意：并非所有全局状态都应进 ECS Resource——仅被多个 ECS System 并发访问且调度器需要感知依赖的数据才需要（如 `Time`、`InputState`、`Assets<T>`），底层基础服务（如 `StringInternPool`、`IAllocator`）保持单例即可（2026-08-04 讨论结论）。
 - [ ] ECS / Core Runtime | `ecs/world/plugin.h` `PluginManifest` 只记录 name/phase/dependencies，缺少 registered_components / registered_systems / registered_resources，AI Agent 无法完整查询插件能力。
 
 ## Asset / 资源管理
@@ -134,8 +134,8 @@
   - 参考：知识库 `Notes/SelfGameEngine/基础工具层/线程池与任务系统.md` — `AnyThread` / `GameThread` / `RenderThread` / `IOThread`
 - [ ] Base Layer | 任务依赖图 DAG + Retraction。初版无复杂异步链式任务，阶段 5 异步加载管线（资源依赖图）前实施。
   - 参考：知识库 `Notes/SelfGameEngine/基础工具层/线程池与任务系统.md` — `TaskNode` + 原子依赖计数器 + `TryRetractAndExecute`
-- [ ] Base Layer | `StringInternPool` ECS Resource 化。当前单 World 场景全局单例无问题，阶段 4 多 World 或编辑器需要隔离时实施。
-  - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — Intern 池全局状态应以 ECS Resource 形式存在
+- [ ] Base Layer | `StringInternPool` ECS Resource 化。当前单 World 场景全局单例无问题，且消费者（序列化器、Plugin 管理器、编辑器面板）均非 ECS System，不需要调度器感知读写依赖。触发条件：ECS Resource 基础设施就绪 + 多 World 隔离或编辑器需要独立 Intern 池时再评估。
+  - 参考：2026-08-04 讨论结论，知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md`、`Notes/Bevy/第一阶段-构建与ECS核心/Bevy-bevy_ecs-源码解析：Resource 全局状态.md`
 - [ ] Base Layer | `StringId` 增加 intern 池索引。当前字符串碰撞概率极低，与 StringInternPool Resource 化一起改。
   - 参考：知识库 `Notes/SelfGameEngine/基础工具层/字符串系统.md` — `u64 m_hash` + `u32 m_index` 二次校验
 - [ ] Base Layer | 日志 `flush()` devices 锁竞争优化。初版日志量小，锁竞争不显著，高并发日志场景前实施。
@@ -221,11 +221,15 @@
 > 2026-05-31：当前代码已按「基础库优先」规则消除了所有可替换的 STL/裸分配依赖。以下设施因基础库尚未提供对应实现，暂时保留 STL，待扩展后统一迁移。
 
 - [ ] Core / 基础库扩展缺口 | `std::unique_ptr<T>` 仍在 `log/core/logger.h`（`addOutputDevice` / `m_devices`）与 `render/example/simple_cube_renderer.h`（`m_device`、`m_shader_cache`）中使用。需引入引擎级 `UniquePtr<T, Deleter>`（支持自定义 `DefaultAllocator` 释放），并迁移所有所有权语义场景。
-- [ ] Core / 基础库扩展缺口 | `std::function<void()>` 仍在 `thread_pool/thread_pool.h`、`asset/loader/asset_server.h`、`bridge/tool_registry.h` 中使用。需设计零分配或固定缓冲的 `Function<Ret(Args...)>` / `Delegate`（参考 `ue::TFunction` / `bevy::Func`），避免 `std::function` 的类型擦除堆分配与不可拷贝约束。
+- [ ] Core / 基础库扩展缺口 | `std::function<void()>` 仍在 `thread_pool/thread_pool.h`、`asset/loader/asset_server.h`、`bridge/tool_registry.h` 中使用。需设计 SBO（小对象优化）的 `UniqueFunction<Ret(Args...)>` 或 `Delegate`（参考 `ue::TFunction`），保证 move 到线程池队列时不通过标准库默认分配器分配。注意：`FunctionRef`（非拥有型引用，类似 C++23 `std::function_ref`）不适用于需要存储任务的线程池场景，因其不拥有被引用对象。<br/>2026-08-04 评估：原 roadmap 中的 `FunctionRef` 方案定位错误，正确方案是 SBO `UniqueFunction`，建议先 profile 确认 `std::function` 是否在热路径上触发堆分配后再实施。
 - [ ] Core / 基础库扩展缺口 | `std::deque<T>` 仍在 `thread_pool` 溢出队列与 `asset_server` 任务队列中使用。需实现支持头尾 O(1) push/pop 的 `Deque<T>`，或更直接地提供 lock-free `MPSCQueue<T>` 替换线程池/资源加载的回调队列。
 - [x] Core / 基础库扩展缺口 | `std::sort` 仍在 `render/queue/SortedRenderPhase.cpp` 中使用。需引入 `algo::sort(begin, end, cmp)`（可考虑 introsort / timsort），并对 `DynamicArray` 提供 convenience 成员方法。
   - 完成：2026-06-18，新增 `core/algorithm/radix_sort.h` 提供稳定 64-bit LSD radix sort，`SortedRenderPhase::prepare()` 改用 `radixSort64` 按 `SortKey` 排序；新增 `RadixSort64` 单元测试。后续若 Sort Key 结构变化或需通用比较排序，再引入 `algo::sort`。
 - [ ] Core / 基础库扩展缺口 | `std::thread` / `std::mutex` / `std::atomic` / `std::condition_variable` 仍散落在线程池、asset_server、logger 中。需封装为 `Thread`、`Mutex`、`Atomic<T>`、`ConditionVariable` 等薄层，便于未来切换平台线程模型（如 Windows ThreadPool API、C++20 `std::jthread`）。
+
+> 2026-08-04 删除 `plan/ENTELECHY_ROADMAP.md`。其中两项低优先级事项评估结论：
+> - **`entelechy_snprintf` 跨平台封装**（原 roadmap #3）：不需要。MSVC 2015+ `snprintf` 已是 C99 兼容，与 POSIX 行为一致，`string_format.h` 中所有调用均传入已知 buffer 大小 + 字面量格式串，无实际风险。已归档。
+> - **`FunctionRef` 替代 `std::function`**（原 roadmap #4）：方案定位错误。`FunctionRef` 是非拥有型引用，不适用于需要存储任务的线程池队列。正确方向是 SBO `UniqueFunction`，但应先 profile 确认热路径堆分配后再实施。已合并到上方 `std::function<void()>` 条目中。
 
 ## Allocator / ECS 存储优化（2026-05-31 完成阶段一至四基础实现，以下待后续细化）
 

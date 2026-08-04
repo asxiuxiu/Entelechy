@@ -154,7 +154,8 @@
 - [ ] Module / 模块架构 | `render/CMakeLists.txt` 直接 `PUBLIC_DEPS EcsLib`，导致整个渲染模块与 ECS 框架强耦合。当前 `RenderLib` 内部混合了两层职责：底层渲染能力（RHI、GPU 资源、RenderPhase、SortKey）和上层 ECS 驱动的渲染管线（`RenderWorld`、`ExtractSchedule`、各类 extract/cull/queue systems）。未来应拆分为 `RenderCoreLib`（零 ECS 依赖，可被 headless 工具/服务端/测试复用）和 `RenderSystemLib`（依赖 `RenderCoreLib` + `EcsLib`，容纳 ECS 组件与 systems）。短期可先记录，待 RHI 后端稳定后再动手拆分。
   - 涉及文件：`_engine/source/render/CMakeLists.txt`、`render/public/render_world/*`、`render/public/extract/*`、`render/public/culling/*`、`render/public/queue/*`、`render/public/components/*`、`render/private/**/*`。
 
-- [ ] Module / 模块架构 | `imgui/CMakeLists.txt` 直接 `PUBLIC_DEPS EcsLib`，仅因为 `imgui_panels.cpp` 提供了 `buildECSInspector(World&, Scheduler&, ...)` 这一调试面板。ImGui 作为 UI 框架封装层不应依赖 ECS；ECS Inspector 属于 Editor/调试工具层，应迁到独立的 `EditorLib` 或 `_game/source/editor_debug` 模块，只保留 `ImGuiManager`、`initImGui()`、`buildDockSpace()`、`buildDebugPanel()`、`buildLogPanel()` 在 `ImGuiLib` 中。
+- [x] Module / 模块架构 | `imgui/CMakeLists.txt` 直接 `PUBLIC_DEPS EcsLib`，仅因为 `imgui_panels.cpp` 提供了 `buildECSInspector(World&, Scheduler&, ...)` 这一调试面板。ImGui 作为 UI 框架封装层不应依赖 ECS；ECS Inspector 属于 Editor/调试工具层，应迁到独立的 `EditorLib` 或 `_game/source/editor_debug` 模块，只保留 `ImGuiManager`、`initImGui()`、`buildDockSpace()`、`buildDebugPanel()`、`buildLogPanel()` 在 `ImGuiLib` 中。
+  - 完成：2026-08-04，创建 `_engine/source/editor/` (EditorLib)，将 `buildECSInspector` + `drawField` 迁至 `editor_panels.cpp`，将 `AtomRegistry::registerBuiltinAtoms()` 实现迁至 `editor_atom_registry.cpp`。ImGuiLib 移除 `EcsLib` PUBLIC_DEPS，零 ECS 依赖。
   - 涉及文件：`_engine/source/imgui/CMakeLists.txt`、`imgui/public/imgui_panels.h`、`imgui/private/imgui_panels.cpp`。
 
 - [ ] Module / 模块架构 | `BridgeLib` 命名过于模糊，当前依赖 `EcsLib` + `MotorLib` + `LogLib`，职责是「AI 与引擎的桥接 + 运行时装配」。未来应明确其边界：若是 AI 协议适配器，应改名为 `AgentBridgeLib` 并只负责协议翻译；若是 ECS 与 Motor 的胶水层，应独立为 `MotorEcsAdapterLib`；若是运行时插件/系统注册，应上提到 `RuntimeLib` 或 `App` 层。

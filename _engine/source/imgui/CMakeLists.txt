@@ -29,7 +29,6 @@ entelechy_module(
         WindowLib
         LogLib
         CoreLib
-        EcsLib
     INIT_FUNCTION initImGui
     NAMESPACE Entelechy
 )

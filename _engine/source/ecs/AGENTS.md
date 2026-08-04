@@ -13,7 +13,7 @@ ECS 运行时框架：World 容器、组件存储、实体查询、类型注册�
 | `world.h/.cpp` | `World` 类；实体 spawn/destroy/batch、组件 add/remove/get、父子关系管理 |
 | `entity_registry.h/.cpp` | `EntityRegistry`：独立的实体 ID 分配器 |
 | `type_registry.h/.cpp` | `TypeRegistry` 单例；组件 ID/掩码分配、`REFLECT_COMPONENT` 自动注册宏 |
-| `atom_registry.h/.cpp` | `AtomRegistry` 单例；原子类型行为函数注册表 |
+| `atom_registry.h/.cpp` | `AtomRegistry` 单例；原子类型行为函数注册表。ImGui 绘制回调由 [Editor 模块](../editor/AGENTS.md) 注册，EcsLib 本身 headless 可用 |
 | `inspector_reflection.h` | 反射绘制接口：`inspectorDrawComponent`、`inspectorDrawField` |
 | `plugin.h` | `IPlugin` 接口：Bevy 风格插件生命周期（`build/ready/finish/setup/teardown`）+ `LoadingPhase` 分组 + `dependencies()` 拓扑排序 + `PluginManifest` AI 可观测 |
 | `app.h/.cpp` | `App` 顶层容器：聚合 World + Scheduler + Plugin 列表；自动按 `LoadingPhase` 分组 + 组内拓扑排序 + 循环依赖检测 |
@@ -56,7 +56,7 @@ ECS 运行时框架：World 容器、组件存储、实体查询、类型注册�
   - [Motor 模块](../motor/AGENTS.md)（`MovementSystem` 消费 World 数据）
   - [Bridge 模块](../bridge/AGENTS.md)（AgentBridge 查询/修改 World）
   - [Render 模块](../render/AGENTS.md)（渲染系统消费 ECS 数据）
-  - [ImGui 模块](../imgui/AGENTS.md)（Inspector 面板查询 ECS 反射）
+  - [Editor 模块](../editor/AGENTS.md)（ECS Inspector 面板查询 ECS 反射）
   - [Runtime 模块](../../_game/source/runtime/AGENTS.md)
 
 ## 架构决策

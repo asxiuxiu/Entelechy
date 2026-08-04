@@ -56,6 +56,13 @@
             "namespace": "Entelechy"
         },
         {
+            "name": "editor",
+            "path": "source/editor",
+            "enabled": true,
+            "init_function": "initEditor",
+            "namespace": "Entelechy"
+        },
+        {
             "name": "vfs",
             "path": "source/vfs",
             "enabled": true

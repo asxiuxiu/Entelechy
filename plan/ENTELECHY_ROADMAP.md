@@ -16,21 +16,21 @@
 
 | # | 优先级 | 事项 | 来源 | 预估 |
 |---|--------|------|------|------|
-| 1 | **高** | ImGuiLib 解除对 EcsLib 的耦合 | 模块依赖分析 #3 | 半天 |
+| 1 | **高** | ~~ImGuiLib 解除对 EcsLib 的耦合~~ ✅ | 模块依赖分析 #3 | 已完成 2026-08-04 |
 | 2 | **中** | NamePool 迁移为 ECS Resource | 字符串审计 P1 | 2h |
 | 3 | **低** | 增加 `entelechy_snprintf` 跨平台封装 | 字符串审计 P2 | 30min |
 | 4 | **低** | `FunctionRef` 类型——替代 `std::function` 堆分配 | 分配器路线图 A.7 | 1h |
 
 ---
 
-## 1. ImGuiLib 解除对 EcsLib 的耦合 [高]
+## 1. ImGuiLib 解除对 EcsLib 的耦合 [高] ✅ 已完成 (2026-08-04)
 
-**现状**：`ImGuiLib` 的 `PUBLIC_DEPS` 中仍包含 `EcsLib`，ECS 耦合集中在 `imgui_panels.{h,cpp}`（`buildECSInspector`）和 `imgui_atom_registry.cpp`。ImGui 上下文/后端本身 ECS-free。
-
-**建议**：
-- 将 ECS inspector panel 迁至 game 层的 `EditorLib`
-- `ImGuiLib` 移除 `EcsLib` PUBLIC_DEPS，仅保留 `imgui::imgui, glad::glad, glfw, WindowLib, LogLib, CoreLib`
-- `main.cpp.in` 改为调用 `EditorLib` 的 panel builder
+**结果**：创建 `_engine/source/editor/` (EditorLib 模块)，将 ECS 耦合代码迁出 ImGuiLib：
+- `buildECSInspector()` + `drawField()` → `editor/private/editor_panels.cpp`
+- `AtomRegistry::registerBuiltinAtoms()` 实现 → `editor/private/editor_atom_registry.cpp`
+- `ImGuiLib` 移除 `EcsLib` PUBLIC_DEPS，最终依赖：`imgui::imgui, glad::glad, glfw, WindowLib, LogLib, CoreLib`
+- `main.cpp.in` 新增 `#include "editor/editor_panels.h"`，`buildECSInspector` 调用保持不变（现在由 EditorLib 提供）
+- ImGuiLib 验证：零 `ecs/` include
 
 ---
 <!-- 

@@ -16,28 +16,29 @@
 
 | # | 优先级 | 事项 | 来源 | 预估 |
 |---|--------|------|------|------|
-| 1 | **高** | RenderLib/ImGuiLib 解除对 EcsLib 的耦合 | 模块依赖分析 #2, #3 | 1-2 天 |
+| 1 | **高** | ImGuiLib 解除对 EcsLib 的耦合 | 模块依赖分析 #3 | 半天 |
 | 2 | **中** | NamePool 迁移为 ECS Resource | 字符串审计 P1 | 2h |
 | 3 | **低** | 增加 `entelechy_snprintf` 跨平台封装 | 字符串审计 P2 | 30min |
 | 4 | **低** | `FunctionRef` 类型——替代 `std::function` 堆分配 | 分配器路线图 A.7 | 1h |
 
 ---
 
-## 1. RenderLib / ImGuiLib 解除对 EcsLib 的耦合 [高]
+## 1. ImGuiLib 解除对 EcsLib 的耦合 [高]
 
-**现状**：`RenderLib` 和 `ImGuiLib` 的 `PUBLIC_DEPS` 中仍包含 `EcsLib`，渲染层与 ECS 框架强耦合。RenderLib 源码已按子系统分目录（`render_world/`、`extract/`、`culling/`、`queue/`、`phase/`、`components/`），但 CMake 层面仍是一个 target，ECS `#include` 遍布 19 个 render 文件。
-
-**影响**：未来做 headless server、命令行工具、或纯渲染测试时，都必须带上整个 ECS。
+**现状**：`ImGuiLib` 的 `PUBLIC_DEPS` 中仍包含 `EcsLib`，ECS 耦合集中在 `imgui_panels.{h,cpp}`（`buildECSInspector`）和 `imgui_atom_registry.cpp`。ImGui 上下文/后端本身 ECS-free。
 
 **建议**：
-- 将 ECS 相关的代码（`RenderWorld`、ECS System、ECS Component）从 `RenderLib` 中迁出，放到一个独立的 `RenderSystemLib`（或并入 `_game` 层）
-- `RenderLib` 本身只负责 RHI 抽象、渲染命令、GPU 资源、渲染视图
-- `ImGuiLib` 的 ECS 依赖（调试面板查 ECS 数据）迁到 Editor 模块，ImGuiLib 仅做 ImGui 上下文/后端
+- 将 ECS inspector panel 迁至 game 层的 `EditorLib`
+- `ImGuiLib` 移除 `EcsLib` PUBLIC_DEPS，仅保留 `imgui::imgui, glad::glad, glfw, WindowLib, LogLib, CoreLib`
+- `main.cpp.in` 改为调用 `EditorLib` 的 panel builder
 
-**改动范围**：
-- `_engine/source/render/CMakeLists.txt` — 移除 EcsLib 依赖
-- `_engine/source/imgui/CMakeLists.txt` — 移除 EcsLib 依赖
-- 拆分 `RenderLib` 为 `RenderCoreLib` + `RenderSystemLib`（或在当前 RenderLib 内隔离 ECS 代码）
+---
+<!-- 
+已完成的 RenderLib 拆分（2026-08-04）：
+- RenderLib → RenderCoreLib (rhi/material/phase, zero ECS includes) + RenderSystemLib (render_world/extract/culling/queue/components)
+- REFLECT_COMPONENT 统一到 component_registration.cpp
+- 测试拆分为 RenderCoreTests + RenderSystemTests
+-->
 
 ---
 

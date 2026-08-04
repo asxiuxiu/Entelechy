@@ -1,7 +1,6 @@
 #pragma once
 #include <mutex>
 #include <atomic>
-#include <memory>
 #include "core/container/dynamic_array.h"
 #include "core/container/fixed_ring_queue.h"
 #include "log/core/log_level.h"
@@ -46,7 +45,7 @@ public:
     bool init(const char *filePath = "logs/engine.log");
 
     // Add a custom output device. Logger takes ownership.
-    void addOutputDevice(std::unique_ptr<LogOutputDevice> device);
+    void addOutputDevice(LogOutputDevice *device);
 
     // Close file stream and flush any remaining entries.
     void shutdown();
@@ -88,7 +87,7 @@ private:
 
     FixedRingQueue<QueuedLogEntry, MAX_HISTORY> m_history;
 
-    DynamicArray<std::unique_ptr<LogOutputDevice>> m_devices;
+    DynamicArray<LogOutputDevice *> m_devices;
 
     std::atomic<LogLevel> m_min_level;
 

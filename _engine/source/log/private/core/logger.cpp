@@ -78,31 +78,39 @@ bool Logger::init(const char *filePath)
     }
 
     // Console output
-    addOutputDevice(std::make_unique<ConsoleOutput>());
+    addOutputDevice(new ConsoleOutput());
 
     // Text file output
-    auto fileOutput = std::make_unique<FileOutput>(LogFileConfig{textPath, 10, 5});
+    auto *fileOutput = new FileOutput(LogFileConfig{textPath, 10, 5});
     if (fileOutput->init())
     {
-        addOutputDevice(std::move(fileOutput));
+        addOutputDevice(fileOutput);
+    }
+    else
+    {
+        delete fileOutput;
     }
 
     // JSON Lines output
-    auto jsonOutput = std::make_unique<JsonFileOutput>(jsonPath.c_str(), 10, 5);
+    auto *jsonOutput = new JsonFileOutput(jsonPath.c_str(), 10, 5);
     if (jsonOutput->init())
     {
-        addOutputDevice(std::move(jsonOutput));
+        addOutputDevice(jsonOutput);
+    }
+    else
+    {
+        delete jsonOutput;
     }
 
     return true;
 }
 
-void Logger::addOutputDevice(std::unique_ptr<LogOutputDevice> device)
+void Logger::addOutputDevice(LogOutputDevice *device)
 {
     if (device)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_devices.pushBack(std::move(device));
+        m_devices.pushBack(device);
     }
 }
 
@@ -111,6 +119,10 @@ void Logger::shutdown()
     flush();
 
     std::lock_guard<std::mutex> lock(m_mutex);
+    for (auto *device : m_devices)
+    {
+        delete device;
+    }
     m_devices.clear();
 }
 

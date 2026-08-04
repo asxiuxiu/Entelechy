@@ -26,6 +26,20 @@ struct IAllocator
         return {};
     }
 
+    // Optional: try to resize an existing allocation in-place.
+    // Returns nullptr if in-place resize is not possible (caller must alloc+copy+free).
+    // On success, returns the (possibly same) pointer and the old pointer is invalid.
+    // size is the new requested size; align is the requested alignment.
+    virtual void *reallocate(void *old_ptr, usize old_size, usize new_size, usize align)
+    {
+        // Default: no in-place support, always returns nullptr.
+        (void) old_ptr;
+        (void) old_size;
+        (void) new_size;
+        (void) align;
+        return nullptr;
+    }
+
     // Optional: return a quantized size suitable for the allocator's bucketing.
     // Default implementation forwards to DefaultAllocator::quantizeSize.
     virtual usize quantizeSize(usize size) const;

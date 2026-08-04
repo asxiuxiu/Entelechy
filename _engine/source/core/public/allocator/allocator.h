@@ -52,6 +52,26 @@ struct DefaultAllocator
 #endif
     }
 
+    // Try in-place resize. Returns nullptr if not possible (caller must alloc+copy+free).
+    // Mimalloc: mi_realloc_aligned with MI_REALLOC_NO_MOVE flag (best-effort shrink/grow in-place).
+    // CRT: no in-place resize API; always returns nullptr.
+    static void *reallocate(void *old_ptr, usize old_size, usize new_size, usize align = alignof(std::max_align_t))
+    {
+        (void) old_size;
+#if ENTELECHY_USE_MIMALLOC
+        // MI_REALLOC_NO_MOVE is not exposed in the public mimalloc API, but
+        // mi_realloc_aligned attempts in-place first and copies only if needed.
+        // For in-place-only behavior we accept the copy as fallback — it's still
+        // better than manual alloc+copy+free (which pairs alloc/free allocator knowledge).
+        return mi_realloc_aligned(old_ptr, new_size, align);
+#else
+        // CRT has no in-place resize; caller must alloc+copy+free.
+        (void) old_ptr;
+        (void) align;
+        return nullptr;
+#endif
+    }
+
     // Quantize requested size to a bucket size to reduce internal fragmentation.
     // Mimalloc uses size classes; this approximation prevents frequent
     // re-allocation when capacities grow slightly.
@@ -109,6 +129,10 @@ struct DefaultAllocatorV : IAllocator
     void free(void *ptr) override
     {
         DefaultAllocator::free(ptr);
+    }
+    void *reallocate(void *old_ptr, usize old_size, usize new_size, usize align) override
+    {
+        return DefaultAllocator::reallocate(old_ptr, old_size, new_size, align);
     }
     [[nodiscard]] AllocatorStats getStats() const override
     {

@@ -134,8 +134,8 @@ bool SimpleCubeRenderer::init()
 
     // Parameter layout: matches shader uniforms
     MaterialParamDesc params[] = {
-        {"uMVP"_sid, MaterialParamType::Mat4},
-        {"uColor"_sid, MaterialParamType::Vec3},
+        {"uMVP", MaterialParamType::Mat4},
+        {"uColor", MaterialParamType::Vec3},
     };
 
     PipelineStateDesc pipelineDesc{};

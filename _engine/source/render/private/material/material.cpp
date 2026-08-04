@@ -153,11 +153,12 @@ bool Material::init(IRHIDevice *device, ShaderCache *shaderCache, const char *ve
 
         for (u32 i = 0; i < paramCount; ++i)
         {
-            StringId name = params[i].name;
-            if (name.value() == 0)
+            // Intern the name so GLCommandList::getUniformLocation can resolve
+            // it back to a string for glGetUniformLocation. A bare _sid literal
+            // is hash-only and can never be resolved.
+            StringId key = StringInternPool::instance().intern(params[i].name);
+            if (key.value() == 0)
                 continue;
-
-            StringId key = name;
             ParamSlot slot;
             slot.type = params[i].type;
 

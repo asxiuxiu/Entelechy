@@ -30,7 +30,7 @@ enum class MaterialParamType : u8
 // ------------------------------------------------------------------
 struct MaterialParamDesc
 {
-    StringId name; // Uniform name in shader (interned)
+    const char *name = nullptr; // Uniform name in shader (interned by Material::init)
     MaterialParamType type = MaterialParamType::Float;
 };
 

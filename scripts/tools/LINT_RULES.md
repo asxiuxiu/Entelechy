@@ -15,6 +15,16 @@
 | `format.encoding` | 须使用有效 UTF-8 编码 | warning |
 | `cmake.relative-path` | `CMakeLists.txt` 须用 `${CMAKE_CURRENT_LIST_DIR}` | error |
 
+## commit-msg 检查
+
+| 规则 | 说明 | 严重程度 |
+|------|------|----------|
+| `commit.format` | Commit 标题须遵循 Conventional Commits：`type[scope]: description` | error |
+| `commit.type` | type 须为有效值：`feat/fix/docs/style/refactor/perf/test/build/ci/chore/revert` | error |
+| `commit.language` | Commit message 须为英文，禁止中文 | error |
+| `commit.no-auto-signature` | 禁止 `Co-Authored-By` / `Signed-off-by` / 等自动化签名尾注 | error |
+| `commit.no-at-boundary` | 禁止前导/尾随 `@` 符号 | error |
+
 ## 手动运行
 
 ```bash

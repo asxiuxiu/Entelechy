@@ -95,7 +95,14 @@
 
 ## 自动化检查
 
-项目配置了 `scripts/tools/lint.py` 自动检查代码规范，由 `.git/hooks/pre-commit` 在 `git commit` 前触发。完整规则表、排除规则与运行方式见 [LINT_RULES.md](scripts/tools/LINT_RULES.md)。
+项目配置了两个 git hook 自动检查规范：
+
+| Hook | 脚本 | 触发时机 |
+|------|------|----------|
+| `pre-commit` | `scripts/tools/lint.py --staged` | `git commit` 前，检查 staged C++ 文件风格 |
+| `commit-msg` | `scripts/tools/check_commit_msg.py` | `git commit` 后、提交前，检查 commit message 格式 |
+
+完整规则表、排除规则与运行方式见 [LINT_RULES.md](scripts/tools/LINT_RULES.md)。
 
 常用命令：
 

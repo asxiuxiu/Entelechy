@@ -1,15 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 
-find_package(glad REQUIRED)
-
 entelechy_module(
-    NAME RenderCoreLib
+    NAME RenderSystemLib
     PUBLIC_DEPS
-        glad::glad
-        WindowLib
-        LogLib
+        RenderCoreLib
+        EcsLib
         CoreLib
     PRIVATE_DEPS
         ThreadPoolLib
+        LogLib
 )
-

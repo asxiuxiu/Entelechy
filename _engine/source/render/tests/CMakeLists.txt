@@ -1,18 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
 
+find_package(glad REQUIRED)
+
 entelechy_module(
-    NAME RenderTests
+    NAME RenderCoreTests
     TYPE OBJECT
     SOURCES
-        ${CMAKE_CURRENT_LIST_DIR}/test_render_view_resources.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/test_sort_key.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/test_binned_render_phase.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/test_render_parallel.cpp
         ${CMAKE_CURRENT_LIST_DIR}/test_gpu_resource_lifecycle.cpp
     PUBLIC_DEPS
-        RenderLib
+        RenderCoreLib
         TestFrameworkLib
     NO_TESTS
 )
 
-entelechy_module_parent_private_include(RenderTests)
+entelechy_module_parent_private_include(RenderCoreTests)

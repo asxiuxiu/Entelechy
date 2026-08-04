@@ -1,0 +1,30 @@
+#pragma once
+#include "core/foundation_types.h"
+#include "core/math/mat4.h"
+#include "render/phase/RenderPhase.h"
+
+namespace Entelechy
+{
+
+// RenderMesh — render-world counterpart of MeshAssetRef.
+// Contains only the asset ID; GPU geometry resolution happens later.
+struct RenderMesh
+{
+    u32 mesh_asset_id = 0xFFFFFFFFu;
+};
+
+// RenderMaterial — render-world counterpart of MaterialAssetRef.
+struct RenderMaterial
+{
+    u32 material_asset_id = 0xFFFFFFFFu;
+    RenderPhase render_phase = RenderPhase::Opaque3D;
+};
+
+// RenderTransform — render-world counterpart of GlobalTransform.
+// Copied verbatim during Extract so the render thread never touches main-world data.
+struct RenderTransform
+{
+    Mat4 world_matrix;
+};
+
+} // namespace Entelechy

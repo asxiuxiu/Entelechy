@@ -44,6 +44,11 @@
             "enabled": true
         },
         {
+            "name": "render_system",
+            "path": "source/render_system",
+            "enabled": true
+        },
+        {
             "name": "imgui",
             "path": "source/imgui",
             "enabled": true,

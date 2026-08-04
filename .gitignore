@@ -46,6 +46,9 @@ logs
 # Local environment overrides
 configs/environment.local.json
 
+# External content (e.g. Unity Classic-Sponza project, uses Git LFS upstream)
+_content/
+
 # Claude Code: skills is a generated link to .agents/skills
 .claude/skills
 

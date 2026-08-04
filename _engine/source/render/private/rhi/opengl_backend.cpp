@@ -73,7 +73,7 @@ void OpenGLBackend::clear()
 {
     glClearColor(m_settings.clearColor[0], m_settings.clearColor[1], m_settings.clearColor[2],
                  m_settings.clearColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void OpenGLBackend::present()

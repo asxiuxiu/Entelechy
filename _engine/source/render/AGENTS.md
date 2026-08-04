@@ -21,7 +21,7 @@
 | `material_types.h` | 材质参数类型枚举（Float/Vec2/Vec3/Vec4/Mat4/Texture）与布局描述 |
 | `shader_cache.h` / `.cpp` | Shader 编译缓存：按 (stage, sourceHash) 去重，同步编译，内存缓存 |
 | `material.h` / `.cpp` | **材质系统核心**：Shader 引用 + CPU uniform 块 + 参数按名设置 + PSO 绑定 |
-| `simple_cube_renderer.cpp` | 最小可行立方体渲染器：通过 `Material` + `GLRHIDevice` 绘制（批次 B 验证用） |
+| `simple_cube_renderer.cpp` | 最小可行立方体渲染器：通过 `Material` + `GLRHIDevice` 绘制（批次 B 验证用）。**保留在仓库，但 2026-08-04 起主循环已改用 RenderFrameRunner，不再被 main 使用** |
 | `simple_cube_renderer.h` | `SimpleCubeRenderer` 类声明 |
 | `components/MeshAssetRef.h` | 主 World 组件：`MeshAssetRef`（mesh asset ID，轻量标识符，非 `Handle<T>`） |
 | `components/MaterialAssetRef.h` | 主 World 组件：`MaterialAssetRef`（material asset ID，轻量标识符，非 `Handle<T>`） |
@@ -41,6 +41,8 @@
 | `queue/SortedRenderPhase.h/cpp` | Transparent/UI 深度排序：远→近（`~depthBits`），使用 **64-bit 稳定基数排序** |
 | `queue/QueueDrawsSystem.h/cpp` | 按 Phase 生成 Items：深度计算 + SortKey 构造 + 分箱/排序。**当可见实体数 > 256 且传入 `ThreadPool*` 时自动并行化** |
 | `RenderResources.h` | Queue 阶段产出：`ViewBinnedPhases` + `ViewSortedPhases` |
+| `execute/RenderExecuteSystem.h/cpp` | Execute 阶段：消费四个 Phase 容器发出 GPU draw call；自持网格/材质注册表（阶段1 手工注册，待 Prepare 替代） |
+| `frame/RenderFrameRunner.h/cpp` | 帧驱动层：`runFrame()` 串联 Extract → Cull → Queue → Execute，产出 `FrameStats`；主循环唯一渲染入口 |
 
 ## 重要入口
 - 改**RHI 抽象接口** → 动 `rhi_device.h` / `rhi_types.h`
@@ -50,7 +52,9 @@
 - 改**PSO 缓存策略** → 动 `rhi_pipeline.h` / `gl_rhi_device.cpp`
 - 改**渲染后端接口（SwapChain/帧管理）** → 动 `render_backend.h`
 - 改**OpenGL 具体实现（视口、清除色、VSync）** → 动 `opengl_backend.cpp`
-- 改**最小立方体渲染** → 动 `simple_cube_renderer.cpp`
+- 改**最小立方体渲染** → 动 `simple_cube_renderer.cpp`（已不在主循环使用）
+- 改**帧驱动 / 渲染管线编排** → 动 `frame/RenderFrameRunner.h/cpp`
+- 改**GPU 绘制消费端（Execute 阶段）** → 动 `execute/RenderExecuteSystem.h/cpp`
 - 改**Render World / Extract 流程** → 动 `render_world/RenderWorld.h/cpp` / `ExtractSchedule.h/cpp`
 - 改**Extract 系统逻辑** → 动 `extract/ExtractRenderablesSystem.h/cpp` / `ExtractCameraSystem.h/cpp`
 - 改**主世界渲染组件** → 动 `components/MeshAssetRef.h` / `MaterialAssetRef.h` / `Camera.h`

@@ -11,7 +11,9 @@
 |------|------|
 | `game_runtime.h` | 运行时初始化函数声明 `initRuntime()` |
 | `game_runtime.cpp` | 运行时初始化实现；目前为桩 |
-| `game_plugin.h/.cpp` | `GamePlugin`：游戏层 Plugin，注册演示系统（Movement/Rotation/Wobble/ColorChange/TransformPropagation/EventCleanup）并生成演示立方体层级 |
+| `game_plugin.h/.cpp` | `GamePlugin`：游戏层 Plugin，注册演示系统（Movement/FlyCamera/TransformPropagation/EventCleanup）并生成演示场景（飞行相机 + 静态立方体阵列） |
+| `fly_camera_system.h/.cpp` | `FlyCameraSystem` + `FlyCameraTag`：自由飞行相机（WASD + Q/E 升降 + Shift 加速 + 右键拖拽视角），经 `InputQueue` 单例维护 held-key 状态 |
+| `render_assets.h` | 阶段1 资产 ID 常量（`CUBE_MESH_ID` / `MAT_*`），供 `GamePlugin` 组件引用与 main 手工注册 GPU 资源共用；阶段2 由资产系统 + Prepare 替代 |
 
 ## 重要入口
 - 改**游戏层初始化/关闭逻辑** → 动 `game_runtime.cpp`

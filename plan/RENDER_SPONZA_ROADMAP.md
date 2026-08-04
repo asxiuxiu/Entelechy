@@ -1,0 +1,142 @@
+# 渐进式 Render 管线补全计划 —— 以渲染 Classic-Sponza 为终点
+
+> **生成日期**: 2026-08-04
+> **依据**: [docs/RENDER_LAYER_PROGRESS.md](../docs/RENDER_LAYER_PROGRESS.md)（四大集成断裂 + 各节缺失项）
+> **目标场景**: `_content/Classic-Sponza/`（Unity HDRP 工程：FBX 网格 + Unity .mat 材质 + .unity 场景 + PSD/TIF 纹理）
+> **原则**: 每个阶段都有**窗口里可见的改进**；优先修复阻断"画出来"的断裂，架构级升级（RenderGraph、延迟命令缓冲等）推迟到画面已成立之后。
+
+---
+
+## 现状一句话总结
+
+Extract → Cull → Queue 三段链路在单元测试里各自成立，但 **Prepare（asset_id→GPU 资源）和 Execute（发 GPU draw call）缺失**，且**没有帧驱动层**把它们串起来。窗口里目前只有硬编码的 `SimpleCubeRenderer` 立方体，与 ECS 渲染管线完全无关。同时引擎**没有任何模型/纹理/场景导入能力**——而 Sponza 素材是 Unity 格式（FBX + .mat + .unity + PSD/TIF），需要一条转换/导入链路。
+
+## 断裂修复与阶段的对应关系
+
+| 断裂 | 内容 | 修复阶段 |
+|------|------|---------|
+| #4 没有帧驱动层 | `RenderSystem::runFrame()` 串联全流程 | 阶段 1 |
+| #3 没有渲染消费端 | Execute 阶段消费 PhaseItems 发 draw call | 阶段 1 |
+| #1 Handle 系统与 Render 组件不互通 | `MeshAssetRef`/`MaterialAssetRef` 改用 `Handle<T>` | 阶段 2 |
+| #2 Prepare 阶段缺失 | asset → GPU 几何/纹理/材质参数解析 | 阶段 2 |
+
+---
+
+## 阶段总览
+
+```
+阶段 1  管线自己转起来     ECS 实体经完整管线画出多个立方体，自由相机漫游
+阶段 2  资源进管线         AssetServer 加载网格/纹理资产，画出带贴图的程序化场景
+阶段 3  看见 Sponza 骨架   FBX 导入，白模 Sponza 完整渲染
+阶段 4  还原材质与场景     Unity 场景/材质转换，全贴图 Sponza
+阶段 5  让它像样           光照、深度/法线正确性、天空、调试统计面板
+阶段 6+ 架构补全           RenderGraph / 延迟命令缓冲 / TAI 材质 / BindGroup（按文档优先级推进）
+```
+
+---
+
+## 阶段 1 —— 管线自己转起来
+
+**可见成果**：窗口中不再由 `SimpleCubeRenderer` 硬编码绘制，而是主 World 里的若干 ECS 实体（立方体阵列、不同变换）经由 **Extract → Cull → Queue → Execute** 完整链路画出；WASD+鼠标自由飞行相机；视锥剔除实时生效（转身时剔除数变化）。
+
+**主要工作**：
+
+1. **帧驱动层**（断裂 #4）：新增 `RenderSystem::runFrame()`（或 `RenderFrameRunner`），编排：主 World `ExtractSchedule` → Cull → Queue → Execute → Present。挂在现有主循环（`build/generated/main.cpp` 由 `launch/generator.py` 生成，需改模板 `launch/templates/`）中 `app` 调度之后。
+2. **Execute 消费端**（断裂 #3）：新增 `RenderExecuteSystem`，消费 `ViewBinnedPhases`/`ViewSortedPhases`，按 PhaseItem 绑定 mesh VBO/IBO + material uniform，走 `IRHICommandList` 发出 `drawIndexed()`。此阶段 material 仍是 Phase 1 简化 `Material`（立即 `glUniform*`），**不做 BindGroup 升级**。
+3. **自由相机**：`Camera` 组件 + 飞行相机 System（`window/input` 已有输入队列），接入 `ExtractCameraSystem` 已支持的 `ExtractedView`。
+4. **深度测试**：`PipelineStateDesc` 补齐 depth test/write，帧首 clear depth。没有它后面一切免谈。
+
+**验证**：Debug 构建运行；立方体阵列正确遮挡；相机转向时 ImGui 面板显示剔除数变化；现有 `render_system` 测试全绿。
+
+**对应章节**：5.4（帧驱动）、5.14（Render 阶段）。
+
+---
+
+## 阶段 2 —— 资源进管线
+
+**可见成果**：场景中的物体（地面 + 几根柱子，可用程序化网格）**通过 AssetServer 异步加载**网格与 PNG 纹理后显示；日志可见加载状态流转；卸载后 GPU 资源经 Fence 延迟回收。
+
+**主要工作**：
+
+1. **Handle 集成**（断裂 #1）：`MeshAssetRef`/`MaterialAssetRef` 的裸 `u32 asset_id` 替换为 `asset/` 模块的 `Handle<MeshAsset>`/`Handle<MaterialAsset>`；`RenderMesh`/`RenderMaterial` 同步迁移。
+2. **Prepare 阶段**（断裂 #2）：新增 `PrepareAssetsSystem`：将 Extract 来的 `Handle<T>` 经 `Assets<T>` 解析为 GPU 资源（未加载则触发 `loadAsync` 并用 fallback 材质/网格），产出 `PreparedMesh`（VBO/IBO RHIRef）与 `PreparedMaterial`（管线 + uniform 数据）。
+3. **资产类型**：定义 `MeshAsset`（CPU 侧顶点/索引 + AABB）与 `TextureAsset`；实现对应 `IAssetLoader<T>`。纹理加载引入 `stb_image`（单头文件，先确认第三方库引入方式符合工程惯例）。
+4. **纹理转换工具**：Sponza 纹理是 PSD/TIF/TIFF（stb_image 不支持 TIF），写一次性 Python 脚本（项目 `.venv` + Pillow）批量转 PNG 到 `_content/Classic-Sponza/cooked/textures/`，为阶段 4 备料。
+
+**验证**：Debug 构建；带贴图物体正确显示；热拔插（未加载→加载完成）过程中 fallback 粉色材质被正确替换；`test_gpu_resource_lifecycle` 等测试保持绿。
+
+**对应章节**：5.8（Handle 集成）、5.14（Prepare）、5.9（加载状态机，先用现有简化流程）。
+
+---
+
+## 阶段 3 —— 看见 Sponza 骨架
+
+**可见成果**：`Sponza_Modular.FBX` 的**全部几何体以白模（单一灰色材质 + 法线着色）**渲染在窗口中，自由相机可在宫殿内漫游，剔除/排序正常工作。
+
+**主要工作**：
+
+1. **FBX 导入选型**：推荐 `ufbx`（单文件 C 库、MIT、无构建负担），assimp 太重。**决策点：先在知识库检索/确认选型，再动手。**
+2. **离线 cook**：Python 或 C++ 小工具将 FBX → 引擎自有 mesh 格式（顶点流交错 + 索引 + 子网格/subset + 每 subset 材质名），输出到 `_content/Classic-Sponza/cooked/meshes/`。离线 cook 而非运行时直接吃 FBX，保持运行时加载简单。
+3. **subset → 实体**：cooked mesh 的每个 subset 成为一个可渲染实体（或一个实体的 sub-mesh 数组——按当前 `RenderMesh` 结构选择更简单者），每帧约数百 draw call，现有 CPU 暴力视锥剔除足够。
+4. **法线可视化着色**：白模阶段用法线当颜色（或简单 N·L），避免"全黑看不出几何是否正确"。
+
+**验证**：Debug 构建；Sponza 几何完整（拱门、柱子、帘幕可辨认）；相机穿模检查包围盒正确性；帧率记录为后续优化基线。
+
+**对应章节**：5.9（加载链路实战）、5.5（暴力剔除在 ~400 实体下的可行性验证）。
+
+---
+
+## 阶段 4 —— 还原材质与场景
+
+**可见成果**：**全贴图的 Classic Sponza**——砖墙、拱门、地砖、旗帜各就各位，布局和官方场景一致（位置/旋转/缩放来自 `Sponza.unity`）。
+
+**主要工作**：
+
+1. **场景转换器**：一次性 Python 脚本解析 `Sponza.unity`（Unity YAML：GameObject/Transform/MeshFilter/MeshRenderer，经 .meta GUID 关联 prefab/mesh/material），导出为引擎场景 JSON：实体列表 = {cooked mesh 引用, world transform, 材质引用}。Unity YAML + prefab 嵌套是**本阶段最大风险**，若完整解析代价过高，退化为只解析顶层 GameObject + prefab 实例展开。
+2. **材质转换**：解析 `.mat`（HDRP Lit）→ 引擎材质 JSON：baseColor 贴图（指向阶段 2 转换好的 PNG）、normal map、metallic/smoothness 参数。HDRP 参数名到引擎材质的映射表写死在转换器里即可，不做通用系统。
+3. **材质贴图进 Prepare**：`MaterialAsset` 增加纹理 `Handle<TextureAsset>`，Prepare 阶段绑定贴图；阶段 2 的 fallback 机制覆盖加载中状态。
+4. **场景加载入口**：游戏侧（`_game/source/runtime/`）新增场景加载：读 JSON → 批量 `loadAsync` → spawn 实体。
+
+**验证**：Debug 构建；与 Unity 中 Sponza 截图对比布局一致；纹理无错位（UV 手性/翻转问题在此阶段暴露并修复）；全部纹理加载完成后无 fallback 残留。
+
+**对应章节**：5.11（MaterialAsset 雏形，但**不上 TAI 三层**）、5.13（贴图绑定）。
+
+---
+
+## 阶段 5 —— 让它像样
+
+**可见成果**：有方向光（阳光）照射的 Sponza，明暗正确、有法线贴图效果；天空色/简易天空盒；ImGui 面板显示 FPS、draw call 数、剔除前后实体数、GPU 内存。
+
+**主要工作**：
+
+1. **光照**：方向光 + 环境项（Blinn-Phong 或简化 PBR——若材质转换器已导出 metallic/smoothness，直接上 GGX 更值）；光源做成 ECS 组件 + Extract。可参考 `SponzaLightingDay.unity` 的光源参数。
+2. **法线贴图**：tangent 在 cook 时生成（或屏幕空间导数近似，先简单）。
+3. **天空**：先用清屏渐变/纯色，天空盒（`Art/Generic/Skies`）可选。
+4. **调试面板**：ImGui 显示渲染统计（draw calls、culled/total、PSO 命中、显存追踪——`queryMemoryInfo`/`getTrackedMemoryUsage` 已有）。
+
+**验证**：Debug 构建；光照方向与 Unity Day 场景观感一致；统计面板数字合理。
+
+**对应章节**：5.13（按更新频率分层的 View/Light 参数可先以简化形式落地）。
+
+---
+
+## 阶段 6+ —— 架构补全（画面已成立，按文档优先级偿还债务）
+
+画面目标达成后，回头按 [RENDER_LAYER_PROGRESS.md](../docs/RENDER_LAYER_PROGRESS.md)「建议的下一步优先级」补架构，每项独立完成、可随时停下：
+
+1. **5.7 RenderGraph 最小实现**（<500 行编译器：拓扑排序 + 死 Pass 剔除 + Barrier 插入）——为阴影 pass、后处理（5.18/5.19）铺路。
+2. **5.1 延迟命令缓冲**——`RenderCommandBuffer` + `LinearAllocator`，修复立即执行偏离，为 D3D12 过渡铺路。
+3. **5.11/5.12 材质 TAI 三层 + 着色器变体/缓存**——替换 Phase 1 简化 Material 临时代码。
+4. **5.13 BindGroup/UBO 分层**——解决 10+ 材质时 `glUniform*` 性能问题。
+5. **5.3b PSO 异步编译**、**5.5 BVH 空间加速**（Sponza 数百实体可暂缓，场景变大后必做）。
+6. **5.15/5.16/5.17** 2D/字体/UI——阶段 6 自研 UI 框架的前置。
+
+---
+
+## 跨阶段注意事项
+
+- **每阶段验收都跑 Debug 构建**（`python scripts/build/build.py --debug`），并保证既有单元测试不红。
+- **文档同步**：每阶段结束后更新 `docs/RENDER_LAYER_PROGRESS.md` 对应章节的"代码现状"与完成度条，以及相关模块 `AGENTS.md`。
+- **遇阻即停**：Unity YAML 解析、FBX 导入、HDRP 参数映射三处是已知高风险点，卡住时按 AGENTS.md 规则停下汇报，不自行换方案绕过。
+- **不做的事**：本计划不追求性能优化（Bindless/GPU-Driven/HZB）、不追求渲染品质（阴影/TAA/Bloom）、不迁移 D3D12——这些属于阶段 6+ 或更后期。
+- 每阶段完成后按 AGENTS.md「事后审视」规则，把偏差与新技术债务记入 `TODO.md`。

@@ -1,13 +1,34 @@
 #include "runtime/game_plugin.h"
+#include "runtime/render_assets.h"
 #include "ecs/world/world.h"
 #include "ecs/query/query.h"
 #include "ecs/type/type_registry.h"
-#include "ecs/hierarchy/hierarchy.h"
+#include "core/math/aabb.h"
 #include "core/string/string_intern_pool.h"
-#include <cstdlib>
+#include "render_system/components/Camera.h"
+#include "render_system/components/MeshAssetRef.h"
+#include "render_system/components/MaterialAssetRef.h"
 
 namespace game
 {
+
+namespace
+{
+
+// AABB is not registered as an ECS component by the engine (tracked in
+// TODO.md as a future WorldAABB wrapper component). Register it here so the
+// cube grid can carry world-space bounds for frustum culling.
+void registerAabbComponent()
+{
+    using namespace Entelechy;
+    TypeRegistry &registry = TypeRegistry::instance();
+    if (registry.getTypeID<AABB>() != INVALID_COMPONENT_TYPE_ID)
+        return;
+    ComponentTypeID id = registry.getOrAllocateTypeID<AABB>();
+    registry.registerComponent(id, 1ull << id, makeComponentDesc<AABB>("AABB"_sid, {}));
+}
+
+} // namespace
 
 void GamePlugin::build(Entelechy::App &app)
 {
@@ -21,16 +42,9 @@ void GamePlugin::build(Entelechy::App &app)
          .reads = {TypeRegistry::instance().getTypeID<Position>(), TypeRegistry::instance().getTypeID<Velocity>()},
          .writes = {TypeRegistry::instance().getTypeID<Position>()}});
 
-    // RotationSystem
-    app.scheduler().registerSystem({.name = StringInternPool::instance().intern("RotationSystem"),
-                                    .system = &m_rotation,
-                                    .phase = static_cast<u8>(DefaultPhase::Update),
-                                    .reads = {TypeRegistry::instance().getTypeID<Transform>()},
-                                    .writes = {TypeRegistry::instance().getTypeID<Transform>()}});
-
-    // WobbleSystem (deliberately conflicts with RotationSystem to verify ambiguity detection)
-    app.scheduler().registerSystem({.name = StringInternPool::instance().intern("WobbleSystem"),
-                                    .system = &m_wobble,
+    // FlyCameraSystem
+    app.scheduler().registerSystem({.name = StringInternPool::instance().intern("FlyCameraSystem"),
+                                    .system = &m_fly_camera,
                                     .phase = static_cast<u8>(DefaultPhase::Update),
                                     .writes = {TypeRegistry::instance().getTypeID<Transform>()}});
 
@@ -41,13 +55,6 @@ void GamePlugin::build(Entelechy::App &app)
          .phase = static_cast<u8>(DefaultPhase::PostUpdate),
          .reads = {TypeRegistry::instance().getTypeID<Transform>(), TypeRegistry::instance().getTypeID<ChildOf>()},
          .writes = {TypeRegistry::instance().getTypeID<GlobalTransform>()}});
-
-    // ColorChangeSystem
-    app.scheduler().registerSystem({.name = StringInternPool::instance().intern("ColorChangeSystem"),
-                                    .system = &m_color_change,
-                                    .phase = static_cast<u8>(DefaultPhase::Update),
-                                    .reads = {TypeRegistry::instance().getTypeID<KeyboardEvent>()},
-                                    .writes = {TypeRegistry::instance().getTypeID<Color>()}});
 
     // EventCleanupSystem
     app.scheduler().registerSystem({.name = StringInternPool::instance().intern("EventCleanupSystem"),
@@ -61,74 +68,50 @@ void GamePlugin::setup(Entelechy::App &app)
     using namespace Entelechy;
     World &world = app.world();
 
-    // Demo cubes with hierarchy
-    auto parent = world.spawn();
-    world.addComponent<Transform>(parent, Transform{});
-    world.addComponent<GlobalTransform>(parent, GlobalTransform{});
-    world.addComponent<Color>(parent, {1.0f, 0.2f, 0.2f});
+    registerAabbComponent();
 
-    auto child1 = world.spawn();
-    world.addComponent<Transform>(child1, Transform{{1.5f, 0.0f, 0.0f}});
-    world.addComponent<GlobalTransform>(child1, GlobalTransform{});
-    world.addComponent<Color>(child1, {0.2f, 1.0f, 0.2f});
-    world.setParent(child1, parent);
+    // -- Free-fly camera ---------------------------------------------------
+    auto camera = world.spawn();
+    world.addComponent<Transform>(camera, Transform{{0.0f, 3.0f, 10.0f}});
+    world.addComponent<GlobalTransform>(camera, GlobalTransform{});
+    world.addComponent<Camera>(camera, Camera{1.0472f, 0.1f, 200.0f, false, 10.0f});
+    world.addComponent<FlyCameraTag>(camera, FlyCameraTag{});
 
-    auto child2 = world.spawn();
-    world.addComponent<Transform>(child2, Transform{{-1.5f, 0.0f, 0.0f}});
-    world.addComponent<GlobalTransform>(child2, GlobalTransform{});
-    world.addComponent<Color>(child2, {0.2f, 0.2f, 1.0f});
-    world.setParent(child2, parent);
+    // -- Static cube grid --------------------------------------------------
+    // 6x6 grid centered on the origin, spacing 2.0; every other row stacks a
+    // second cube on top of the first column cube.
+    constexpr int GRID_SIZE = 6;
+    constexpr f32 SPACING = 2.0f;
+    constexpr f32 ORIGIN_OFFSET = -0.5f * SPACING * static_cast<f32>(GRID_SIZE - 1); // -5.0
+    constexpr u32 MATERIAL_IDS[] = {MAT_RED, MAT_GREEN, MAT_BLUE, MAT_YELLOW};
+    constexpr Vec3 CUBE_EXTENT{0.5f, 0.5f, 0.5f};
 
-    auto grandchild = world.spawn();
-    world.addComponent<Transform>(grandchild, Transform{{0.0f, 1.0f, 0.0f}});
-    world.addComponent<GlobalTransform>(grandchild, GlobalTransform{});
-    world.addComponent<Color>(grandchild, {1.0f, 1.0f, 0.2f});
-    world.setParent(grandchild, child1);
-}
-
-// ------------------------------------------------------------------
-// System tick implementations
-// ------------------------------------------------------------------
-
-void GamePlugin::RotationSystem::tick(Entelechy::World &w, Entelechy::FrameArena &, f32 dt)
-{
-    for (auto [e, trans] : Entelechy::Query<Entelechy::Transform>(w))
+    u32 colorIndex = 0;
+    for (int row = 0; row < GRID_SIZE; ++row)
     {
-        if (!trans)
-            continue;
-        trans->rotation = trans->rotation * Entelechy::Quat::fromAxisAngle({0.0f, 1.0f, 0.0f}, dt);
-        trans->dirty = 1;
-    }
-}
+        for (int col = 0; col < GRID_SIZE; ++col)
+        {
+            const f32 x = ORIGIN_OFFSET + SPACING * static_cast<f32>(col);
+            const f32 z = ORIGIN_OFFSET + SPACING * static_cast<f32>(row);
 
-void GamePlugin::WobbleSystem::tick(Entelechy::World &w, Entelechy::FrameArena &, f32 dt)
-{
-    (void)dt;
-    for (auto [e, trans] : Entelechy::Query<Entelechy::Transform>(w))
-    {
-        if (!trans)
-            continue;
-        trans->translation.y += 0.001f;
-        trans->dirty = 1;
-    }
-}
+            auto cube = world.spawn();
+            world.addComponent<Transform>(cube, Transform{{x, 0.0f, z}});
+            world.addComponent<GlobalTransform>(cube, GlobalTransform{});
+            world.addComponent<MeshAssetRef>(cube, MeshAssetRef{CUBE_MESH_ID});
+            world.addComponent<MaterialAssetRef>(cube, MaterialAssetRef{MATERIAL_IDS[colorIndex % 4]});
+            world.addComponent<AABB>(cube, AABB::fromCenterExtent(Vec3{x, 0.0f, z}, CUBE_EXTENT));
+            ++colorIndex;
 
-void GamePlugin::ColorChangeSystem::tick(Entelechy::World &w, Entelechy::FrameArena &, f32)
-{
-    for (auto [evtEntity, evt] : Entelechy::Query<Entelechy::KeyboardEvent>(w))
-    {
-        if (!evt || !evt->pressed)
-            continue;
-        if (evt->keyCode == 32)
-        { // GLFW_KEY_SPACE
-            for (auto [e, color] : Entelechy::Query<Entelechy::Color>(w))
+            // Stack a second cube on top of the first cube of every even row.
+            if (col == 0 && row % 2 == 0)
             {
-                if (color)
-                {
-                    color->r = 0.3f + (rand() % 100) / 100.0f;
-                    color->g = 0.3f + (rand() % 100) / 100.0f;
-                    color->b = 0.3f + (rand() % 100) / 100.0f;
-                }
+                auto stacked = world.spawn();
+                world.addComponent<Transform>(stacked, Transform{{x, 1.0f, z}});
+                world.addComponent<GlobalTransform>(stacked, GlobalTransform{});
+                world.addComponent<MeshAssetRef>(stacked, MeshAssetRef{CUBE_MESH_ID});
+                world.addComponent<MaterialAssetRef>(stacked, MaterialAssetRef{MATERIAL_IDS[colorIndex % 4]});
+                world.addComponent<AABB>(stacked, AABB::fromCenterExtent(Vec3{x, 1.0f, z}, CUBE_EXTENT));
+                ++colorIndex;
             }
         }
     }

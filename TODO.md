@@ -62,6 +62,10 @@
 - [ ] Render / RHI | `PhaseItem::instance_count`（`render/queue/PhaseItem.h`、`render/queue/QueueDrawsSystem.cpp`）字段已预留为 1 但未实现 instancing 合并，`QueueDrawsSystem` 未检测同 material + 同 mesh 的连续实体，需在 `BinnedRenderPhase::addItem` 中检测并合并为同一 `PhaseItem` 且累加 `instance_count`，并配合 Prepare 步骤生成 instance buffer。
 - [ ] Render / RHI | `ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:23`）每帧对静态 AABB 全量拷贝，大多数模型的本地 AABB 是静态的但每帧都通过 `mainWorld.getComponent<AABB>(entity)` 提取到 render world，需在 `MainWorldSync` 中记录「上一帧是否有 AABB」或引入脏标记机制，仅当 AABB 组件被修改时才重新提取。
 - [ ] Render / RHI | `IRHICommandList::setUniform*` 仍为 OpenGL immediate mode（`glUniform*`），虽已引入 Uniform Location 缓存消除字符串查询，但每 Draw Call 仍单独调用驱动，无法合批。未来应迁移到 UBO / PushConstants / Bindless。
+- [ ] Render / RHI | `RenderExecuteSystem`（`render_system/private/execute/RenderExecuteSystem.cpp`）自持第二个 `GLRHIDevice` + `ShaderCache`（与 `render/example/simple_cube_renderer.h` 同款债务，同源），两个设备实例并存于主循环，需统一为由帧驱动层注入或 ECS Resource 化的单一设备。
+- [ ] Render / RHI | 阶段1 网格/材质由 `launch/templates/main.cpp.in` 手工调用 `RenderExecuteSystem::registerMesh` / `registerColorMaterial` 注册（资产 ID 常量在 `_game/source/runtime/public/render_assets.h`），asset_id → GPU 资源解析散落在主循环，需由阶段2 Prepare 阶段（异步解析 + `PreparedMesh`/`PreparedMaterial`）替代。
+- [ ] Render / RHI | 固定步长 Scheduler 热身期：启动后首个累加周期内 `TransformPropagationSystem` 尚未执行，所有 `GlobalTransform` 仍是零矩阵（首帧渲染为空），且 `GlobalTransform` 默认零矩阵而非单位矩阵放大了该问题。需在 spawn 后强制一次传播、或让 `GlobalTransform` 默认为单位矩阵、或首帧 `tickOnce`。
+- [ ] Core / String | `_sid` 字面量是 consteval 纯哈希、不进驻留池，任何经 `StringInternPool::resolve` 反查字符串的消费者（如 `GLCommandList::getUniformLocation`）对未驻留 id 会**静默失败**（2026-08-04 因此导致 Material uniform 全部未上传、画面只剩清屏色，已通过 `MaterialParamDesc` 改 `const char*` + init 时 intern 修复）。后续新增 resolve 消费者时需确保上游驻留，或考虑为 resolve 失败路径加日志/断言。
 
 ## Material / Shader
 > 2026-05-25：当前实现为同步编译 + CPU uniform 块 + `glUniform*` 即时上传 + 无模板分层。以下为与工业级方案的差额，后续逐步补齐。
@@ -211,6 +215,7 @@
 
 - [ ] Window / 窗口系统 | `window/public/window/window/window.h` `IWindow` 目前只有 GLFW 实现，未来需加入 SDL / Win32 后端。
 - [ ] Window / 窗口系统 | `window/public/window/window/glfw_window.h` `getNativeDisplay()` 是 Vulkan 创建 Surface 的预留 stub，未实现。
+- [ ] Window / 窗口系统 | `FlyCameraSystem`（`_game/source/runtime/private/fly_camera_system.cpp`）用右键拖拽做视角控制，因 `GlfwWindow` 未封装 `glfwSetInputMode(GLFW_CURSOR, GLFW_CURSOR_DISABLED)` 无鼠标捕获，拖拽到窗口边缘会中断，需窗口层补捕获/隐藏光标 API 后改为 FPS 式捕获视角。
 
 ## Runtime / 游戏运行时
 

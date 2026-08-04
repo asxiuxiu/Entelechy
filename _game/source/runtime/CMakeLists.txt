@@ -5,6 +5,8 @@ entelechy_module(
     PUBLIC_DEPS
         EcsLib
         BridgeLib
+        RenderSystemLib
+        WindowLib
     INIT_FUNCTION initRuntime
     NAMESPACE game
 )

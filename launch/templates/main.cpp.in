@@ -7,7 +7,7 @@
 #include "window/input/input_event.h"
 #include "log/core/log_macros.h"
 #include "render/rhi/opengl_backend.h"
-#include "render/example/simple_cube_renderer.h"
+#include "render_system/frame/RenderFrameRunner.h"
 #include "imgui/imgui_manager.h"
 #include "imgui/imgui_panels.h"
 #include "editor/editor_panels.h"
@@ -29,6 +29,36 @@
 
 // Game plugin (defined in RuntimeLib)
 #include "runtime/game_plugin.h"
+#include "runtime/render_assets.h"
+
+// ------------------------------------------------------------------
+// Phase-1 demo mesh: unit cube (8 vertices, 36 indices).
+// Registered manually on the RenderExecuteSystem; replaced by the
+// Prepare stage in Phase 2.
+// ------------------------------------------------------------------
+namespace {
+
+const f32 CUBE_VERTICES[8 * 3] = {
+    -0.5f, -0.5f, -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f,
+    -0.5f, -0.5f, 0.5f,  0.5f, -0.5f, 0.5f,  0.5f, 0.5f, 0.5f,  -0.5f, 0.5f, 0.5f,
+};
+
+const u32 CUBE_INDICES[36] = {
+    // front
+    4, 5, 6, 4, 6, 7,
+    // back
+    1, 0, 3, 1, 3, 2,
+    // left
+    0, 4, 7, 0, 7, 3,
+    // right
+    5, 1, 2, 5, 2, 6,
+    // top
+    3, 2, 6, 3, 6, 7,
+    // bottom
+    0, 1, 5, 0, 5, 4,
+};
+
+} // namespace
 
 int main() {
     LOG_INFO(Entelechy::LogCategories::kEngine, "=== Entelechy Game Engine ===");
@@ -85,11 +115,31 @@ int main() {
     Entelechy::Scheduler& scheduler = app.scheduler();
     world.bindCommandBuffer(&scheduler.commandBuffer());
 
-    // Simple cube renderer
-    Entelechy::SimpleCubeRenderer cubeRenderer;
-    if (!cubeRenderer.init()) {
-        LOG_ERROR(Entelechy::LogCategories::kEngine, "Failed to init cube renderer");
+    // Render frame runner (Extract -> Cull -> Queue -> Execute)
+    Entelechy::RenderFrameRunner frameRunner;
+    if (!frameRunner.init(window.get())) {
+        LOG_ERROR(Entelechy::LogCategories::kEngine, "Failed to init render frame runner");
         return -1;
+    }
+
+    // Phase-1 manual GPU resource registration (matches the asset IDs
+    // referenced by GamePlugin via MeshAssetRef/MaterialAssetRef).
+    {
+        Entelechy::VertexAttributeDesc cubeAttr{};
+        cubeAttr.location = 0;
+        cubeAttr.components = 3;
+        cubeAttr.normalized = false;
+        cubeAttr.offset = 0;
+
+        if (!frameRunner.execute().registerMesh(game::CUBE_MESH_ID, CUBE_VERTICES, sizeof(CUBE_VERTICES),
+                                                3 * sizeof(f32), &cubeAttr, 1, CUBE_INDICES, 36)) {
+            LOG_ERROR(Entelechy::LogCategories::kEngine, "Failed to register cube mesh");
+            return -1;
+        }
+        frameRunner.execute().registerColorMaterial(game::MAT_RED, {0.85f, 0.20f, 0.20f});
+        frameRunner.execute().registerColorMaterial(game::MAT_GREEN, {0.20f, 0.85f, 0.25f});
+        frameRunner.execute().registerColorMaterial(game::MAT_BLUE, {0.25f, 0.35f, 0.90f});
+        frameRunner.execute().registerColorMaterial(game::MAT_YELLOW, {0.90f, 0.80f, 0.20f});
     }
 
     // Event loop with DeltaTime
@@ -150,7 +200,11 @@ int main() {
                     break;
             }
         }
-        Entelechy::InputQueue::instance().clear();
+
+        // ===== Tick systems (before rendering so Extract sees this frame's transforms) =====
+        if (autoRunSystems) {
+            app.update(dt);
+        }
 
         // ===== ImGui: begin new frame =====
         imgui->newFrame();
@@ -160,10 +214,11 @@ int main() {
         window->getSize(currentW, currentH);
 
         Entelechy::WindowSizeRequest sizeRequest;
-        Entelechy::buildDockSpace();
         Entelechy::buildDebugPanel(dt, fps, clearColor, currentW, currentH, sizeRequest);
-        Entelechy::buildLogPanel();
-        Entelechy::buildECSInspector(world, scheduler, dt, autoRunSystems);
+        {
+            const auto& rstats = frameRunner.stats();
+            Entelechy::buildRenderStatsPanel(rstats.draw_calls, rstats.visible, rstats.culled, rstats.total_renderables);
+        }
 
         if (sizeRequest.requested) {
             if (sizeRequest.width < 0 || sizeRequest.height < 0) {
@@ -181,14 +236,8 @@ int main() {
         render->setClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
         render->clear();
 
-        // Draw demo cubes
-        Entelechy::Mat4 proj = Entelechy::Mat4::perspective(1.0472f, (f32)currentW / (f32)currentH, 0.1f, 100.0f);
-        Entelechy::Mat4 view = Entelechy::Mat4::lookAt({0.0f, 2.0f, 5.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
-
-        for (auto [e, global, color] : Entelechy::Query<Entelechy::GlobalTransform, Entelechy::Color>(world)) {
-            if (!global || !color) continue;
-            cubeRenderer.drawCube(global->matrix, view, proj, {color->r, color->g, color->b});
-        }
+        // ===== Render frame: Extract -> Cull -> Queue -> Execute =====
+        frameRunner.runFrame(world, dt);
 
         // ===== ImGui: submit draw data (overlay on top of 3D) =====
         imgui->renderDrawData();
@@ -197,12 +246,10 @@ int main() {
         render->present();
 
         // ===== GPU resource lifecycle: signal frame fence and flush safe deletes =====
-        cubeRenderer.endFrame();
+        frameRunner.endFrame();
 
-        // ===== Tick systems =====
-        if (autoRunSystems) {
-            app.update(dt);
-        }
+        // ===== Clear input queue (after systems have consumed this frame's events) =====
+        Entelechy::InputQueue::instance().clear();
 
         // ===== FPS counter =====
         fpsTimer += dt;
@@ -216,8 +263,8 @@ int main() {
 
     app.teardown();
 
-    // Shutdown order: ImGui first (uses GL context), then render, then window
-    cubeRenderer.shutdown();
+    // Shutdown order: render frame runner, then ImGui (uses GL context), then render, then window
+    frameRunner.shutdown();
     imgui->shutdown();
     render->shutdown();
     window->destroy();

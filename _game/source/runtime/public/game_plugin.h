@@ -9,6 +9,7 @@
 #include "ecs/event/event_lifetime.h"
 #include "ecs/component/transform_component.h"
 #include "ecs/type/types.h"
+#include "runtime/fly_camera_system.h"
 
 namespace game
 {
@@ -16,9 +17,9 @@ namespace game
 // ------------------------------------------------------------------
 // GamePlugin -- demo game logic plugin
 // ------------------------------------------------------------------
-// Registers demo systems (movement, rotation, wobble, color change,
-// transform propagation, event cleanup) and spawns the demo cube
-// hierarchy.
+// Registers demo systems (movement, fly camera, transform propagation,
+// event cleanup) and spawns the demo scene: a free-fly camera plus a
+// static cube grid referencing the Phase-1 asset IDs in render_assets.h.
 // ------------------------------------------------------------------
 class GamePlugin : public Entelechy::IPlugin
 {
@@ -42,22 +43,7 @@ public:
 
 private:
     Entelechy::MovementSystem m_movement;
-
-    struct RotationSystem : Entelechy::System
-    {
-        void tick(Entelechy::World &w, Entelechy::FrameArena &, f32 dt) override;
-    } m_rotation;
-
-    struct WobbleSystem : Entelechy::System
-    {
-        void tick(Entelechy::World &w, Entelechy::FrameArena &, f32 dt) override;
-    } m_wobble;
-
-    struct ColorChangeSystem : Entelechy::System
-    {
-        void tick(Entelechy::World &w, Entelechy::FrameArena &, f32) override;
-    } m_color_change;
-
+    FlyCameraSystem m_fly_camera;
     Entelechy::TransformPropagationSystem m_transform_system;
     Entelechy::EventCleanupSystem m_event_cleanup;
 };

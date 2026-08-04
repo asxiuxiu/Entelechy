@@ -125,6 +125,23 @@ void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4], int windowWidth, int wi
     ImGui::End();
 }
 
+void buildRenderStatsPanel(u32 drawCalls, u32 visible, u32 culled, u32 total)
+{
+    // First-use defaults: right of the Debug panel, compact single readout.
+    ImGui::SetNextWindowPos(ImVec2(460, 20), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(260, 130), ImGuiCond_FirstUseEver);
+
+    ImGui::Begin("Render Stats");
+
+    ImGui::Text("Draw Calls: %u", drawCalls);
+    ImGui::Separator();
+    ImGui::Text("Renderables: %u", total);
+    ImGui::Text("Visible:     %u", visible);
+    ImGui::Text("Culled:      %u", culled);
+
+    ImGui::End();
+}
+
 void buildLogPanel()
 {
     // First-use defaults: below the Debug panel, wide enough for CJK/English text.

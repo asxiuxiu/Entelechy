@@ -26,4 +26,8 @@ void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4], int windowWidth, int wi
 // level filtering, color coding, and auto-scroll.
 void buildLogPanel();
 
+// Render stats panel: draw calls and culling counters from the previous
+// frame's render pipeline run (RenderFrameRunner::stats()).
+void buildRenderStatsPanel(u32 drawCalls, u32 visible, u32 culled, u32 total);
+
 } // namespace Entelechy

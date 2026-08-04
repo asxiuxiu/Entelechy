@@ -134,7 +134,7 @@
 
 **知识库设计**：逻辑-渲染并行（延迟帧管线渲染）、双 World 模型（Main World + Render World）、Extract 边界（只读快照语义）、跨 World 实体映射（`MainWorldSync`）、完整帧生命周期 Extract → PrepareAssets → Culling → Queue → RenderGraph → Execute/Submit、Render World 作为确定性投影。
 
-**代码现状** ✅ 大部分完成（核心架构齐全，缺少驱动层和 Prepare 阶段）
+**代码现状** ✅ 大部分完成（核心架构 + 帧驱动层齐全，缺少 Prepare 阶段）
 
 已实现：
 - 双 World 模型：主 `World` + 独立 `RenderWorld`（含自己的 ECS `World`、`ExtractSchedule`、`MainWorldSync`、双缓冲帧 arena）→ `render_world/RenderWorld.h/.cpp`
@@ -143,19 +143,20 @@
 - `ExtractRenderablesSystem`：拷贝 `(MeshAssetRef, MaterialAssetRef, GlobalTransform, 可选 AABB)` → `(RenderMesh, RenderMaterial, RenderTransform)` → `private/extract/ExtractRenderablesSystem.cpp`
 - `ExtractCameraSystem`：拷贝第一个 `Camera` → `ExtractedView`，预绑定 view resources，使用 `IWindow` 获取 aspect/viewport → `private/extract/ExtractCameraSystem.cpp`
 - 组件：主 World `MeshAssetRef`/`MaterialAssetRef`/`Camera`；Render World `RenderMesh`/`RenderMaterial`/`RenderTransform`/`ExtractedView` → `public/components/`
+- `RenderFrameRunner`：生产级帧驱动层，每帧串联 Extract → Cull → Queue → Execute，并产出 `FrameStats` → `frame/RenderFrameRunner.h/.cpp`
 
 **缺失项**：
 
 | 项目 | 笔记要求 | 当前状态 |
 |------|---------|---------|
-| Prepare 阶段 | 异步资源解析（Handle → GPU 资源） | ❌ 不存在。Extract→Cull→Queue 链路中缺少 Prepare |
-| 完整帧生命周期驱动 | `RenderSystem::runFrame()` 编排全流程 | ❌ 不存在。各 System 是离散的，无运行时驱动层 |
+| Prepare 阶段 | 异步资源解析（Handle → GPU 资源） | ❌ 不存在。Extract→Cull→Queue 链路中缺少 Prepare（阶段1 由 main 手工注册 GPU 网格/材质代替） |
+| 完整帧生命周期驱动 | `RenderSystem::runFrame()` 编排全流程 | ✅ `RenderFrameRunner::runFrame()`（2026-08-04，阶段1） |
 | 并行 Extract | 多线程 Extract（笔记明确："初始顺序 → 并行 → RHI thread"） | ❌ 当前仅单线程顺序 ExtractSchedule |
 | RenderGraph 集成 | 笔记要求 RenderGraph 作为 RenderWorld 的 Resource | ❌ RenderGraph 完全不存在（见 5.7） |
 
 **问题/风险**：
-- 所有系统通过单元测试验证，但没有生产级帧循环将它们串联起来
-- Extract 和 Queue 各自运转但没有 Render（GPU 绘制）消费者
+- Extract 链路与 GPU 消费端已由 `RenderFrameRunner` 串联并在主循环中运行；Prepare 阶段仍缺失
+- 并行 Extract / RenderGraph 仍未开始
 
 ---
 
@@ -353,25 +354,26 @@
 
 **知识库设计**：材质内嵌 Mesh 组件的反模式、Handle 分离 + 按类型分 System、Extract → Prepare → Queue → PhaseSort → Render 完整数据流、AI 可观测性（ECS Component + GPU 自动同步 via `Changed<T>`）、`PreparedMaterial`（bind_group + pipeline_key）、Agent 组件白名单（Block 内部材质）。
 
-**代码现状** 🟡 部分完成（Extract 和 Queue 存在，Prepare 和 Render 缺失）
+**代码现状** 🟡 部分完成（Extract / Queue / Render 已通，Prepare 缺失）
 
 已实现：
 - Handle 分离：主 World 使用 `MeshAssetRef`/`MaterialAssetRef`（`u32 asset_id`）→ `public/components/MeshAssetRef.h`、`MaterialAssetRef.h`
 - `ExtractRenderablesSystem`：拷贝 mesh/material refs → `RenderMesh`/`RenderMaterial`
 - 组件注册：`REFLECT_COMPONENT` + `registerRenderComponents()` → `private/components/component_registration.cpp`
+- `RenderExecuteSystem`：消费 `ViewBinnedPhases`/`ViewSortedPhases` 发出 GPU draw call（Phase 1：手工注册网格/材质注册表 + uMVP/uColor 材质）→ `execute/RenderExecuteSystem.h/.cpp`
 
 **缺失项**：
 
 | 项目 | 笔记要求 | 当前状态 |
 |------|---------|---------|
-| Prepare 阶段 | 异步解析 asset_id → GPU 几何/管线/材质参数 | ❌ 不存在。Extract→Cull→Queue 链在 Prepare 环节断裂 |
+| Prepare 阶段 | 异步解析 asset_id → GPU 几何/管线/材质参数 | ❌ 不存在。Extract→Cull→Queue 链在 Prepare 环节断裂（阶段1 由 main 手工注册代替） |
 | `PreparedMaterial` | bind_group + pipeline_key 中间结构 | ❌ 不存在 |
 | `PipelineCache` Resource | ECS Resource 管理 PSO | ❌ 不存在 |
-| Render 阶段 | 消费 PhaseItems 发出 GPU draw call | ❌ 不存在。Queue 之后的绘制消费者缺失 |
+| Render 阶段 | 消费 PhaseItems 发出 GPU draw call | ✅ `RenderExecuteSystem`（2026-08-04，阶段1；单 view、单 cmdList、无 instancing） |
 | AI `Changed<T>` 同步 | 修改组件 → 自动同步 GPU | ❌ 不存在 |
 | `Handle<T>` 集成 | MeshAssetRef/MaterialAssetRef 应使用 asset 模块的 `Handle<T>` | ❌ 未集成，使用裸 `u32` |
 
-**问题/风险**：这是当前渲染管线最大的集成断裂——Extract 和 Queue 各自运转正常，但 Prepare 阶段（asset_id → GPU 资源解析）和 Render 阶段（发出 GPU draw call）完全缺失。整个帧生命周期是不完整的。
+**问题/风险**：Render 阶段已打通（Queue → GPU draw call），最大的剩余断裂是 Prepare 阶段——asset_id → GPU 资源解析仍靠 main 手工注册，待阶段2 用 Prepare 替代。
 
 ---
 
@@ -459,7 +461,7 @@
 5.2  多线程命令录制与并行渲染 ⭐      ██████░░░░  60%  CPU 并行生成完成，GPU 命令并行录制未实现
 5.3  GPU 资源生命周期管理 ⭐          ████████░░  80%  核心机制齐全，缺少预算强制和 ECS 化
 5.3b PSO 缓存与异步编译 ⭐            ████░░░░░░  40%  仅同步缓存
-5.4  ECS 架构下的渲染世界设计 ⭐      ████████░░  75%  双 World + Extract 完成，缺少 Prepare/Render 阶段
+5.4  ECS 架构下的渲染世界设计 ⭐      ████████░░  80%  双 World + Extract + 帧驱动层完成，缺少 Prepare 阶段
 5.5  可见性判断与空间加速结构 ⭐      ███░░░░░░░  30%  仅基础视锥剔除，无 BVH/HZB/GPU-Driven
 5.6  渲染队列与 DrawCall 组织 ⭐      ████████░░  80%  SortKey/Binned/Sorted/Queue 完整，Instancing 预留
 5.7  RenderGraph 与多 Pass 资源管理 ⭐ ░░░░░░░░░░   0%  完全未开始
@@ -469,7 +471,7 @@
 5.11 材质系统架构                     ███░░░░░░░  25%  仅 Phase 1 单层简化，无 TAI 三层
 5.12 着色器变体与编译缓存 ⭐          ██░░░░░░░░  20%  仅内存级同步 ShaderCache
 5.13 材质参数绑定与 GPU 上传          ██░░░░░░░░  20%  仅立即 uniform 调用，无 BindGroup/PushConstants
-5.14 材质系统的 ECS 表达              ████░░░░░░  40%  Extract/Queue 有，Prepare/Render 断链
+5.14 材质系统的 ECS 表达              █████░░░░░  55%  Extract/Queue/Render 已通，Prepare 断链
 5.15 2D 渲染基础与批次合批            ░░░░░░░░░░   0%  完全未开始
 5.16 字体渲染系统                     ░░░░░░░░░░   0%  完全未开始
 5.17 UI 画布与场景叠加                ░░░░░░░░░░   0%  完全未开始
@@ -488,11 +490,13 @@
 ### 断裂 #2: Prepare 阶段缺失——Extract→Cull→Queue 链断裂
 `ExtractRenderablesSystem` 将 `(MeshAssetRef, MaterialAssetRef)` 拷贝进 Render World 为 `(RenderMesh, RenderMaterial)`，但没有任何 Prepare 阶段将 `asset_id` 解析为 GPU 几何/管线/材质参数。`QueueDrawsSystem` 用 `material_asset_id & 0xFFFF` 做粗略的分箱，但没有真正的管线状态对象。
 
-### 断裂 #3: 没有渲染消费端
+### 断裂 #3: 没有渲染消费端 ✅ 已修复（2026-08-04，阶段1）
 `QueueDrawsSystem` 产出了 `ViewBinnedPhases`/`ViewSortedPhases`，但没有 System 消费这些 Phase 容器发出实际的 GPU draw call。
+→ 已新增 `RenderExecuteSystem`（`render_system/execute/`）：遍历四个 Phase 容器，逐 `PhaseItem` 解析网格/材质注册表并发出 `drawIndexed`。
 
-### 断裂 #4: 没有帧驱动层
+### 断裂 #4: 没有帧驱动层 ✅ 已修复（2026-08-04，阶段1）
 Extract/Cull/Queue 各 System 通过单元测试独立验证，但没有 `RenderSystem::runFrame()` 生产级帧循环串联全流程。
+→ 已新增 `RenderFrameRunner`（`render_system/frame/`）：`runFrame(mainWorld, dt)` 每帧串联 Extract → Cull → Queue → Execute，主循环（`main.cpp.in`）已切换到此路径，硬编码 `SimpleCubeRenderer` 绘制已移除（类保留）。
 
 ---
 

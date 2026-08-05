@@ -8,11 +8,14 @@
 // hand-emitted JSON manifest consumed by the game-side spawner:
 //
 //   {"entities":[{"mesh":"meshes/x.emesh","transform":[16 floats],
+//                 "aabb_min":[x,y,z],"aabb_max":[x,y,z],
 //                 "material":"name placeholder"}]}
 //
 // The 16 transform floats are column-major, matching Mat4::m[16].
-// The material field is a placeholder for Phase 4 (shared white
-// material until then).
+// The AABB is the primitive's local-space bounds (same value stored in
+// the .emesh header); the game side transforms it into world space for
+// frustum culling. The material field is a placeholder for Phase 4
+// (shared white material until then).
 //
 // Run from the repository root (default paths are relative to cwd):
 //   ./build/bin/Debug/MeshCooker.exe [input.gltf] [output_dir]
@@ -36,6 +39,7 @@
 namespace
 {
 
+using Entelechy::AABB;
 using Entelechy::MeshAsset;
 using Entelechy::MeshVertex;
 using Entelechy::Vec2;
@@ -89,7 +93,7 @@ std::string meshFileName(usize meshIndex, usize primIndex)
 // Decodes one glTF primitive into MeshAsset and writes it as .emesh.
 // Returns false (with a warning) when the primitive cannot be cooked.
 bool cookPrimitive(const cgltf_primitive *prim, const std::filesystem::path &outFile, const char *label,
-                   CookStats &stats)
+                   CookStats &stats, AABB &outBounds)
 {
     if (hasSparseAccessor(prim))
     {
@@ -165,6 +169,7 @@ bool cookPrimitive(const cgltf_primitive *prim, const std::filesystem::path &out
     }
 
     mesh.computeBounds();
+    outBounds = mesh.bounds;
 
     Entelechy::DynamicArray<u8> bytes = Entelechy::writeMeshFile(mesh);
     std::ofstream out(outFile, std::ios::binary | std::ios::trunc);
@@ -240,18 +245,22 @@ int main(int argc, char **argv)
 
     // Pass 1: cook every unique primitive into <out>/meshes/*.emesh.
     // cookedFlags tracks per-primitive success so the manifest pass
-    // never references a file that was skipped.
+    // never references a file that was skipped; cookedBounds keeps the
+    // local-space AABB for the manifest's aabb_min/aabb_max fields.
     std::vector<std::vector<bool>> cookedFlags(data->meshes_count);
+    std::vector<std::vector<AABB>> cookedBounds(data->meshes_count);
     for (cgltf_size meshIndex = 0; meshIndex < data->meshes_count; ++meshIndex)
     {
         const cgltf_mesh *gltfMesh = &data->meshes[meshIndex];
         cookedFlags[meshIndex].resize(gltfMesh->primitives_count, false);
+        cookedBounds[meshIndex].resize(gltfMesh->primitives_count);
         for (cgltf_size primIndex = 0; primIndex < gltfMesh->primitives_count; ++primIndex)
         {
             ++stats.m_primitives_total;
             const std::string fileName = meshFileName(meshIndex, primIndex);
             const std::string label = "mesh " + std::to_string(meshIndex) + " prim " + std::to_string(primIndex);
-            if (cookPrimitive(&gltfMesh->primitives[primIndex], meshesDir / fileName, label.c_str(), stats))
+            if (cookPrimitive(&gltfMesh->primitives[primIndex], meshesDir / fileName, label.c_str(), stats,
+                              cookedBounds[meshIndex][primIndex]))
             {
                 cookedFlags[meshIndex][primIndex] = true;
                 ++stats.m_emesh_written;
@@ -307,6 +316,21 @@ int main(int argc, char **argv)
             {
                 char num[32];
                 std::snprintf(num, sizeof(num), "%.9g", static_cast<double>(world[k]));
+                manifest << (k > 0 ? "," : "") << num;
+            }
+            const AABB &bounds = cookedBounds[meshIndex][primIndex];
+            manifest << "],\"aabb_min\":[";
+            for (int k = 0; k < 3; ++k)
+            {
+                char num[32];
+                std::snprintf(num, sizeof(num), "%.9g", static_cast<double>(bounds.min[k]));
+                manifest << (k > 0 ? "," : "") << num;
+            }
+            manifest << "],\"aabb_max\":[";
+            for (int k = 0; k < 3; ++k)
+            {
+                char num[32];
+                std::snprintf(num, sizeof(num), "%.9g", static_cast<double>(bounds.max[k]));
                 manifest << (k > 0 ? "," : "") << num;
             }
             manifest << "],\"material\":\"" << jsonEscape(materialName) << "\"}";

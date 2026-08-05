@@ -176,6 +176,7 @@
 - `Frustum`（planes[6]）+ `FrustumFromMatrix` → math 库
 - `FrustumCullSystem`：逐实体 AABB vs `ExtractedView.frustum` 视锥剔除，并行路径（>256 实体 + ThreadPool）→ `private/culling/FrustumCullSystem.cpp`
 - `ViewVisibleList` 输出 → `phase/ViewVisibleList.h`（header 注释明确："CPU brute-force frustum culling. Tomorrow: BVH"）
+- 实跑验证（2026-08-05，阶段 3c）：cooked Sponza 405 实体全部携带世界 AABB（cooker 在 `scene.json` 输出 primitive 局部 AABB，游戏侧 `scene_loader` 做 8 角点×世界矩阵变换）；每秒 `Frame stats` 日志显示 `draw_calls == visible`、`culled` 随视角在 17~388/405 间实时变化，剔除统计生效
 
 **缺失项**：
 
@@ -258,6 +259,7 @@
 - `TextureAssetLoader`：首个生产 loader，stb_image（Conan `stb/cci.20230920`）解码 → `TextureAsset`（RGBA8、左上原点）；失败返回空资产并记错误日志（2026-08-05，阶段 2b）→ `asset/public/loader/texture_asset_loader.h`、`asset/private/loader/texture_asset_loader.cpp`
 - `MeshAssetLoader` + `.emesh` 二进制格式（魔数 "EMSH" + 版本 + 顶点/索引计数 + AABB + 原始顶点/索引 blob，小端无压缩；`writeMeshFile()` writer 供 cook 工具与测试共用）（2026-08-05，阶段 3a）→ `asset/public/type/mesh_format.h`、`asset/public/loader/mesh_asset_loader.h`、`asset/private/loader/mesh_asset_loader.cpp`
 - `MeshCooker`（glTF → `.emesh` 离线 cook 工具，cgltf/Conan 解析，accessor 解码交错化为 `MeshVertex`，node 树烘焙世界变换输出 `scene.json`；Sponza 实跑：405 primitive 全量 cook 零告警，cooked 产物不入 git）（2026-08-05，阶段 3b）→ `_engine/tools/mesh_cooker/`
+- `SceneLoader`（游戏侧）：VFS 读 `scene.json`（固定 schema 目的解析器，无 JSON 库）→ 每实体 `loadAsync` `.emesh` + spawn（烘焙 `GlobalTransform` + `MeshAssetRef` + 共享白模 `MaterialAssetRef` + 世界 AABB）；Sponza 实跑 405 实体全量异步加载落地、无 fallback 残留（2026-08-05，阶段 3c）→ `_game/source/runtime/public/scene_loader.h`、`private/scene_loader.cpp`
 - VFS 存在（`vfs/public/vfs.h`、`mount_point.h`）——前置依赖满足
 - ThreadPool 存在（`thread_pool/public/thread_pool.h`）——前置依赖满足
 
@@ -365,7 +367,7 @@
 - `PrepareAssetsSystem`：扫描 Render World 的 `RenderMesh`/`RenderMaterial` Handle，经游戏侧 `Assets<T>` 解析并缓存 GPU 资源（`PreparedMesh`/`PreparedMaterial`/纹理 RHIRef）；未加载实体回退到单位立方体 + 品红材质，异步加载落地后自动替换；材质贴图未就绪则整体 pending（2026-08-05，阶段 2c）→ `prepare/PrepareAssetsSystem.h/.cpp`
 - `ExtractRenderablesSystem`：拷贝 mesh/material refs → `RenderMesh`/`RenderMaterial`
 - 组件注册：`REFLECT_COMPONENT` + `registerRenderComponents()` → `private/components/component_registration.cpp`
-- `RenderExecuteSystem`：消费 `ViewBinnedPhases`/`ViewSortedPhases` 发出 GPU draw call（经 Prepare 查询 Prepared 资源 + fallback；unlit 贴图材质 uMVP/uColor/uBaseColorTex）→ `execute/RenderExecuteSystem.h/.cpp`
+- `RenderExecuteSystem`：消费 `ViewBinnedPhases`/`ViewSortedPhases` 发出 GPU draw call（经 Prepare 查询 Prepared 资源 + fallback；unlit 材质 uMVP/uModel/uColor/uShadeMode/uBaseColorTex，`MaterialAsset::shade_mode` 切换 albedo／白模法线着色，2026-08-05 阶段 3c）→ `execute/RenderExecuteSystem.h/.cpp`
 
 **缺失项**：
 

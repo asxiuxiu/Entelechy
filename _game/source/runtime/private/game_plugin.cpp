@@ -1,13 +1,12 @@
 #include "runtime/game_plugin.h"
 #include "runtime/render_assets.h"
+#include "runtime/scene_loader.h"
 #include "ecs/world/world.h"
 #include "ecs/query/query.h"
 #include "ecs/type/type_registry.h"
 #include "core/math/aabb.h"
 #include "core/string/string_intern_pool.h"
 #include "render_system/components/Camera.h"
-#include "render_system/components/MeshAssetRef.h"
-#include "render_system/components/MaterialAssetRef.h"
 
 namespace game
 {
@@ -17,7 +16,7 @@ namespace
 
 // AABB is not registered as an ECS component by the engine (tracked in
 // TODO.md as a future WorldAABB wrapper component). Register it here so the
-// cube grid can carry world-space bounds for frustum culling.
+// cooked scene entities can carry world-space bounds for frustum culling.
 void registerAabbComponent()
 {
     using namespace Entelechy;
@@ -69,87 +68,21 @@ void GamePlugin::setup(Entelechy::App &app)
     World &world = app.world();
 
     registerAabbComponent();
+    initRenderAssets();
 
     // -- Free-fly camera ---------------------------------------------------
+    // Inside the Sponza atrium (scene spans x[-16, 20]), near the west end
+    // looking down the +X axis; FlyCameraSystem's initial yaw matches.
     auto camera = world.spawn();
-    world.addComponent<Transform>(camera, Transform{{0.0f, 3.0f, 10.0f}});
+    world.addComponent<Transform>(camera, Transform{{-13.0f, 2.5f, 2.0f}});
     world.addComponent<GlobalTransform>(camera, GlobalTransform{});
     world.addComponent<Camera>(camera, Camera{1.0472f, 0.1f, 200.0f, false, 10.0f});
     world.addComponent<FlyCameraTag>(camera, FlyCameraTag{});
 
-    // -- Static cube grid --------------------------------------------------
-    // 6x6 grid centered on the origin, spacing 2.0; every other row stacks a
-    // second cube on top of the first column cube.
-    initRenderAssets();
-    const RenderAssets &assets = renderAssets();
-
-    constexpr int GRID_SIZE = 6;
-    constexpr f32 SPACING = 2.0f;
-    constexpr f32 ORIGIN_OFFSET = -0.5f * SPACING * static_cast<f32>(GRID_SIZE - 1); // -5.0
-    const Handle<MaterialAsset> materials[] = {assets.mat_red, assets.mat_green, assets.mat_blue,
-                                               assets.mat_yellow};
-    constexpr Vec3 CUBE_EXTENT{0.5f, 0.5f, 0.5f};
-
-    u32 colorIndex = 0;
-    for (int row = 0; row < GRID_SIZE; ++row)
-    {
-        for (int col = 0; col < GRID_SIZE; ++col)
-        {
-            const f32 x = ORIGIN_OFFSET + SPACING * static_cast<f32>(col);
-            const f32 z = ORIGIN_OFFSET + SPACING * static_cast<f32>(row);
-
-            auto cube = world.spawn();
-            world.addComponent<Transform>(cube, Transform{{x, 0.0f, z}});
-            world.addComponent<GlobalTransform>(cube, GlobalTransform{});
-            world.addComponent<MeshAssetRef>(cube, MeshAssetRef{assets.cube_mesh});
-            world.addComponent<MaterialAssetRef>(cube, MaterialAssetRef{materials[colorIndex % 4]});
-            world.addComponent<AABB>(cube, AABB::fromCenterExtent(Vec3{x, 0.0f, z}, CUBE_EXTENT));
-            ++colorIndex;
-
-            // Stack a second cube on top of the first cube of every even row.
-            if (col == 0 && row % 2 == 0)
-            {
-                auto stacked = world.spawn();
-                world.addComponent<Transform>(stacked, Transform{{x, 1.0f, z}});
-                world.addComponent<GlobalTransform>(stacked, GlobalTransform{});
-                world.addComponent<MeshAssetRef>(stacked, MeshAssetRef{assets.cube_mesh});
-                world.addComponent<MaterialAssetRef>(stacked, MaterialAssetRef{materials[colorIndex % 4]});
-                world.addComponent<AABB>(stacked, AABB::fromCenterExtent(Vec3{x, 1.0f, z}, CUBE_EXTENT));
-                ++colorIndex;
-            }
-        }
-    }
-
-    // -- Textured ground plane ---------------------------------------------
-    // Async checker texture: starts on the pink fallback, flips to the
-    // checker once the load lands.
-    {
-        auto ground = world.spawn();
-        world.addComponent<Transform>(ground, Transform{{0.0f, -0.5f, 0.0f}});
-        world.addComponent<GlobalTransform>(ground, GlobalTransform{});
-        world.addComponent<MeshAssetRef>(ground, MeshAssetRef{assets.ground_mesh});
-        world.addComponent<MaterialAssetRef>(ground, MaterialAssetRef{assets.mat_checker});
-        world.addComponent<AABB>(ground, AABB::fromCenterExtent(Vec3{0.0f, -0.5f, 0.0f}, Vec3{20.0f, 0.05f, 20.0f}));
-    }
-
-    // -- Pillars (scaled cubes) --------------------------------------------
-    {
-        const Vec3 pillarPositions[] = {
-            {-7.0f, 1.5f, -7.0f},
-            {7.0f, 1.5f, -7.0f},
-            {-7.0f, 1.5f, 7.0f},
-            {7.0f, 1.5f, 7.0f},
-        };
-        for (const Vec3 &pos : pillarPositions)
-        {
-            auto pillar = world.spawn();
-            world.addComponent<Transform>(pillar, Transform{pos, {}, {1.5f, 4.0f, 1.5f}});
-            world.addComponent<GlobalTransform>(pillar, GlobalTransform{});
-            world.addComponent<MeshAssetRef>(pillar, MeshAssetRef{assets.cube_mesh});
-            world.addComponent<MaterialAssetRef>(pillar, MaterialAssetRef{assets.mat_blue});
-            world.addComponent<AABB>(pillar, AABB::fromCenterExtent(pos, Vec3{0.75f, 2.0f, 0.75f}));
-        }
-    }
+    // -- Cooked Sponza scene (Phase 3c) -------------------------------------
+    // Spawns one entity per scene.json entry (405 for NewSponza); meshes
+    // stream in asynchronously and draw as pink fallback cubes until ready.
+    spawnCookedScene(world, renderAssets(), "sponza/cooked/scene.json");
 }
 
 } // namespace game

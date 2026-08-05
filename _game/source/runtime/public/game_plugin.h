@@ -18,8 +18,9 @@ namespace game
 // GamePlugin -- demo game logic plugin
 // ------------------------------------------------------------------
 // Registers demo systems (movement, fly camera, transform propagation,
-// event cleanup) and spawns the demo scene: a free-fly camera plus a
-// static cube grid referencing the asset handles in render_assets.h.
+// event cleanup) and spawns the demo scene: a free-fly camera plus the
+// cooked Sponza scene (scene_loader.h) referencing the asset handles in
+// render_assets.h.
 // ------------------------------------------------------------------
 class GamePlugin : public Entelechy::IPlugin
 {

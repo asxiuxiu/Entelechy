@@ -46,6 +46,7 @@ struct RenderAssets
     Entelechy::Handle<Entelechy::MaterialAsset> mat_blue;
     Entelechy::Handle<Entelechy::MaterialAsset> mat_yellow;
     Entelechy::Handle<Entelechy::MaterialAsset> mat_checker;
+    Entelechy::Handle<Entelechy::MaterialAsset> mat_white;
     Entelechy::Handle<Entelechy::TextureAsset> checker_texture;
 };
 
@@ -100,6 +101,10 @@ inline void initRenderAssets()
         assets.asset_server.loadAsync(Path{"demo/checker.png"}, assets.texture_loader, assets.texture_assets);
     assets.mat_checker = assets.material_assets.insert(MaterialAsset{{1.0f, 1.0f, 1.0f}, assets.checker_texture});
     LOG_INFO(LogCategories::kEngine, "RenderAssets: requested async load of demo/checker.png");
+
+    // Shared white-model material for the cooked Sponza scene (Phase 3c):
+    // grey albedo, no texture, normal shading path.
+    assets.mat_white = assets.material_assets.insert(MaterialAsset{{0.75f, 0.75f, 0.75f}, {}, 1.0f});
 }
 
 } // namespace game

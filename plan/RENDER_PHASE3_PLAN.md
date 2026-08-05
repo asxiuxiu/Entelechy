@@ -65,7 +65,11 @@
 
 ---
 
-## 3c —— spawn + 白模渲染验收
+## 3c —— spawn + 白模渲染验收 ✅ 已完成（2026-08-05）
+
+> **落地情况**：cooker 的 `scene.json` 每实体新增 `aabb_min`/`aabb_max`（primitive 局部 AABB，与 `.emesh` 头内一致）；游戏侧新增 `scene_loader`（`_game/source/runtime/public/scene_loader.h` + `private/scene_loader.cpp`：经 VFS 读清单，固定 schema 目的解析器 `ManifestCursor`，未引 JSON 库），`GamePlugin::setup()` 移除立方体阵列/贴图地面/柱子 demo spawn，改为 `spawnCookedScene()`——每实体 `GlobalTransform`（烘焙矩阵直挂，无 `Transform`；已确认 `TransformPropagationSystem` 只碰带 `Transform` 的实体）+ `MeshAssetRef`（`loadAsync`）+ 共享白模 `MaterialAssetRef` + 世界 AABB（局部盒 8 角点×世界矩阵 expand）。白模着色：`MaterialAsset` 新增 `f32 shade_mode`（0=albedo／1=法线着色），`PrepareAssetsSystem` 内联 GLSL 加 `uModel`/`uShadeMode`（vs 世界空间法线，fs N·L 固定方向光，shade_mode>0.5 生效），`RenderExecuteSystem::drawItem` 每 draw 设 `uModel`；fallback 材质保持粉色 `shade_mode=0`。相机初始位姿 (-13, 2.5, 2) 朝 +X（`FlyCameraSystem` 初始 yaw 同步为 -π/2；far=200 覆盖 36m 场景未调）。`main.cpp.in` 每秒输出 `Frame stats` 日志（fps/draw_calls/visible/culled/total）作为自动化验收证据。
+> **验收**：Debug 构建通过（曾遇一次性 LNK1163，重编消失）；EntelechyTests 186 全绿（基线不变，未新增测试）；lint 干净。cooker 重跑 405/405 零告警，405 实体全带 aabb 字段。游戏实跑 25s（`logs/engine_20260805_175530_513.log`）：`SceneLoader: 405 entities spawned, world bounds (-16.2,-1.1,-9.4)-(20.0,18.8,14.4)`；405 个 mesh 全部 `uploaded`（330 条 pending 一次性日志全部集中在首个加载秒，最后一次 upload 后 23s 内零 pending、零 ERROR/WARN → 无 fallback 残留）；`Frame stats` 每秒 `draw_calls == visible`、`total=405` 恒定、`culled` 随视角在 17~388 间变化 → 视锥剔除生效；帧率 ~60 fps（vsync 上限，作为后续优化基线）。**未截图**：引擎无帧读回/截图机制，几何完整性（拱门、柱廊、帘幕可辨认）未以图像确认，仅有日志佐证，留待有截图手段后补验。
+> **偏差/债务**：法线变换用 `mat3(uModel)` 而非 inverse-transpose 法线矩阵（非均匀缩放下不正确，Sponza 变换安全）；`shade_mode` 标量开关为阶段 3c 临时机制；`ManifestCursor` 是工程内第三个手写 JSON 片段解析器——均记 `TODO.md`。
 
 **目标**：游戏侧读 `scene.json` → 批量 `loadAsync` → spawn 数百实体；白模（法线着色）渲染完整 Sponza，自由相机漫游，剔除统计生效。
 

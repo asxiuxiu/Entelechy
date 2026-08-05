@@ -66,6 +66,7 @@
 - [ ] Render / RHI | `IRHICommandList::setUniform*` 仍为 OpenGL immediate mode（`glUniform*`），虽已引入 Uniform Location 缓存消除字符串查询，但每 Draw Call 仍单独调用驱动，无法合批。未来应迁移到 UBO / PushConstants / Bindless。
 - [ ] Render / RHI | `RenderExecuteSystem`（`render_system/private/execute/RenderExecuteSystem.cpp`）自持第二个 `GLRHIDevice` + `ShaderCache`（与 `render/example/simple_cube_renderer.h` 同款债务，同源），两个设备实例并存于主循环，需统一为由帧驱动层注入或 ECS Resource 化的单一设备。
 - [ ] Render / RHI | 阶段1 网格/材质由 `launch/templates/main.cpp.in` 手工注册（2c 已移除）：~~asset → GPU 资源解析散落在主循环~~ 已由 2c `PrepareAssetsSystem` 接管（`render_system/prepare/`）。残留简化：Prepare 不主动发起 `loadAsync`（Handle 无路径，加载由游戏侧发起），且每帧全量扫描 RenderMesh/RenderMaterial 组件（无 `Changed<T>` 增量），实体规模上量后需增量化。
+- [ ] Render / RHI | `render_system/private/prepare/PrepareAssetsSystem.cpp` 白模法线着色用 `mat3(uModel)` 直接变换法线，未使用 inverse-transpose 法线矩阵，非均匀缩放下法线方向错误（Sponza 变换为刚体/均匀缩放，阶段 3c 安全）；引入非均匀缩放资产或阶段 5 正式光照前需改为法线矩阵。
 - [ ] Render / RHI | 固定步长 Scheduler 热身期：启动后首个累加周期内 `TransformPropagationSystem` 尚未执行，所有 `GlobalTransform` 仍是零矩阵（首帧渲染为空），且 `GlobalTransform` 默认零矩阵而非单位矩阵放大了该问题。需在 spawn 后强制一次传播、或让 `GlobalTransform` 默认为单位矩阵、或首帧 `tickOnce`。
 - [ ] Core / String | `_sid` 字面量是 consteval 纯哈希、不进驻留池，任何经 `StringInternPool::resolve` 反查字符串的消费者（如 `GLCommandList::getUniformLocation`）对未驻留 id 会**静默失败**（2026-08-04 因此导致 Material uniform 全部未上传、画面只剩清屏色，已通过 `MaterialParamDesc` 改 `const char*` + init 时 intern 修复）。后续新增 resolve 消费者时需确保上游驻留，或考虑为 resolve 失败路径加日志/断言。
 
@@ -87,6 +88,7 @@
 - [ ] Material / Shader | 当前材质只能通过 C++ 代码定义，美术无法直观调整，需运行时解析节点图定义 → 生成 GLSL/HLSL 源码 → 通过 `ShaderCache` 编译，编辑器通过 MCP/反射接口让 AI 也能操作节点参数。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 1 分支 C。
 - [ ] Material / Shader | `MaterialAssetRef`（`render/components/MaterialAssetRef.h`）缺少 `render_phase` 信息，`ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:20`）无法推断 phase，全部默认 `Opaque3D`，透明材质被错误分箱到 `BinnedRenderPhase`，需在材质系统（`Material` / `MaterialAsset`）增加 `RenderPhase` 声明，`ExtractRenderablesSystem` 从材质元数据读取 phase。
+- [ ] Material / Shader | `asset/public/type/material_asset.h` 的 `shade_mode`（f32 标量开关：0=albedo／1=法线着色）是阶段 3c 白模验收的临时机制，`uShadeMode`/`uModel` uniform 硬编码于 `render_system/private/prepare/PrepareAssetsSystem.cpp` 内联 GLSL；阶段 4 材质还原时应由 ShaderTemplate keyword/变体机制取代并移除该字段。
 
 ## AI / Agent 基建
 > 2026-04-13 讨论纪要：AI 不应是独立的第三个 exe，而是「协议 + 桥梁」。先记录为技术债务，后续渐进补齐。
@@ -225,6 +227,8 @@
 
 - [ ] Runtime / 游戏运行时 | `_game/source/runtime/private/game_runtime.cpp` `main.cpp` 由 `launch/generator.py` 构建时生成，主循环逻辑散落在模板中，未来 Runtime 应接管更多主循环逻辑。
 - [ ] Runtime / 游戏运行时 | `_game/source/runtime/public/render_assets.h` 的 `renderAssets()` 使用函数内 static 全局存储持有 VFS + `AssetServer` + 三类 `Assets<T>` 与缓存 Handle（2c 后规模进一步增大），根因是 ECS 无 Resource 概念（见 ECS 条目）。待 ECS Resource 基础设施就绪后，资产存储应注册为 World 级全局数据，此静态层整体移除。
+- [ ] Runtime / 游戏运行时 | `_game/source/runtime/private/scene_loader.cpp` 的 `ManifestCursor` 是工程内第三个手写 JSON 片段解析器（`ecs/private/prefab/scene_serializer.cpp` 的 static `JsonCursor`、`bridge` 的字符串查找之后），仅支持 `scene.json` 固定 schema；清单格式若继续演化（嵌套/可选字段），应抽一个公共极简 JSON 解析器到 core 供复用。
+- [ ] Runtime / 游戏运行时 | 引擎无帧读回/截图机制，渲染验收只能靠日志佐证（阶段 3c 的 Sponza 几何完整性即未截图确认）；需在 RHI/窗口层补 readback + 截图键（或离屏 capture 工具）。
 
 ## Core / 基础库扩展缺口
 

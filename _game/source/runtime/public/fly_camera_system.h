@@ -30,9 +30,9 @@ private:
     f32 m_last_mx = 0.0f;
     f32 m_last_my = 0.0f;
     // Initial orientation matches the camera spawn in GamePlugin::setup():
-    // at (0, 3, 10) looking at the origin, i.e. a slight downward pitch.
-    f32 m_yaw = 0.0f;
-    f32 m_pitch = -0.2915f; // atan(3 / 10)
+    // inside the Sponza atrium at (-13, 2.5, 2) looking down the +X axis.
+    f32 m_yaw = -1.5708f; // -pi/2
+    f32 m_pitch = 0.0f;
 };
 
 } // namespace game

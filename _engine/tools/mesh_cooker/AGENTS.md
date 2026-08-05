@@ -29,7 +29,7 @@ python scripts/build/build.py --debug
 - **cgltf 经 Conan 引入**（`cgltf/1.13`），与 stb 同构（根 `conanfile.py` + `find_package`）。
 - **accessor 解码**用 `cgltf_accessor_read_float/read_index`（自动处理 byteStride/归一化）；sparse accessor 告警跳过；缺 NORMAL/TEXCOORD_0/TANGENT 填默认值并告警；无索引 primitive 生成顺序索引。
 - **去重**：`.emesh` 按 `(meshIndex, primIndex)` 定名，每唯一 primitive 只写一次；`scene.json` 按 node 引用计数（实体数 ≥ .emesh 数）。
-- **世界变换**用 `cgltf_node_transform_world()`，输出列主序 16 float，与引擎 `Mat4::m[16]` 布局一致，场景清单原样输出。
+- **世界变换**用 `cgltf_node_transform_world()`，输出列主序 16 float，与引擎 `Mat4::m[16]` 布局一致，场景清单原样输出；每实体附带该 primitive 的局部空间 AABB（`aabb_min`/`aabb_max`，与 `.emesh` 头内一致，游戏侧变换到世界空间做视锥剔除，阶段 3c）。
 - **材质字段仅占位**（glTF material name），阶段 4 才做材质/纹理 cook。
 - **cooked 产物不入 git**：可由 cooker 重新生成且体积大；`.gitignore` 现有 `_content/*` 规则已覆盖，无需例外。
 

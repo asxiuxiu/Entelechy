@@ -79,7 +79,7 @@ int main() {
     // allocator (DefaultAllocator / mimalloc). Mixing std::make_unique (global
     // new) with DefaultAllocator::free causes a crash on shutdown.
     app.emplacePlugin<game::GamePlugin>();
-    // Mint the demo asset handles before setup() spawns the cube grid.
+    // Mint the asset handles before setup() spawns the cooked scene.
     game::initRenderAssets();
     app.build();
     app.setup();
@@ -223,6 +223,11 @@ int main() {
             fps = static_cast<float>(frameCount);
             fpsTimer = 0.0f;
             frameCount = 0;
+            const auto& rstats = frameRunner.stats();
+            LOG_INFO(Entelechy::LogCategories::kEngine,
+                     "Frame stats: %.0f fps, draw_calls=%u, visible=%u, culled=%u, total=%u",
+                     static_cast<double>(fps), rstats.draw_calls, rstats.visible, rstats.culled,
+                     rstats.total_renderables);
         }
     }
 

@@ -13,7 +13,7 @@
 | `game_runtime.cpp` | 运行时初始化实现；目前为桩 |
 | `game_plugin.h/.cpp` | `GamePlugin`：游戏层 Plugin，注册演示系统（Movement/FlyCamera/TransformPropagation/EventCleanup）并生成演示场景（飞行相机 + 立方体阵列 + 贴图地面 + 缩放柱子） |
 | `fly_camera_system.h/.cpp` | `FlyCameraSystem` + `FlyCameraTag`：自由飞行相机（WASD + Q/E 升降 + Shift 加速 + 右键拖拽视角），经 `InputQueue` 单例维护 held-key 状态 |
-| `render_assets.h` | 演示资产基础设施 `RenderAssets`：VFS（双挂载点兼容项目根/build·bin·Debug 两种 cwd）+ `AssetServer` + `TextureAssetLoader` + 三类 `Assets<T>` 存储 + 缓存 Handle；`initRenderAssets()` 幂等构建程序化网格/材质并发起棋盘格贴图异步加载；main 将存储绑定到 Prepare 阶段（`bindAssets`），每帧 `processEvents()` 消费完成事件 |
+| `render_assets.h` | 演示资产基础设施 `RenderAssets`：VFS（双挂载点兼容项目根/build·bin·Debug 两种 cwd）+ `AssetServer` + `TextureAssetLoader`/`MeshAssetLoader`（`.emesh` 异步加载入口，阶段 3a 注册）+ 三类 `Assets<T>` 存储 + 缓存 Handle；`initRenderAssets()` 幂等构建程序化网格/材质并发起棋盘格贴图异步加载；main 将存储绑定到 Prepare 阶段（`bindAssets`），每帧 `processEvents()` 消费完成事件 |
 
 ## 重要入口
 - 改**游戏层初始化/关闭逻辑** → 动 `game_runtime.cpp`

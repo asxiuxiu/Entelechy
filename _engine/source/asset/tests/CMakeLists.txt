@@ -6,6 +6,7 @@ entelechy_module(
     SOURCES
         ${CMAKE_CURRENT_LIST_DIR}/test_asset.cpp
         ${CMAKE_CURRENT_LIST_DIR}/test_asset_types.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/test_mesh_asset_loader.cpp
     PUBLIC_DEPS
         AssetLib
         TestFrameworkLib

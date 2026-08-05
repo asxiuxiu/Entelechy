@@ -1,6 +1,7 @@
 #pragma once
 #include "asset/handle/asset_handle.h"
 #include "asset/loader/asset_server.h"
+#include "asset/loader/mesh_asset_loader.h"
 #include "asset/loader/texture_asset_loader.h"
 #include "asset/type/assets.h"
 #include "asset/type/material_asset.h"
@@ -32,6 +33,7 @@ struct RenderAssets
     Entelechy::VFS vfs;
     Entelechy::AssetServer asset_server{&vfs};
     Entelechy::TextureAssetLoader texture_loader;
+    Entelechy::MeshAssetLoader mesh_loader;
 
     Entelechy::Assets<Entelechy::MeshAsset> mesh_assets;
     Entelechy::Assets<Entelechy::MaterialAsset> material_assets;

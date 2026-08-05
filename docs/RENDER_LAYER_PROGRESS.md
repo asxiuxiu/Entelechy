@@ -256,6 +256,7 @@
 - `AssetServer`：单专用加载线程 + mutex 保护 pending task queue + completed callback queue、`loadSync`/`loadAsync`/`unload`/`reload`/`processEvents()`、`Handle<T>` 在分配时预留并在完成时填充 → `asset/public/loader/asset_server.h`、`asset/private/loader/asset_server.cpp`
 - `IAssetLoader<T>` 接口 → `asset/public/loader/asset_loader.h`
 - `TextureAssetLoader`：首个生产 loader，stb_image（Conan `stb/cci.20230920`）解码 → `TextureAsset`（RGBA8、左上原点）；失败返回空资产并记错误日志（2026-08-05，阶段 2b）→ `asset/public/loader/texture_asset_loader.h`、`asset/private/loader/texture_asset_loader.cpp`
+- `MeshAssetLoader` + `.emesh` 二进制格式（魔数 "EMSH" + 版本 + 顶点/索引计数 + AABB + 原始顶点/索引 blob，小端无压缩；`writeMeshFile()` writer 供 cook 工具与测试共用）（2026-08-05，阶段 3a）→ `asset/public/type/mesh_format.h`、`asset/public/loader/mesh_asset_loader.h`、`asset/private/loader/mesh_asset_loader.cpp`
 - VFS 存在（`vfs/public/vfs.h`、`mount_point.h`）——前置依赖满足
 - ThreadPool 存在（`thread_pool/public/thread_pool.h`）——前置依赖满足
 
@@ -469,7 +470,7 @@
 5.6  渲染队列与 DrawCall 组织 ⭐      ████████░░  80%  SortKey/Binned/Sorted/Queue 完整，Instancing 预留
 5.7  RenderGraph 与多 Pass 资源管理 ⭐ ░░░░░░░░░░   0%  完全未开始
 5.8  资源句柄与引用计数              █████████░  90%  asset 模块完整且已集成 Render 组件（2a），缺 OwnedHandle/延迟回收
-5.9  异步加载管线 ⭐                  ████░░░░░░  40%  简化单线程实现 + 首个生产 loader（stb_image 纹理，2b），无 IO pool/DAG/状态机
+5.9  异步加载管线 ⭐                  ████░░░░░░  40%  简化单线程实现 + 生产 loader×2（stb_image 纹理 2b、.emesh mesh 3a），无 IO pool/DAG/状态机
 5.10 资源热重载系统                   ░░░░░░░░░░   0%  完全未开始
 5.11 材质系统架构                     ███░░░░░░░  25%  仅 Phase 1 单层简化，无 TAI 三层
 5.12 着色器变体与编译缓存 ⭐          ██░░░░░░░░  20%  仅内存级同步 ShaderCache

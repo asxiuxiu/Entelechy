@@ -140,7 +140,7 @@
 - 双 World 模型：主 `World` + 独立 `RenderWorld`（含自己的 ECS `World`、`ExtractSchedule`、`MainWorldSync`、双缓冲帧 arena）→ `render_world/RenderWorld.h/.cpp`
 - `IExtractSystem` 接口 + 顺序 `ExtractSchedule`（单线程）→ `render_world/ExtractSchedule.h/.cpp`
 - 跨 World 实体映射：`MainWorldSync` 含双向 `main_to_render`/`render_to_main` HashMap → `private/extract/MainWorldSync.h`
-- `ExtractRenderablesSystem`：拷贝 `(MeshAssetRef, MaterialAssetRef, GlobalTransform, 可选 AABB)` → `(RenderMesh, RenderMaterial, RenderTransform)` → `private/extract/ExtractRenderablesSystem.cpp`
+- `ExtractRenderablesSystem`：拷贝 `(MeshAssetRef, MaterialAssetRef, GlobalTransform, 可选 WorldAABB)` → `(RenderMesh, RenderMaterial, RenderTransform, 可选 RenderAABB)` → `private/extract/ExtractRenderablesSystem.cpp`
 - `ExtractCameraSystem`：拷贝第一个 `Camera` → `ExtractedView`，预绑定 view resources，使用 `IWindow` 获取 aspect/viewport → `private/extract/ExtractCameraSystem.cpp`
 - 组件：主 World `MeshAssetRef`/`MaterialAssetRef`/`Camera`；Render World `RenderMesh`/`RenderMaterial`/`RenderTransform`/`ExtractedView` → `public/components/`
 - `RenderFrameRunner`：生产级帧驱动层，每帧串联 Extract → Cull → Queue → Execute，并产出 `FrameStats` → `frame/RenderFrameRunner.h/.cpp`
@@ -259,7 +259,7 @@
 - `TextureAssetLoader`：首个生产 loader，stb_image（Conan `stb/cci.20230920`）解码 → `TextureAsset`（RGBA8、左上原点）；失败返回空资产并记错误日志（2026-08-05，阶段 2b）→ `asset/public/loader/texture_asset_loader.h`、`asset/private/loader/texture_asset_loader.cpp`
 - `MeshAssetLoader` + `.emesh` 二进制格式（魔数 "EMSH" + 版本 + 顶点/索引计数 + AABB + 原始顶点/索引 blob，小端无压缩；`writeMeshFile()` writer 供 cook 工具与测试共用）（2026-08-05，阶段 3a）→ `asset/public/type/mesh_format.h`、`asset/public/loader/mesh_asset_loader.h`、`asset/private/loader/mesh_asset_loader.cpp`
 - `MeshCooker`（glTF → `.emesh` 离线 cook 工具，cgltf/Conan 解析，accessor 解码交错化为 `MeshVertex`，node 树烘焙世界变换输出 `scene.json`；Sponza 实跑：405 primitive 全量 cook 零告警，cooked 产物不入 git）（2026-08-05，阶段 3b）→ `_engine/tools/mesh_cooker/`
-- `SceneLoader`（游戏侧）：VFS 读 `scene.json`（固定 schema 目的解析器，无 JSON 库）→ 每实体 `loadAsync` `.emesh` + spawn（烘焙 `GlobalTransform` + `MeshAssetRef` + 共享白模 `MaterialAssetRef` + 世界 AABB）；Sponza 实跑 405 实体全量异步加载落地、无 fallback 残留（2026-08-05，阶段 3c）→ `_game/source/runtime/public/scene_loader.h`、`private/scene_loader.cpp`
+- `SceneLoader`（游戏侧）：VFS 读 `scene.json`（core `JsonCursor` 固定 schema 解析，无 JSON 库）→ 每实体 `loadAsync` `.emesh` + spawn（烘焙 `GlobalTransform` + `MeshAssetRef` + 共享白模 `MaterialAssetRef` + `WorldAABB`）；Sponza 实跑 405 实体全量异步加载落地、无 fallback 残留（2026-08-05，阶段 3c）→ `_game/source/runtime/public/scene_loader.h`、`private/scene_loader.cpp`
 - VFS 存在（`vfs/public/vfs.h`、`mount_point.h`）——前置依赖满足
 - ThreadPool 存在（`thread_pool/public/thread_pool.h`）——前置依赖满足
 

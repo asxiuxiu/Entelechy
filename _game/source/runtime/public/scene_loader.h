@@ -24,7 +24,7 @@ struct SceneSpawnResult
 // kicks off one async .emesh load per entity and spawns one ECS entity
 // per manifest entry: GlobalTransform (baked world matrix, no local
 // Transform), MeshAssetRef, the shared white-model MaterialAssetRef and
-// a world-space AABB (local bounds x world matrix, for frustum culling).
+// a WorldAABB (local bounds x world matrix, for frustum culling).
 // Returns an empty result on failure (logged).
 SceneSpawnResult spawnCookedScene(Entelechy::World &world, RenderAssets &assets, const char *scenePath);
 

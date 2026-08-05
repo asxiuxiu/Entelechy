@@ -1,5 +1,6 @@
 #pragma once
 #include "core/math/vec.h"
+#include "core/math/mat4.h"
 #include <algorithm>
 
 namespace Entelechy
@@ -18,6 +19,19 @@ struct AABB
     [[nodiscard]] static AABB fromMinMax(const Vec3 &minimum, const Vec3 &maximum)
     {
         return {minimum, maximum};
+    }
+
+    // World-space box of this local box under m: the 8 transformed
+    // corners re-expanded into an axis-aligned box.
+    [[nodiscard]] AABB transformed(const Mat4 &m) const
+    {
+        AABB out = fromMinMax(m.transformPoint(min), m.transformPoint(min));
+        for (u32 i = 0; i < 8; ++i)
+        {
+            const Vec3 corner{(i & 1u) ? max.x : min.x, (i & 2u) ? max.y : min.y, (i & 4u) ? max.z : min.z};
+            out.expand(m.transformPoint(corner));
+        }
+        return out;
     }
 
     void expand(const Vec3 &point)

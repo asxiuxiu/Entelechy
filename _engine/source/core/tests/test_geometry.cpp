@@ -36,6 +36,25 @@ TEST(AABB, Expand)
     ASSERT_TRUE(Vec3Near(box.max, Vec3{2.0f, 1.0f, 1.0f}));
 }
 
+TEST(AABB, TransformedTranslation)
+{
+    AABB box = AABB::fromCenterExtent(Vec3{0.0f, 0.0f, 0.0f}, Vec3{1.0f, 2.0f, 3.0f});
+    AABB world = box.transformed(Mat4::fromTranslation(Vec3{10.0f, -5.0f, 2.0f}));
+    ASSERT_TRUE(Vec3Near(world.min, Vec3{9.0f, -7.0f, -1.0f}));
+    ASSERT_TRUE(Vec3Near(world.max, Vec3{11.0f, -3.0f, 5.0f}));
+}
+
+TEST(AABB, TransformedRotation)
+{
+    // 90 degrees about Z maps +X to +Y: extents (1,2,3) become (2,1,3)
+    // and the center (1,0,0) rotates to (0,1,0).
+    AABB box = AABB::fromCenterExtent(Vec3{1.0f, 0.0f, 0.0f}, Vec3{1.0f, 2.0f, 3.0f});
+    const Mat4 rot = Mat4::fromRotation(Quat::fromAxisAngle(Vec3{0.0f, 0.0f, 1.0f}, 3.14159265f / 2.0f));
+    AABB world = box.transformed(rot);
+    ASSERT_TRUE(Vec3Near(world.min, Vec3{-2.0f, 0.0f, -3.0f}));
+    ASSERT_TRUE(Vec3Near(world.max, Vec3{2.0f, 2.0f, 3.0f}));
+}
+
 TEST(Ray, IntersectAABBHit)
 {
     Ray ray{Vec3{0.0f, 0.0f, 0.0f}, Vec3{1.0f, 0.0f, 0.0f}.normalized()};

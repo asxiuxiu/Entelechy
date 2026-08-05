@@ -1,5 +1,6 @@
 #pragma once
 #include "core/foundation_types.h"
+#include "core/math/aabb.h"
 #include "core/math/mat4.h"
 #include "asset/handle/asset_handle.h"
 #include "asset/type/material_asset.h"
@@ -28,6 +29,13 @@ struct RenderMaterial
 struct RenderTransform
 {
     Mat4 world_matrix;
+};
+
+// RenderAABB — render-world counterpart of WorldAABB (world-space bounds).
+// Copied during Extract; entities without it are always visible.
+struct RenderAABB
+{
+    AABB box;
 };
 
 } // namespace Entelechy

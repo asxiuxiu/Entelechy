@@ -1,7 +1,6 @@
 #include "render_system/culling/FrustumCullSystem.h"
 #include "render_system/components/RenderCamera.h"
 #include "render_system/components/RenderComponents.h"
-#include "core/math/aabb.h"
 #include "render_system/culling/ViewVisibleList.h"
 #include "ecs/component/component_array.h"
 #include "ecs/query/query.h"
@@ -20,10 +19,10 @@ constexpr usize kParallelThreshold = 256;
 
 bool isEntityVisible(const World &world, Entity entity, const ExtractedView &view)
 {
-    const AABB *aabb = world.getComponent<AABB>(entity);
+    const RenderAABB *aabb = world.getComponent<RenderAABB>(entity);
     if (aabb)
     {
-        return view.frustum.intersectsAABB(*aabb);
+        return view.frustum.intersectsAABB(aabb->box);
     }
     return true;
 }

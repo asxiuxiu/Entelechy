@@ -11,9 +11,7 @@
 #include "core/math/frustum.h"
 #include "core/math/mat4.h"
 #include "core/math/vec.h"
-#include "core/string/string_id.h"
 #include "ecs/query/query.h"
-#include "ecs/type/type_registry.h"
 
 using namespace Entelechy;
 
@@ -51,14 +49,6 @@ void setupBoxFrustum(ExtractedView &view)
     view.frustum.planes[Frustum::Far] = Vec4{0.0f, 0.0f, -1.0f, 100.0f};
 }
 
-void registerAABBComponent()
-{
-    TypeRegistry &registry = TypeRegistry::instance();
-    ComponentTypeID id = registry.getOrAllocateTypeID<AABB>();
-    u64 mask = 1ull << id;
-    registry.registerComponent(id, mask, makeComponentDesc<AABB>("AABB"_sid, {}));
-}
-
 Entity findViewEntity(World &world)
 {
     Query<ExtractedView> q(world);
@@ -77,7 +67,7 @@ void populateRenderables(World &world, usize count)
         Entity e = world.spawn();
         f32 x = static_cast<f32>(i) * 0.01f - 5.0f;
         world.addComponent(e, RenderTransform{Mat4::fromTranslation(Vec3{x, 0.0f, 10.0f})});
-        world.addComponent(e, AABB::fromCenterExtent(Vec3{x, 0.0f, 10.0f}, Vec3{0.05f, 0.05f, 0.05f}));
+        world.addComponent(e, RenderAABB{AABB::fromCenterExtent(Vec3{x, 0.0f, 10.0f}, Vec3{0.05f, 0.05f, 0.05f})});
 
         RenderPhase phase = (i % 2 == 0) ? RenderPhase::Opaque3D : RenderPhase::Transparent3D;
         world.addComponent(e, RenderMaterial{Handle<MaterialAsset>{static_cast<u32>(i % 8), 0u}, phase});
@@ -108,7 +98,6 @@ TEST(RenderParallel, CullingSerialMatchesParallel)
     ASSERT_TRUE(viewEntity.valid());
     setupBoxFrustum(*world.getComponent<ExtractedView>(viewEntity));
 
-    registerAABBComponent();
     populateRenderables(world, 1024);
 
     FrustumCullSystem serial;
@@ -155,7 +144,6 @@ TEST(RenderParallel, QueueDrawsSerialMatchesParallel)
     setupBoxFrustum(*serialRender.getComponent<ExtractedView>(serialView));
     setupBoxFrustum(*parallelRender.getComponent<ExtractedView>(parallelView));
 
-    registerAABBComponent();
     populateRenderables(serialRender, 1024);
     populateRenderables(parallelRender, 1024);
 

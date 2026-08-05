@@ -58,11 +58,12 @@
 - [x] Render / RHI | `QueueDrawsSystem`（`render/queue/QueueDrawsSystem.cpp:48`）SortKey 的 float→uint 编码未处理 viewZ ≤ 0，IEEE-754 负数 bit pattern 按 uint 排序与数值排序不一致，若物体在相机后方或近平面处深度键会混乱，需将 viewZ 钳制到 `[near, far]` 后规范化到 `[0, 1]` 再编码为 uint（如 `uint32_t(depth * 0xFFFFFFFF)`），保证全范围单调。
   - 完成：2026-06-12，`ExtractedView` 增加 `near_plane` / `far_plane`；`QueueDrawsSystem` 改用 `encodeLinearDepth` 将 viewZ 规范化到 `[0, 1]` 后编码为单调 uint；透明/UI 仍通过按位取反实现远→近排序。新增 `SortKeyDepthEncoding` 单元测试覆盖负深度钳制、近平面/远平面边界、单调性与透明降序。
 - [ ] Render / RHI | `FrustumCullSystem` 和 `QueueDrawsSystem` 由调用方手动按顺序调用，无内建依赖声明，未来渲染步骤增多后容易顺序出错，需仿照 `ExtractSchedule` 引入 `RenderSchedule`（`IRenderSystem` 接口 + 注册表），在 `RenderWorld` 中统一定义 Extract → Cull → Queue → ... 的 SystemSet 链。
-- [ ] Render / RHI | `AABB`（`core/math/aabb.h`）未注册为 ECS 组件，`render/tests/test_render_parallel.cpp` 为构造测试场景只能手动调用 `TypeRegistry::registerComponent`。需按模块边界规则在 `render/components/` 下新增 `WorldAABB` / `RenderAABB` 包装组件并注册 `REFLECT_COMPONENT`，`FrustumCullSystem` 应读取该包装组件而非直接使用 `AABB`。
+- [x] Render / RHI | `AABB`（`core/math/aabb.h`）未注册为 ECS 组件，`render/tests/test_render_parallel.cpp` 为构造测试场景只能手动调用 `TypeRegistry::registerComponent`。需按模块边界规则在 `render/components/` 下新增 `WorldAABB` / `RenderAABB` 包装组件并注册 `REFLECT_COMPONENT`，`FrustumCullSystem` 应读取该包装组件而非直接使用 `AABB`。
+  - 完成：2026-08-05，新增 `render_system/public/components/WorldAabb.h`（主世界 `WorldAABB`）与 `RenderComponents.h` 内 `RenderAABB`（渲染世界），均在 `component_registration.cpp` 注册；`ExtractRenderablesSystem` 搬运 `WorldAABB`→`RenderAABB`，`FrustumCullSystem` 改读 `RenderAABB`；游戏侧 `registerAabbComponent()` 补丁与测试侧手动注册均已删除。
 - [ ] Render / RHI | `FrustumCullSystem` / `QueueDrawsSystem` 的并行路径目前依赖调用方传入 `ThreadPool*` 并自行按 batch 拆分/等待，与 `ThreadPool::parallelFor` 不兼容且重复了任务分发样板代码。未来应在 `ThreadPool` 中增加 `parallelForRanges` 或 `parallelBatch` 工具，或让 ECS Scheduler 的 System 级并行调度接管这些系统。
 - [ ] Render / RHI | Culling 与 Queue 系统仅处理第一个 `ExtractedView`。`ViewVisibleList`、`ViewBinnedPhases`、`ViewSortedPhases` 已绑定到 view 实体（单视图完成）；多视图扩展时需遍历所有含 `ExtractedView` 的实体，为每个 view 生成独立的可见列表和 phase 容器。
 - [ ] Render / RHI | `PhaseItem::instance_count`（`render/queue/PhaseItem.h`、`render/queue/QueueDrawsSystem.cpp`）字段已预留为 1 但未实现 instancing 合并，`QueueDrawsSystem` 未检测同 material + 同 mesh 的连续实体，需在 `BinnedRenderPhase::addItem` 中检测并合并为同一 `PhaseItem` 且累加 `instance_count`，并配合 Prepare 步骤生成 instance buffer。
-- [ ] Render / RHI | `ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:23`）每帧对静态 AABB 全量拷贝，大多数模型的本地 AABB 是静态的但每帧都通过 `mainWorld.getComponent<AABB>(entity)` 提取到 render world，需在 `MainWorldSync` 中记录「上一帧是否有 AABB」或引入脏标记机制，仅当 AABB 组件被修改时才重新提取。
+- [ ] Render / RHI | `ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:23`）每帧对静态包围盒全量拷贝，大多数模型的本地 AABB 是静态的但每帧都通过 `mainWorld.getComponent<WorldAABB>(entity)` 提取到 render world，需在 `MainWorldSync` 中记录「上一帧是否有 AABB」或引入脏标记机制，仅当 AABB 组件被修改时才重新提取。
 - [ ] Render / RHI | `IRHICommandList::setUniform*` 仍为 OpenGL immediate mode（`glUniform*`），虽已引入 Uniform Location 缓存消除字符串查询，但每 Draw Call 仍单独调用驱动，无法合批。未来应迁移到 UBO / PushConstants / Bindless。
 - [ ] Render / RHI | `RenderExecuteSystem`（`render_system/private/execute/RenderExecuteSystem.cpp`）自持第二个 `GLRHIDevice` + `ShaderCache`（与 `render/example/simple_cube_renderer.h` 同款债务，同源），两个设备实例并存于主循环，需统一为由帧驱动层注入或 ECS Resource 化的单一设备。
 - [ ] Render / RHI | 阶段1 网格/材质由 `launch/templates/main.cpp.in` 手工注册（2c 已移除）：~~asset → GPU 资源解析散落在主循环~~ 已由 2c `PrepareAssetsSystem` 接管（`render_system/prepare/`）。残留简化：Prepare 不主动发起 `loadAsync`（Handle 无路径，加载由游戏侧发起），且每帧全量扫描 RenderMesh/RenderMaterial 组件（无 `Changed<T>` 增量），实体规模上量后需增量化。
@@ -170,7 +171,8 @@
   - 涉及文件：`_engine/source/bridge/CMakeLists.txt`、`bridge/private/agent_bridge.cpp`、`bridge/private/tool_registry.cpp`。
 
 - [ ] Module / 模块架构 | 当前 VS 解决方案已通过 `FOLDER` 属性按源码树分组（`Engine\core`、`Engine\ecs`、…、`Game\runtime`、`Launcher`、`Tests`），新增模块会自动按路径进入对应文件夹。未来若引入 `Plugins/` 或 `Tools/` 顶层目录，需扩展 `cmake/EntelechyModule.cmake` 中的 folder 映射规则。
-- [ ] Module / 模块架构 | `math/aabb.h:42` 注册了 ECS 组件 `REFLECT_COMPONENT(AABB)`，迫使 `math` 模块依赖 `core/type_registry.h`，破坏底层纯净性，需在 `render/components/` 下新建 `WorldAabb.h`（主世界）与 `RenderAabb.h`（渲染世界）作为专用 ECS 组件，`math/aabb.h` 移除 `type_registry.h` 依赖，恢复零依赖。
+- [x] Module / 模块架构 | `math/aabb.h:42` 注册了 ECS 组件 `REFLECT_COMPONENT(AABB)`，迫使 `math` 模块依赖 `core/type_registry.h`，破坏底层纯净性，需在 `render/components/` 下新建 `WorldAabb.h`（主世界）与 `RenderAabb.h`（渲染世界）作为专用 ECS 组件，`math/aabb.h` 移除 `type_registry.h` 依赖，恢复零依赖。
+  - 完成：2026-08-05。`type_registry.h` 依赖此前已移除（见上方已修复条目）；本次补齐专用组件：`render_system/public/components/WorldAabb.h`（`WorldAABB`）+ `RenderComponents.h` 内 `RenderAABB`。`RenderAABB` 直接并入 `RenderComponents.h` 而非独立 `RenderAabb.h`，与 `RenderMesh`/`RenderTransform` 同处。
 
 ## Core Runtime / 阶段 4 差距（尚未实施）
 > 以下项来自 SelfGameEngine 第四阶段知识库的「默认推荐」路径，当前代码已实现骨架但关键特性缺失。
@@ -227,8 +229,11 @@
 
 - [ ] Runtime / 游戏运行时 | `_game/source/runtime/private/game_runtime.cpp` `main.cpp` 由 `launch/generator.py` 构建时生成，主循环逻辑散落在模板中，未来 Runtime 应接管更多主循环逻辑。
 - [ ] Runtime / 游戏运行时 | `_game/source/runtime/public/render_assets.h` 的 `renderAssets()` 使用函数内 static 全局存储持有 VFS + `AssetServer` + 三类 `Assets<T>` 与缓存 Handle（2c 后规模进一步增大），根因是 ECS 无 Resource 概念（见 ECS 条目）。待 ECS Resource 基础设施就绪后，资产存储应注册为 World 级全局数据，此静态层整体移除。
-- [ ] Runtime / 游戏运行时 | `_game/source/runtime/private/scene_loader.cpp` 的 `ManifestCursor` 是工程内第三个手写 JSON 片段解析器（`ecs/private/prefab/scene_serializer.cpp` 的 static `JsonCursor`、`bridge` 的字符串查找之后），仅支持 `scene.json` 固定 schema；清单格式若继续演化（嵌套/可选字段），应抽一个公共极简 JSON 解析器到 core 供复用。
+- [x] Runtime / 游戏运行时 | `_game/source/runtime/private/scene_loader.cpp` 的 `ManifestCursor` 是工程内第三个手写 JSON 片段解析器（`ecs/private/prefab/scene_serializer.cpp` 的 static `JsonCursor`、`bridge` 的字符串查找之后），仅支持 `scene.json` 固定 schema；清单格式若继续演化（嵌套/可选字段），应抽一个公共极简 JSON 解析器到 core 供复用。
+  - 完成：2026-08-05，提取 `core/public/json/json_cursor.h`（`JsonCursor`，两份私有实现的并集），`scene_serializer.cpp` 与 `scene_loader.cpp` 均已迁移；新增 `core/tests/test_json_cursor.cpp` 9 个用例。`bridge` 的字符串查找解析仍是独立问题（见 Bridge 条目）。
 - [ ] Runtime / 游戏运行时 | 引擎无帧读回/截图机制，渲染验收只能靠日志佐证（阶段 3c 的 Sponza 几何完整性即未截图确认）；需在 RHI/窗口层补 readback + 截图键（或离屏 capture 工具）。
+- [ ] Runtime / 游戏运行时 | `_game/source/runtime/private/scene_loader.cpp` 的 `spawnCookedScene` 是引擎工具 `mesh_cooker` 产物（引擎自有格式）的唯一消费者，格式归引擎、解析归游戏层不对称，第二个游戏需原样重写；阶段 4 补材质引用时随场景加载入口一并迁入引擎（`asset/` 或独立 scene 模块），游戏侧只传场景路径（2026-08-05 分层审视结论）。
+- [ ] Runtime / 游戏运行时 | `_game/source/runtime/public/render_assets.h` 中 VFS 双挂载（含 cwd 兼容）、`AssetServer` + 标准 loader 注册、三类 `Assets<T>` 存储与每帧 `processEvents()`（`launch/templates/main.cpp.in`）是任何游戏都要原样搭建的资产子系统装配；与 RENDER_LAYER_PROGRESS 5.8/5.9 资产系统升级重叠，届时由引擎提供资产子系统引导（挂载约定、loader 注册、事件泵），游戏层只声明内容目录与资产（2026-08-05 分层审视结论）。
 
 ## Core / 基础库扩展缺口
 

@@ -7,7 +7,7 @@ namespace Entelechy
 class ThreadPool;
 
 // FrustumCullSystem — per-entity frustum culling against the ExtractedView.
-// Entities without an AABB are always visible (e.g. skyboxes).
+// Entities without a RenderAABB are always visible (e.g. skyboxes).
 //
 // Phase 1: single-threaded fallback for small scenes.
 // Phase 2: when a ThreadPool is supplied and the entity count exceeds a

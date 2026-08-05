@@ -12,6 +12,7 @@
 #include "render_system/components/MeshAssetRef.h"
 #include "render_system/components/RenderCamera.h"
 #include "render_system/components/RenderComponents.h"
+#include "render_system/components/WorldAabb.h"
 #include "render_system/culling/ViewVisibleList.h"
 #include "render_system/phase/RenderResources.h"
 #include "ecs/type/type_registry.h"
@@ -34,6 +35,11 @@ REFLECT_COMPONENT(MeshAssetRef)
 
 REFLECT_COMPONENT(MaterialAssetRef)
 
+// NOTE: registered without fields — REG_FIELD only addresses flat
+// members, so the nested AABB (and its Vec3s) cannot be decomposed by
+// the current reflection macros.
+REFLECT_COMPONENT(WorldAABB)
+
 // -- render-world components (spawned/extracted by systems) --
 
 REFLECT_COMPONENT(RenderMesh)
@@ -41,6 +47,8 @@ REFLECT_COMPONENT(RenderMesh)
 REFLECT_COMPONENT(RenderMaterial, REG_FIELD(RenderMaterial, render_phase, RenderPhase))
 
 REFLECT_COMPONENT(RenderTransform, REG_FIELD(RenderTransform, world_matrix, Mat4))
+
+REFLECT_COMPONENT(RenderAABB)
 
 REFLECT_COMPONENT(ExtractedView, REG_FIELD(ExtractedView, view_matrix, Mat4),
                   REG_FIELD(ExtractedView, proj_matrix, Mat4), REG_FIELD(ExtractedView, frustum, Frustum),

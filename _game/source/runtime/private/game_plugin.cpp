@@ -4,30 +4,11 @@
 #include "ecs/world/world.h"
 #include "ecs/query/query.h"
 #include "ecs/type/type_registry.h"
-#include "core/math/aabb.h"
 #include "core/string/string_intern_pool.h"
 #include "render_system/components/Camera.h"
 
 namespace game
 {
-
-namespace
-{
-
-// AABB is not registered as an ECS component by the engine (tracked in
-// TODO.md as a future WorldAABB wrapper component). Register it here so the
-// cooked scene entities can carry world-space bounds for frustum culling.
-void registerAabbComponent()
-{
-    using namespace Entelechy;
-    TypeRegistry &registry = TypeRegistry::instance();
-    if (registry.getTypeID<AABB>() != INVALID_COMPONENT_TYPE_ID)
-        return;
-    ComponentTypeID id = registry.getOrAllocateTypeID<AABB>();
-    registry.registerComponent(id, 1ull << id, makeComponentDesc<AABB>("AABB"_sid, {}));
-}
-
-} // namespace
 
 void GamePlugin::build(Entelechy::App &app)
 {
@@ -67,7 +48,6 @@ void GamePlugin::setup(Entelechy::App &app)
     using namespace Entelechy;
     World &world = app.world();
 
-    registerAabbComponent();
     initRenderAssets();
 
     // -- Free-fly camera ---------------------------------------------------

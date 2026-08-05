@@ -13,6 +13,7 @@ entelechy_module(
         ${CMAKE_CURRENT_LIST_DIR}/test_misc.cpp
         ${CMAKE_CURRENT_LIST_DIR}/test_radix_sort.cpp
         ${CMAKE_CURRENT_LIST_DIR}/test_containers.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/test_json_cursor.cpp
     PUBLIC_DEPS
         CoreLib
         TestFrameworkLib

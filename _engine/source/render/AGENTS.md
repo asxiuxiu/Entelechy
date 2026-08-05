@@ -23,10 +23,11 @@
 | `material.h` / `.cpp` | **材质系统核心**：Shader 引用 + CPU uniform 块 + 参数按名设置 + PSO 绑定 |
 | `simple_cube_renderer.cpp` | 最小可行立方体渲染器：通过 `Material` + `GLRHIDevice` 绘制（批次 B 验证用）。**保留在仓库，但 2026-08-04 起主循环已改用 RenderFrameRunner，不再被 main 使用** |
 | `simple_cube_renderer.h` | `SimpleCubeRenderer` 类声明 |
-| `components/MeshAssetRef.h` | 主 World 组件：`MeshAssetRef`（mesh asset ID，轻量标识符，非 `Handle<T>`） |
-| `components/MaterialAssetRef.h` | 主 World 组件：`MaterialAssetRef`（material asset ID，轻量标识符，非 `Handle<T>`） |
+| `components/MeshAssetRef.h` | 主 World 组件：`MeshAssetRef`（`Handle<MeshAsset>`） |
+| `components/MaterialAssetRef.h` | 主 World 组件：`MaterialAssetRef`（`Handle<MaterialAsset>`） |
 | `components/Camera.h` | 主 World 组件：`Camera`（fov/near/far/ortho 参数） |
-| `components/RenderComponents.h` | Render World 组件：`RenderMesh`, `RenderMaterial`, `RenderTransform` |
+| `components/WorldAabb.h` | 主 World 组件：`WorldAABB`（世界空间包围盒，剔除用；包装 core `AABB`，保持数学库零 ECS 依赖） |
+| `components/RenderComponents.h` | Render World 组件：`RenderMesh`, `RenderMaterial`, `RenderTransform`, `RenderAABB` |
 | `components/RenderCamera.h` | Render World 组件：`ExtractedView`（view/proj/frustum/viewport）+ `Rect` |
 | `RenderPhase.h` | 渲染阶段枚举：`ShadowMap`, `Opaque3D`, `AlphaMask`, `Transparent3D`, `UI` |
 | `extract/MainWorldSync.h` | 主世界 ↔ 渲染世界实体双向映射表 |
@@ -34,7 +35,7 @@
 | `render_world/ExtractSchedule.h/cpp` | Extract 阶段调度器：`IExtractSystem` 注册与顺序执行 |
 | `extract/ExtractRenderablesSystem.h/cpp` | 搬运 `(MeshAssetRef, MaterialAssetRef, GlobalTransform)` → Render World |
 | `extract/ExtractCameraSystem.h/cpp` | 搬运 `(Camera, GlobalTransform)` → `ExtractedView` |
-| `culling/FrustumCullSystem.h/cpp` | 逐实体视锥剔除：`ExtractedView.frustum` vs `AABB`；无 AABB 则始终可见。**当实体数 > 256 且传入 `ThreadPool*` 时自动并行化** |
+| `culling/FrustumCullSystem.h/cpp` | 逐实体视锥剔除：`ExtractedView.frustum` vs `RenderAABB`；无 `RenderAABB` 则始终可见。**当实体数 > 256 且传入 `ThreadPool*` 时自动并行化** |
 | `culling/ViewVisibleList.h` | Culling 阶段显式产出：可见实体列表 |
 | `queue/PhaseItem.h` | 渲染阶段最小单元：`SortKey`（64-bit）+ `Entity` + `instance_count` |
 | `queue/BinnedRenderPhase.h/cpp` | Opaque/AlphaMask 分箱：按 `material_id` 聚类减少状态切换 |
@@ -57,7 +58,7 @@
 - 改**GPU 绘制消费端（Execute 阶段）** → 动 `execute/RenderExecuteSystem.h/cpp`
 - 改**Render World / Extract 流程** → 动 `render_world/RenderWorld.h/cpp` / `ExtractSchedule.h/cpp`
 - 改**Extract 系统逻辑** → 动 `extract/ExtractRenderablesSystem.h/cpp` / `ExtractCameraSystem.h/cpp`
-- 改**主世界渲染组件** → 动 `components/MeshAssetRef.h` / `MaterialAssetRef.h` / `Camera.h`
+- 改**主世界渲染组件** → 动 `components/MeshAssetRef.h` / `MaterialAssetRef.h` / `Camera.h` / `WorldAabb.h`
 - 改**渲染世界组件** → 动 `components/RenderComponents.h` / `RenderCamera.h`
 - 改**视锥剔除** → 动 `culling/FrustumCullSystem.h/cpp`
 - 改**Phase 队列** → 动 `queue/QueueDrawsSystem.h/cpp` / `BinnedRenderPhase.h/cpp` / `SortedRenderPhase.h/cpp`

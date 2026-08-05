@@ -5,6 +5,7 @@
 #include "ecs/type/atom_registry.h"
 #include "core/string/string_intern_pool.h"
 #include "core/allocator/allocator.h"
+#include "core/json/json_cursor.h"
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -168,126 +169,6 @@ static String serializeComponent(const ComponentDesc &desc, const void *componen
     out += "}";
     return out;
 }
-
-// ------------------------------------------------------------------
-// JSON reading helpers (minimal parser for our output format)
-// ------------------------------------------------------------------
-
-struct JsonCursor
-{
-    const char *s;
-    usize pos;
-    usize len;
-
-    void skipWs()
-    {
-        while (pos < len && (s[pos] == ' ' || s[pos] == '\t' || s[pos] == '\n' || s[pos] == '\r'))
-            ++pos;
-    }
-
-    bool consume(char c)
-    {
-        skipWs();
-        if (pos < len && s[pos] == c)
-        {
-            ++pos;
-            return true;
-        }
-        return false;
-    }
-
-    bool match(const char *key)
-    {
-        skipWs();
-        usize klen = std::strlen(key);
-        if (pos + klen > len)
-            return false;
-        if (std::strncmp(s + pos, key, klen) == 0)
-        {
-            pos += klen;
-            return true;
-        }
-        return false;
-    }
-
-    bool parseString(String &out)
-    {
-        skipWs();
-        if (pos >= len || s[pos] != '"')
-            return false;
-        ++pos;
-        usize start = pos;
-        while (pos < len && s[pos] != '"')
-        {
-            if (s[pos] == '\\' && pos + 1 < len)
-                pos += 2;
-            else
-                ++pos;
-        }
-        if (pos >= len)
-            return false;
-        out.assign(s + start, pos - start);
-        ++pos; // skip closing quote
-        return true;
-    }
-
-    bool parseFloat(f32 &out)
-    {
-        skipWs();
-        if (pos >= len)
-            return false;
-        char *end = nullptr;
-        out = std::strtof(s + pos, &end);
-        if (end == s + pos)
-            return false;
-        pos = end - s;
-        return true;
-    }
-
-    bool parseUint32(u32 &out)
-    {
-        skipWs();
-        if (pos >= len)
-            return false;
-        char *end = nullptr;
-        unsigned long v = std::strtoul(s + pos, &end, 10);
-        if (end == s + pos)
-            return false;
-        out = static_cast<u32>(v);
-        pos = end - s;
-        return true;
-    }
-
-    bool parseInt32(i32 &out)
-    {
-        skipWs();
-        if (pos >= len)
-            return false;
-        char *end = nullptr;
-        long v = std::strtol(s + pos, &end, 10);
-        if (end == s + pos)
-            return false;
-        out = static_cast<i32>(v);
-        pos = end - s;
-        return true;
-    }
-
-    bool parseBool(bool &out)
-    {
-        skipWs();
-        if (match("true"))
-        {
-            out = true;
-            return true;
-        }
-        if (match("false"))
-        {
-            out = false;
-            return true;
-        }
-        return false;
-    }
-};
 
 static bool deserializeComposite(const TypeDesc *typeDesc, void *ptr, JsonCursor &cur);
 

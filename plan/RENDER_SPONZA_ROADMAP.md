@@ -2,6 +2,7 @@
 
 > **生成日期**: 2026-08-04
 > **修订**: 2026-08-05 —— 目标资产从 `_content/Classic-Sponza/`（Unity HDRP 工程）更换为 `_content/sponza/`（Intel NewSponza，glTF 2.0）。阶段 3/4 的导入链路相应重写：Unity YAML / .mat / PSD-TIF 转换全部不再需要。
+> **修订**: 2026-08-05（二）—— `_game` 层分层审视：极简 JSON 解析器（`core/json/json_cursor.h` 的 `JsonCursor`）与 `AABB::transformed` 已提至 core，包围盒组件 `WorldAABB`/`RenderAABB` 已落户 `render_system`（游戏侧注册补丁拆除）；阶段 4 第 4 条相应改为「场景加载入口迁入引擎」。
 > **依据**: [docs/RENDER_LAYER_PROGRESS.md](../docs/RENDER_LAYER_PROGRESS.md)（四大集成断裂 + 各节缺失项）
 > **目标场景**: `_content/sponza/`（Intel NewSponza：`NewSponza_Main_glTF_003.gltf` + 140MB .bin + 137 张 PNG 纹理；glTF 2.0，115 meshes / 155 nodes / 28 materials，PBR metallic-roughness + normal map，顶点自带 TANGENT。附带的 929MB FBX 与 USD 变体均不使用）
 > **原则**: 每个阶段都有**窗口里可见的改进**；优先修复阻断"画出来"的断裂，架构级升级（RenderGraph、延迟命令缓冲等）推迟到画面已成立之后。
@@ -104,7 +105,7 @@
 1. **场景还原来源切换**：原计划解析 `Sponza.unity`（Unity YAML + prefab 嵌套，原最大风险点）**整体取消**。glTF 的 node 树就是场景：cook 时导出场景 JSON（实体列表 = {cooked mesh/primitive 引用, world transform, 材质引用}），或阶段 3 已直接 spawn 的话本阶段只需补材质引用。
 2. **材质转换**：glTF `pbrMetallicRoughness` → 引擎材质 JSON：baseColorTexture（PNG 路径）、normalTexture、metallicRoughnessTexture（G=roughness、B=metallic 的打包约定需在着色器侧对应解包）、baseColorFactor/metallicFactor/roughnessFactor。28 个材质的映射规则写死在转换器里即可，不做通用系统。
 3. **材质贴图进 Prepare**：`MaterialAsset` 增加纹理 `Handle<TextureAsset>`，Prepare 阶段绑定贴图；阶段 2 的 fallback 机制覆盖加载中状态。
-4. **场景加载入口**：游戏侧（`_game/source/runtime/`）新增场景加载：读 JSON → 批量 `loadAsync` → spawn 实体。
+4. **场景加载入口迁入引擎**：阶段 3c 已在游戏侧落地最小形态（`_game/source/runtime/scene_loader.cpp` 的 `spawnCookedScene`），但 2026-08-05 分层审视确认其归属引擎——`scene.json` 是引擎工具 `mesh_cooker` 的自有格式，格式归引擎、解析归游戏层不对称，第二个游戏需原样重写（已记 TODO.md）。本阶段补材质引用时顺势把 loader 迁入引擎（`asset/` 或独立 scene 模块），游戏侧只传场景路径；cooker 的 `scene.json` 同步补材质字段。现有基础设施可直接复用：解析用 core `JsonCursor`（`core/json/json_cursor.h`，3c 后已共享），包围盒组件用引擎侧 `WorldAABB`/`RenderAABB`（游戏侧注册补丁已拆除）。
 
 **验证**：Debug 构建；与资产包内官方渲染图（`_content/sponza/Render_Main_*.png`）对比布局一致；纹理无错位（glTF UV 原点在左上，贴图采样时 V 翻转问题在此阶段暴露并修复）；全部纹理加载完成后无 fallback 残留。
 

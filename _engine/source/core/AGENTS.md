@@ -25,6 +25,7 @@
 | `ring_buffer.h` | `RingBuffer<T,SIZE>` SPSC 无锁环形队列 |
 | `fixed_ring_queue.h` | `FixedRingQueue<T,Capacity>` 固定容量环形队列 |
 | `path.h` | 路径工具函数 |
+| `json/json_cursor.h` | `JsonCursor` 极简前向 JSON 游标（读自有固定 schema 输出，非校验 parser），供 SceneSerializer、cooked scene 清单等复用 |
 
 ### 内存分配
 
@@ -45,7 +46,7 @@
 | `math/vec.h` | 向量（Vec2 / Vec3 / Vec4） |
 | `math/mat4.h` | 4×4 列主序矩阵及运算 |
 | `math/quat.h` | 四元数及旋转相关运算 |
-| `math/aabb.h` | 轴对齐包围盒（AABB） |
+| `math/aabb.h` | 轴对齐包围盒（AABB），含 `transformed(Mat4)` 8 角点世界盒变换 |
 | `math/ray.h` | 射线（Ray），含 `intersectAABB` |
 | `math/frustum.h` | 视锥体（Frustum） |
 | `math/random.h` | 确定性随机数生成器 `RandomXORShift32` |

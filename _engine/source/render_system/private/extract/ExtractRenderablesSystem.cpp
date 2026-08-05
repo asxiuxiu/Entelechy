@@ -1,8 +1,8 @@
 #include "render_system/extract/ExtractRenderablesSystem.h"
 #include "render_system/components/MeshAssetRef.h"
 #include "render_system/components/MaterialAssetRef.h"
+#include "render_system/components/WorldAabb.h"
 #include "ecs/component/transform_component.h"
-#include "core/math/aabb.h"
 #include "render_system/components/RenderComponents.h"
 #include "ecs/query/query.h"
 
@@ -23,11 +23,12 @@ void ExtractRenderablesSystem::extract(const World &mainWorld, World &renderWorl
         renderWorld.addComponent(renderEntity, RenderMaterial{material->asset_id});
         renderWorld.addComponent(renderEntity, RenderTransform{transform->matrix});
 
-        // Optional: copy AABB if present. Entities without AABB are always visible.
-        const AABB *aabb = mainWorld.getComponent<AABB>(entity);
+        // Optional: copy world bounds if present. Entities without a
+        // RenderAABB are always visible.
+        const WorldAABB *aabb = mainWorld.getComponent<WorldAABB>(entity);
         if (aabb)
         {
-            renderWorld.addComponent(renderEntity, *aabb);
+            renderWorld.addComponent(renderEntity, RenderAABB{aabb->box});
         }
 
         m_sync.map(entity, renderEntity);

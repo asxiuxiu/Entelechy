@@ -18,7 +18,9 @@
 
 ---
 
-## 2a —— Handle 集成（断裂 #1）
+## 2a —— Handle 集成（断裂 #1）✅ 已完成（2026-08-05，commit `866c7c8`）
+
+> **落地情况**：21 文件 +254/-65，EntelechyTests 169/169 绿，lint 干净，demo 画面用户已确认无回归。D1 反射按预案放弃（记入 TODO.md），D2/D3 按计划落地。
 
 **目标**：`MeshAssetRef`/`MaterialAssetRef`/`RenderMesh`/`RenderMaterial` 的裸 `u32 asset_id` 全部替换为 `Handle<MeshAsset>`/`Handle<MaterialAsset>`；不引入 Prepare，不改加载行为，纯类型迁移。
 
@@ -50,7 +52,11 @@
 
 ---
 
-## 2b —— 资产类型 + Loader
+## 2b —— 资产类型 + Loader ✅ 已完成（2026-08-05）
+
+> **落地情况**：EntelechyTests 175/175 绿（新增 6 个：MeshAsset AABB/空网格/顶点步长、PNG 解码、垃圾数据/无效 FileData 拒绝路径）。
+> **偏差**：① 计划的 `stb/cci.20230909` 在 ConanCenter 不存在，实际用 `stb/cci.20230920`；② core 无 `Vec4` 类型，`MeshVertex` 切线拆为 `Vec3 tangent + f32 tangentW`（布局仍 12 floats，与 glTF TANGENT 对齐）；③ 标量别名（u8/f32/usize）在全局命名空间而非 `Entelechy::`，首次构建踩坑后修正。
+> **新债务**（已记 TODO.md）：`AssetLoadState` 状态机仍无使用方，loader 失败无法与「未加载」区分；`STB_IMAGE_IMPLEMENTATION` 集中于 AssetLib 私有 TU，后续其他模块需用 stb 时应抽公共包装。
 
 **目标**：填充 `MeshAsset`（CPU 侧顶点/索引 + AABB）与 `TextureAsset`（像素数据 + 尺寸/格式），实现对应 `IAssetLoader<T>`；纹理解码引入 stb_image。
 

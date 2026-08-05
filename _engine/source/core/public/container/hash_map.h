@@ -106,6 +106,11 @@ public:
             }
             idx = (idx + 1) & (m_capacity - 1);
         }
+        // The slot is unoccupied but holds live default K/V (the table
+        // keeps every slot constructed); destroy the defaults before
+        // placement-constructing the real ones.
+        std::destroy_at(&m_entries[idx].key);
+        std::destroy_at(&m_entries[idx].value);
         std::construct_at(&m_entries[idx].key, key);
         std::construct_at(&m_entries[idx].value, value);
         m_entries[idx].hash = h;
@@ -130,6 +135,8 @@ public:
             }
             idx = (idx + 1) & (m_capacity - 1);
         }
+        std::destroy_at(&m_entries[idx].key);
+        std::destroy_at(&m_entries[idx].value);
         std::construct_at(&m_entries[idx].key, key);
         std::construct_at(&m_entries[idx].value, std::move(value));
         m_entries[idx].hash = h;
@@ -201,8 +208,16 @@ public:
             {
                 if (m_entries[i].occupied)
                 {
+                    // ~HashMap/grow/move-assign destroy EVERY slot exactly
+                    // once (the table keeps all slots constructed). Destroy
+                    // the contents, then re-construct defaults in place so
+                    // the slot stays destructible and is never torn down
+                    // twice (double-destruction of RAII values crashed on
+                    // shutdown, e.g. RHIRef releasing a freed GPU resource).
                     std::destroy_at(&m_entries[i].key);
                     std::destroy_at(&m_entries[i].value);
+                    std::construct_at(&m_entries[i].key);
+                    std::construct_at(&m_entries[i].value);
                     m_entries[i].occupied = false;
                 }
             }
@@ -354,6 +369,10 @@ private:
                     {
                         idx = (idx + 1) & (newCap - 1);
                     }
+                    // Same as insert: the target slot holds live defaults
+                    // that must be destroyed before placement construction.
+                    std::destroy_at(&m_entries[idx].key);
+                    std::destroy_at(&m_entries[idx].value);
                     std::construct_at(&m_entries[idx].key, std::move(oldEntries[i].key));
                     std::construct_at(&m_entries[idx].value, std::move(oldEntries[i].value));
                     m_entries[idx].hash = h;

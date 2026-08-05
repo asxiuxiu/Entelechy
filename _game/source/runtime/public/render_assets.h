@@ -68,9 +68,10 @@ inline void initRenderAssets()
     if (assets.cube_mesh.valid())
         return;
 
-    // Two roots for the same content dir: the exe is run both from the
-    // project root (CLI) and from build/bin/Debug (VS debugger default
-    // working directory); VFS tries every mount until one resolves.
+    // Three roots for the same content dir: the exe is run from the
+    // project root (CLI), from build/bin/Debug (VS debugger default
+    // working directory) and by double-clicking build/bin/Debug/*.exe
+    // (cwd = exe dir); VFS tries every mount until one resolves.
     // VFS owns the backends and frees them via DefaultAllocator::free, so
     // allocate the mount points with DefaultAllocator + construct_at.
     auto *contentMount = static_cast<Entelechy::FileSystemMountPoint *>(
@@ -84,6 +85,12 @@ inline void initRenderAssets()
                                            alignof(Entelechy::FileSystemMountPoint)));
     std::construct_at(contentMountVs, "../../_content");
     assets.vfs.mount("content_vs", contentMountVs);
+
+    auto *contentMountBin = static_cast<Entelechy::FileSystemMountPoint *>(
+        Entelechy::DefaultAllocator::alloc(sizeof(Entelechy::FileSystemMountPoint),
+                                           alignof(Entelechy::FileSystemMountPoint)));
+    std::construct_at(contentMountBin, "../../../_content");
+    assets.vfs.mount("content_bin", contentMountBin);
 
     // Procedural meshes (available immediately).
     assets.cube_mesh = assets.mesh_assets.insert(buildCubeMesh(0.5f));

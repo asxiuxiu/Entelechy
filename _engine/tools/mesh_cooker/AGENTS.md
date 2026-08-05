@@ -22,6 +22,8 @@ python scripts/build/build.py --debug
 # 默认输出 _content/sponza/cooked/（meshes/*.emesh + scene.json）
 ```
 
+> ⚠️ 不要双击 exe 运行：默认输入/输出均按 cwd 相对解析，双击会在 `build/bin/Debug/` 下误建 `_content/` 空目录并因找不到输入 glTF 而失败。如需在其他 cwd 运行，显式传 `[input.gltf] [output_dir]` 两个参数。
+
 退出码：0 = 全部成功；2 = 有 primitive 被跳过（详见 stderr 告警）；1 = 致命错误（解析/写盘失败）。
 
 ## 架构决策

@@ -52,8 +52,9 @@ const u32 CUBE_INDICES[36] = {
     0, 4, 7, 0, 7, 3,
     // right
     5, 1, 2, 5, 2, 6,
-    // top
-    3, 2, 6, 3, 6, 7,
+    // top (CCW seen from +Y; the previous 3,2,6 / 3,6,7 order wound
+    // clockwise and the top face was back-face culled from above)
+    3, 7, 6, 3, 6, 2,
     // bottom
     0, 1, 5, 0, 5, 4,
 };

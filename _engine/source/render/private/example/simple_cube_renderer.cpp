@@ -58,13 +58,13 @@ static const u32 s_cubeIndices[36] = {
     5,
     2,
     6,
-    // top
+    // top (CCW seen from +Y)
     3,
-    2,
-    6,
-    3,
-    6,
     7,
+    6,
+    3,
+    6,
+    2,
     // bottom
     0,
     1,

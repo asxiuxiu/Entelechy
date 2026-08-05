@@ -53,3 +53,6 @@ _content/
 .claude/skills
 
 __pycache__/
+.cache/
+imgui.ini
+_content/

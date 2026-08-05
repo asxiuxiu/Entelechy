@@ -46,7 +46,10 @@
 
 ---
 
-## 3b —— glTF cook 工具
+## 3b —— glTF cook 工具 ✅ 已完成（2026-08-05）
+
+> **落地情况**：`MeshCooker` 可执行落于 `_engine/tools/mesh_cooker/`（`entelechy_module(TYPE EXECUTABLE)`，链接 AssetLib 复用 `MeshVertex`/`MeshAsset`/`writeMeshFile()` + Conan `cgltf/1.13`）；根 `CMakeLists.txt` 的 launcher 自动链接循环新增 EXECUTABLE 类型跳过（工具 target 不可被链接）。accessor 经 `cgltf_accessor_read_float/read_index` 解码，sparse 告警跳过、缺属性填默认告警、无索引补顺序索引（Sponza 均未触发）；世界变换用 `cgltf_node_transform_world()`（列主序，与 `Mat4::m[16]` 一致）；材质字段写 glTF material name 占位。无偏差、无新债务。
+> **验收**：Debug 构建通过；EntelechyTests 186 全绿（基线不变，未新增测试）；lint 干净。cooker 实跑零错误零告警，统计对账：glTF 声明 115 meshes / 155 nodes / 28 materials；405 primitives 全部 cook 成功（405 个 `.emesh`，0 跳过）；`scene.json` 405 实体（本资产无 mesh 跨 node 实例化，实体数 = primitive 数）；抽查 3 个 `.emesh` 头部魔数/计数/长度正确、AABB 有限非零；`scene.json` 可被 JSON 解析、405 个实体均带非空材质名、引用的 mesh 文件全部存在。产物路径 `_content/sponza/cooked/`（meshes/*.emesh + scene.json）。**入库决定：不入 git**——产物可由 cooker 重新生成且体积大，`.gitignore` 现有 `_content/*` 规则已覆盖，无需改动。
 
 **目标**：`mesh_cooker` 可执行：cgltf 解析 `NewSponza_Main_glTF_003.gltf` → 每个唯一 primitive 输出一个 `.emesh`（accessor 解码 + 交错化为 `MeshVertex`）→ 遍历 node 树烘焙世界变换，输出 `scene.json`。产物落 `_content/sponza/cooked/`。
 

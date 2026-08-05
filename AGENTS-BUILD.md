@@ -51,6 +51,8 @@ python scripts/build/build.py --debug --build
 
 CMake 会自动发现并链接新模块。
 
+**工具模块（可执行 target）**：`entelechy_module(TYPE EXECUTABLE)` 注册的模块（如 `_engine/tools/mesh_cooker/`，target 名 `MeshCooker`）是独立可执行文件，根 `CMakeLists.txt` 的 launcher 自动链接循环会按 target 类型跳过 EXECUTABLE 模块，不会链进 `Entelechy.exe`。先例见 [mesh_cooker 模块](_engine/tools/mesh_cooker/AGENTS.md)。
+
 ---
 
 ## 构建入口

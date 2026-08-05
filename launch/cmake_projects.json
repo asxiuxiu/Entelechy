@@ -86,6 +86,11 @@
             "name": "test_runner",
             "path": "source/test_runner",
             "enabled": true
+        },
+        {
+            "name": "mesh_cooker",
+            "path": "tools/mesh_cooker",
+            "enabled": true
         }
     ]
 }

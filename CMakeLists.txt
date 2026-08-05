@@ -160,6 +160,12 @@ foreach(TARGET_NAME ${ALL_MODULES})
     if(TARGET_NAME MATCHES "Tests$")
         continue()
     endif()
+    # Tool modules are standalone executables (e.g. MeshCooker); they cannot
+    # be linked into the launcher, only library targets can.
+    get_target_property(_TARGET_TYPE ${TARGET_NAME} TYPE)
+    if(_TARGET_TYPE STREQUAL "EXECUTABLE")
+        continue()
+    endif()
     if(TARGET_NAME STREQUAL "${PROJECT_NAME}")
         continue()
     endif()

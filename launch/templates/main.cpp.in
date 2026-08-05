@@ -31,35 +31,6 @@
 #include "runtime/game_plugin.h"
 #include "runtime/render_assets.h"
 
-// ------------------------------------------------------------------
-// Demo mesh: unit cube (8 vertices, 36 indices). Registered manually
-// on the RenderExecuteSystem; replaced by the Prepare stage in Phase 2c.
-// ------------------------------------------------------------------
-namespace {
-
-const f32 CUBE_VERTICES[8 * 3] = {
-    -0.5f, -0.5f, -0.5f, 0.5f, -0.5f, -0.5f, 0.5f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f,
-    -0.5f, -0.5f, 0.5f,  0.5f, -0.5f, 0.5f,  0.5f, 0.5f, 0.5f,  -0.5f, 0.5f, 0.5f,
-};
-
-const u32 CUBE_INDICES[36] = {
-    // front
-    4, 5, 6, 4, 6, 7,
-    // back
-    1, 0, 3, 1, 3, 2,
-    // left
-    0, 4, 7, 0, 7, 3,
-    // right
-    5, 1, 2, 5, 2, 6,
-    // top (CCW seen from +Y; the previous 3,2,6 / 3,6,7 order wound
-    // clockwise and the top face was back-face culled from above)
-    3, 7, 6, 3, 6, 2,
-    // bottom
-    0, 1, 5, 0, 5, 4,
-};
-
-} // namespace
-
 int main() {
     LOG_INFO(Entelechy::LogCategories::kEngine, "=== Entelechy Game Engine ===");
     LOG_INFO(Entelechy::LogCategories::kEngine, "Solution: @SOLUTION_NAME@");
@@ -124,27 +95,13 @@ int main() {
         return -1;
     }
 
-    // Manual GPU resource registration keyed by the asset handles minted in
-    // initRenderAssets() (the same handles GamePlugin puts into
-    // MeshAssetRef/MaterialAssetRef components).
+    // Bind the game-side asset storages to the Prepare stage. GPU resources
+    // (meshes/materials/textures) are resolved from the extracted handles
+    // automatically each frame; assets still streaming in draw as the
+    // fallback cube / pink material.
     {
-        const game::RenderAssets& assets = game::renderAssets();
-
-        Entelechy::VertexAttributeDesc cubeAttr{};
-        cubeAttr.location = 0;
-        cubeAttr.components = 3;
-        cubeAttr.normalized = false;
-        cubeAttr.offset = 0;
-
-        if (!frameRunner.execute().registerMesh(assets.cube_mesh, CUBE_VERTICES, sizeof(CUBE_VERTICES),
-                                                3 * sizeof(f32), &cubeAttr, 1, CUBE_INDICES, 36)) {
-            LOG_ERROR(Entelechy::LogCategories::kEngine, "Failed to register cube mesh");
-            return -1;
-        }
-        frameRunner.execute().registerColorMaterial(assets.mat_red, {0.85f, 0.20f, 0.20f});
-        frameRunner.execute().registerColorMaterial(assets.mat_green, {0.20f, 0.85f, 0.25f});
-        frameRunner.execute().registerColorMaterial(assets.mat_blue, {0.25f, 0.35f, 0.90f});
-        frameRunner.execute().registerColorMaterial(assets.mat_yellow, {0.90f, 0.80f, 0.20f});
+        game::RenderAssets& assets = game::renderAssets();
+        frameRunner.prepare().bindAssets(&assets.mesh_assets, &assets.material_assets, &assets.texture_assets);
     }
 
     // Event loop with DeltaTime
@@ -210,6 +167,9 @@ int main() {
         if (autoRunSystems) {
             app.update(dt);
         }
+
+        // Consume completed async asset loads (fills Assets<T> on the main thread)
+        game::renderAssets().asset_server.processEvents();
 
         // ===== ImGui: begin new frame =====
         imgui->newFrame();

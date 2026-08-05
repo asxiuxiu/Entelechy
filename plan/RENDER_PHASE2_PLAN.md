@@ -72,9 +72,23 @@
 
 ---
 
-## 2c —— PrepareAssetsSystem（断裂 #2）+ 场景验收
+## 2c —— PrepareAssetsSystem（断裂 #2）+ 场景验收 ✅ 已完成（2026-08-05）
+
+> **落地情况**：Debug 构建通过，EntelechyTests 178/178 绿（新增 3 个 mesh_primitives 测试）；运行日志确认完整加载状态流转（异步请求 → mesh/材质 prepared → 256×256 纹理上传 → 贴图材质 ready），零错误。
+> **关闭崩溃修复**（2026-08-05 后续，同一提交批次）：用户报告关闭窗口时 AV 崩溃，探针定位出两个独立根因——① `HashMap` 槽位生命周期不一致：`clear()` 就地析构不重建、occupied 转换时 construct_at 覆盖存活默认值，与 `~HashMap`/`grow`「每槽位恰好析构一次」的不变量冲突（RAII 值被二次析构，`RHIRef` 二次 release 已释放的 GPUResource）；修复后 `EntelechyTests` 179/179 绿（新增 RAII 探针回归测试 `core/tests/test_containers.cpp`）。② `VFS::clear()` 会对 backend 调 `DefaultAllocator::free`，而游戏侧把挂载点做成 `RenderAssets` 成员对象；改为 `DefaultAllocator::alloc` + `construct_at` 分配（VFS 隐式所有权陷阱已记 TODO.md）。修复后优雅关闭全程干净（日志完整到 "Window closed. Goodbye."）。
+> **偏差**：① Prepare 不主动发起 `loadAsync`（Handle 无路径信息），加载由游戏侧启动时发起，与原计划「未加载则触发 loadAsync」不同；② fallback 粉色路径运行时未被触发——demo PNG 太小，后台线程在首帧 `processEvents` 前就完成了解码，可视验证（粉→贴图翻转）留给更大的资产或人为延迟加载；③ 截图验证未完成（执行机锁屏，截图为锁屏界面），改以日志验证；④ 无贴图材质绑 1×1 白纹理而非 shader 变体分支；⑤ VFS 双挂载点兼容项目根 / `build/bin/Debug` 两种 cwd；⑥ `_content/demo/` 加入 git（.gitignore 例外，其余 _content 仍忽略）。
+> **遗留观察**：demo exe 被外部 kill，未走正常 shutdown，Prepare 资源的 fence 延迟回收路径未在本次运行中实际执行（代码路径与阶段 1 相同）。
 
 **目标**：新增 Prepare 阶段（插在 Extract 与 Cull 之间），把 Extract 来的 Handle 经 `Assets<T>` 解析为 GPU 资源；`RenderExecuteSystem` 从手工注册表改为消费 Prepared 资源；fallback 机制覆盖加载中状态。
+
+**设计定稿**（2026-08-05 实施前确认）：
+
+- `PrepareAssetsSystem`（`render_system/prepare/`）持有 `handle → PreparedMesh/PreparedMaterial/RHITextureRef` 三张缓存表；设备与 ShaderCache 借用自 Execute（init 时注入），资产存储由游戏侧 `bindAssets()` 注入。
+- `MaterialAsset` 填充为 unlit 模型：`base_color`（Vec3）+ 可选 `base_color_texture`（`Handle<TextureAsset>`）。着色器恒采样，无贴图材质绑 1×1 白纹理；fallback = 品红材质 + 单位立方体网格。
+- 材质贴图未就绪 → 材质整体保持 pending（粉色），贴图落地后自动替换——即验收要求的「热拔插」可视验证。
+- Prepare 只解析 Handle，**不主动发起 loadAsync**（Handle 不含路径信息，路径去重本就是 TODO 债务）；加载由游戏侧启动时发起。与原计划「未加载则触发 loadAsync」有偏差，验收时记录。
+- 程序化网格构建器（立方体/地面）放 asset 模块 `mesh_primitives.h`（引擎 fallback 与游戏场景共用）。
+- 帧顺序：Extract → **Prepare** → Cull → Queue → Execute；`main.cpp.in` 手工注册块删除，每帧 `AssetServer::processEvents()` 消费异步完成事件。
 
 **范围**：
 

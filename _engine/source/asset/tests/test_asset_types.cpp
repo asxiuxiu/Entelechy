@@ -1,6 +1,7 @@
 #include "test/test_framework.h"
 #include "asset/loader/texture_asset_loader.h"
 #include "asset/type/mesh_asset.h"
+#include "asset/type/mesh_primitives.h"
 #include "asset/type/texture_asset.h"
 #include <cstring>
 
@@ -35,6 +36,61 @@ TEST(Asset, MeshAssetVertexStride)
 {
     // position(3) + normal(3) + uv(2) + tangent(3) + tangentW(1) = 12 floats
     ASSERT_EQ(Entelechy::MeshAsset::vertexStride(), 12u * sizeof(f32));
+}
+
+// ------------------------------------------------------------------
+// Mesh primitive builder tests
+// ------------------------------------------------------------------
+TEST(Asset, CubeMeshCountsAndBounds)
+{
+    Entelechy::MeshAsset cube = Entelechy::buildCubeMesh(0.5f);
+    ASSERT_EQ(cube.vertices.size(), 24u);
+    ASSERT_EQ(cube.indices.size(), 36u);
+    ASSERT_EQ(cube.bounds.min.x, -0.5f);
+    ASSERT_EQ(cube.bounds.max.x, 0.5f);
+    ASSERT_EQ(cube.bounds.min.y, -0.5f);
+    ASSERT_EQ(cube.bounds.max.y, 0.5f);
+    ASSERT_EQ(cube.bounds.min.z, -0.5f);
+    ASSERT_EQ(cube.bounds.max.z, 0.5f);
+}
+
+TEST(Asset, CubeMeshWindingMatchesNormals)
+{
+    // Every triangle must wind CCW seen from outside, i.e. the geometric
+    // normal cross(e0, e1) must agree with the stored face normal.
+    Entelechy::MeshAsset cube = Entelechy::buildCubeMesh(0.5f);
+    for (usize i = 0; i + 2 < cube.indices.size(); i += 3)
+    {
+        const Entelechy::MeshVertex &a = cube.vertices[cube.indices[i]];
+        const Entelechy::MeshVertex &b = cube.vertices[cube.indices[i + 1]];
+        const Entelechy::MeshVertex &c = cube.vertices[cube.indices[i + 2]];
+        const Entelechy::Vec3 geometric = (b.position - a.position).cross(c.position - a.position);
+        ASSERT_TRUE(geometric.dot(a.normal) > 0.0f);
+    }
+}
+
+TEST(Asset, GroundMeshLayout)
+{
+    Entelechy::MeshAsset ground = Entelechy::buildGroundMesh(10.0f, 8.0f);
+    ASSERT_EQ(ground.vertices.size(), 4u);
+    ASSERT_EQ(ground.indices.size(), 6u);
+    ASSERT_EQ(ground.bounds.min.x, -10.0f);
+    ASSERT_EQ(ground.bounds.max.x, 10.0f);
+    ASSERT_EQ(ground.bounds.min.z, -10.0f);
+    ASSERT_EQ(ground.bounds.max.z, 10.0f);
+    for (usize i = 0; i < ground.vertices.size(); ++i)
+    {
+        ASSERT_EQ(ground.vertices[i].normal.y, 1.0f);
+        ASSERT_EQ(ground.vertices[i].position.y, 0.0f);
+    }
+    // UV tiling reaches the requested repeat count.
+    ASSERT_EQ(ground.vertices[3].uv.x, 8.0f);
+    ASSERT_EQ(ground.vertices[3].uv.y, 8.0f);
+    // Single quad must face up (CCW seen from +Y).
+    const Entelechy::MeshVertex &a = ground.vertices[ground.indices[0]];
+    const Entelechy::MeshVertex &b = ground.vertices[ground.indices[1]];
+    const Entelechy::MeshVertex &c = ground.vertices[ground.indices[2]];
+    ASSERT_TRUE(((b.position - a.position).cross(c.position - a.position)).y > 0.0f);
 }
 
 // ------------------------------------------------------------------

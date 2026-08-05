@@ -119,6 +119,37 @@ void GamePlugin::setup(Entelechy::App &app)
             }
         }
     }
+
+    // -- Textured ground plane ---------------------------------------------
+    // Async checker texture: starts on the pink fallback, flips to the
+    // checker once the load lands.
+    {
+        auto ground = world.spawn();
+        world.addComponent<Transform>(ground, Transform{{0.0f, -0.5f, 0.0f}});
+        world.addComponent<GlobalTransform>(ground, GlobalTransform{});
+        world.addComponent<MeshAssetRef>(ground, MeshAssetRef{assets.ground_mesh});
+        world.addComponent<MaterialAssetRef>(ground, MaterialAssetRef{assets.mat_checker});
+        world.addComponent<AABB>(ground, AABB::fromCenterExtent(Vec3{0.0f, -0.5f, 0.0f}, Vec3{20.0f, 0.05f, 20.0f}));
+    }
+
+    // -- Pillars (scaled cubes) --------------------------------------------
+    {
+        const Vec3 pillarPositions[] = {
+            {-7.0f, 1.5f, -7.0f},
+            {7.0f, 1.5f, -7.0f},
+            {-7.0f, 1.5f, 7.0f},
+            {7.0f, 1.5f, 7.0f},
+        };
+        for (const Vec3 &pos : pillarPositions)
+        {
+            auto pillar = world.spawn();
+            world.addComponent<Transform>(pillar, Transform{pos, {}, {1.5f, 4.0f, 1.5f}});
+            world.addComponent<GlobalTransform>(pillar, GlobalTransform{});
+            world.addComponent<MeshAssetRef>(pillar, MeshAssetRef{assets.cube_mesh});
+            world.addComponent<MaterialAssetRef>(pillar, MaterialAssetRef{assets.mat_blue});
+            world.addComponent<AABB>(pillar, AABB::fromCenterExtent(pos, Vec3{0.75f, 2.0f, 0.75f}));
+        }
+    }
 }
 
 } // namespace game

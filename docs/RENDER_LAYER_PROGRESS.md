@@ -355,27 +355,28 @@
 
 **知识库设计**：材质内嵌 Mesh 组件的反模式、Handle 分离 + 按类型分 System、Extract → Prepare → Queue → PhaseSort → Render 完整数据流、AI 可观测性（ECS Component + GPU 自动同步 via `Changed<T>`）、`PreparedMaterial`（bind_group + pipeline_key）、Agent 组件白名单（Block 内部材质）。
 
-**代码现状** 🟡 部分完成（Extract / Queue / Render 已通，Prepare 缺失）
+**代码现状** 🟡 部分完成（Extract / Prepare / Queue / Render 已通，PreparedMaterial 仍是简化版）
 
 已实现：
 - Handle 分离：主 World 使用 `MeshAssetRef`/`MaterialAssetRef`（`Handle<MeshAsset>`/`Handle<MaterialAsset>`，2026-08-05 阶段 2a）→ `public/components/MeshAssetRef.h`、`MaterialAssetRef.h`
 - CPU 侧资产类型：`MeshAsset`（交错顶点流 position/normal/uv/tangent + 索引 + AABB）与 `TextureAsset`（RGBA8 + 尺寸）→ `asset/public/type/mesh_asset.h`、`texture_asset.h`（2026-08-05，阶段 2b）
+- `PrepareAssetsSystem`：扫描 Render World 的 `RenderMesh`/`RenderMaterial` Handle，经游戏侧 `Assets<T>` 解析并缓存 GPU 资源（`PreparedMesh`/`PreparedMaterial`/纹理 RHIRef）；未加载实体回退到单位立方体 + 品红材质，异步加载落地后自动替换；材质贴图未就绪则整体 pending（2026-08-05，阶段 2c）→ `prepare/PrepareAssetsSystem.h/.cpp`
 - `ExtractRenderablesSystem`：拷贝 mesh/material refs → `RenderMesh`/`RenderMaterial`
 - 组件注册：`REFLECT_COMPONENT` + `registerRenderComponents()` → `private/components/component_registration.cpp`
-- `RenderExecuteSystem`：消费 `ViewBinnedPhases`/`ViewSortedPhases` 发出 GPU draw call（Phase 1：手工注册网格/材质注册表 + uMVP/uColor 材质）→ `execute/RenderExecuteSystem.h/.cpp`
+- `RenderExecuteSystem`：消费 `ViewBinnedPhases`/`ViewSortedPhases` 发出 GPU draw call（经 Prepare 查询 Prepared 资源 + fallback；unlit 贴图材质 uMVP/uColor/uBaseColorTex）→ `execute/RenderExecuteSystem.h/.cpp`
 
 **缺失项**：
 
 | 项目 | 笔记要求 | 当前状态 |
 |------|---------|---------|
-| Prepare 阶段 | 异步解析 asset_id → GPU 几何/管线/材质参数 | ❌ 不存在。Extract→Cull→Queue 链在 Prepare 环节断裂（阶段1 由 main 手工注册代替） |
-| `PreparedMaterial` | bind_group + pipeline_key 中间结构 | ❌ 不存在 |
+| Prepare 阶段 | 异步解析 asset_id → GPU 几何/管线/材质参数 | ✅ `PrepareAssetsSystem`（2026-08-05，阶段 2c）：Extract→Prepare→Cull→Queue→Execute 链已通；fallback + 异步热替换生效。简化点：Prepare 不主动发起 loadAsync（Handle 无路径，由游戏侧发起加载）；材质创建仍同步编译 shader |
+| `PreparedMaterial` | bind_group + pipeline_key 中间结构 | 🟡 简化版存在（`prepare/PreparedResources`，Material + 纹理引用，无 bind_group/pipeline_key） |
 | `PipelineCache` Resource | ECS Resource 管理 PSO | ❌ 不存在 |
 | Render 阶段 | 消费 PhaseItems 发出 GPU draw call | ✅ `RenderExecuteSystem`（2026-08-04，阶段1；单 view、单 cmdList、无 instancing） |
 | AI `Changed<T>` 同步 | 修改组件 → 自动同步 GPU | ❌ 不存在 |
 | `Handle<T>` 集成 | MeshAssetRef/MaterialAssetRef 应使用 asset 模块的 `Handle<T>` | ✅ 已集成（2026-08-05，阶段 2a；反射字段未接入，记 TODO.md） |
 
-**问题/风险**：Render 阶段已打通（Queue → GPU draw call），最大的剩余断裂是 Prepare 阶段——asset_id → GPU 资源解析仍靠 main 手工注册，待阶段2 用 Prepare 替代。
+**问题/风险**：Prepare 断裂已修复（阶段 2c）。剩余：SortKey 仍按 `handle.index` 分箱而非 pipeline key；`PreparedMaterial` 无 bind_group/pipeline_key；shader 同步编译。
 
 ---
 
@@ -473,7 +474,7 @@
 5.11 材质系统架构                     ███░░░░░░░  25%  仅 Phase 1 单层简化，无 TAI 三层
 5.12 着色器变体与编译缓存 ⭐          ██░░░░░░░░  20%  仅内存级同步 ShaderCache
 5.13 材质参数绑定与 GPU 上传          ██░░░░░░░░  20%  仅立即 uniform 调用，无 BindGroup/PushConstants
-5.14 材质系统的 ECS 表达              █████░░░░░  55%  Extract/Queue/Render 已通，Prepare 断链
+5.14 材质系统的 ECS 表达              ███████░░░  70%  Extract/Prepare/Queue/Render 全通（2c），PreparedMaterial 简化版
 5.15 2D 渲染基础与批次合批            ░░░░░░░░░░   0%  完全未开始
 5.16 字体渲染系统                     ░░░░░░░░░░   0%  完全未开始
 5.17 UI 画布与场景叠加                ░░░░░░░░░░   0%  完全未开始
@@ -490,9 +491,9 @@
 `asset/` 模块有完整的 `Handle<T>` + `HandleTable<T>` + `Assets<T>`，但 `MeshAssetRef`/`MaterialAssetRef` 使用裸 `u32 asset_id`。两套资源标识体系并存，互不通信。
 → 全部渲染组件迁移为 `Handle<MeshAsset>`/`Handle<MaterialAsset>`；新增占位类型 `MeshAsset`/`MaterialAsset`（asset 模块，字段留待 2b 填充）；`RenderExecuteSystem` 注册表键改为 `Handle<T>`；游戏侧 ID 常量改为 `render_assets.h` 中经 `Assets<T>::insert` 获得的 Handle。SortKey 仍取 `handle.index & 0xFFFF`（行为不变）。遗留：Handle 字段反射未接入（TODO.md）。
 
-### 断裂 #2: Prepare 阶段缺失——Extract→Cull→Queue 链断裂
+### 断裂 #2: Prepare 阶段缺失——Extract→Cull→Queue 链断裂 ✅ 已修复（2026-08-05，阶段 2c）
 `ExtractRenderablesSystem` 将 `(MeshAssetRef, MaterialAssetRef)` 拷贝进 Render World 为 `(RenderMesh, RenderMaterial)`，但没有任何 Prepare 阶段将 Handle 解析为 GPU 几何/管线/材质参数。`QueueDrawsSystem` 用 `handle.index & 0xFFFF` 做粗略的分箱，但没有真正的管线状态对象。
-→ 阶段 2b（2026-08-05）已补齐 CPU 侧前置：`MeshAsset`（顶点流 + 索引 + AABB）、`TextureAsset`（RGBA8）与 `TextureAssetLoader`（stb_image 解码）。PrepareAssetsSystem 本体与 fallback 机制在阶段 2c 落地。
+→ 阶段 2b 补齐 CPU 侧前置（`MeshAsset`/`TextureAsset`/`TextureAssetLoader`）；阶段 2c 新增 `PrepareAssetsSystem`（`render_system/prepare/`）：缓存 handle→`PreparedMesh`/`PreparedMaterial`/纹理 RHIRef，未加载回退单位立方体 + 品红材质，异步落地后自动替换；`RenderExecuteSystem` 删除手工注册入口改为消费 Prepared 资源；`main.cpp.in` 手工注册块删除，帧链变为 Extract→Prepare→Cull→Queue→Execute。偏差：Prepare 不主动发起 loadAsync（Handle 无路径），加载由游戏侧发起。
 
 ### 断裂 #3: 没有渲染消费端 ✅ 已修复（2026-08-04，阶段1）
 `QueueDrawsSystem` 产出了 `ViewBinnedPhases`/`ViewSortedPhases`，但没有 System 消费这些 Phase 容器发出实际的 GPU draw call。

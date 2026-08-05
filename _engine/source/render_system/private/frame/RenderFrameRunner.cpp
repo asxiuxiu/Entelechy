@@ -25,6 +25,12 @@ bool RenderFrameRunner::init(IWindow *window)
         return false;
     }
 
+    if (!m_prepare.init(m_execute.device(), m_execute.shaderCache()))
+    {
+        LOG_ERROR(LogCategories::kEngine, "RenderFrameRunner: failed to init PrepareAssetsSystem");
+        return false;
+    }
+
     m_initialized = true;
     return true;
 }
@@ -39,9 +45,10 @@ void RenderFrameRunner::runFrame(const World &mainWorld, f32 dt)
     m_render_world.extract(mainWorld, dt);
 
     World &renderWorld = m_render_world.world();
+    m_prepare.run(renderWorld);
     m_cull.run(renderWorld);
     m_queue.run(renderWorld);
-    m_execute.run(renderWorld);
+    m_execute.run(renderWorld, m_prepare);
 
     // -- Frame statistics ------------------------------------------------
     const ComponentArray<RenderTransform> *transforms = renderWorld.getComponentArray<RenderTransform>();
@@ -70,6 +77,9 @@ void RenderFrameRunner::shutdown()
 {
     if (!m_initialized)
         return;
+    // Prepare releases GPU resources (via deferred delete) before the
+    // execute stage tears down the device.
+    m_prepare.shutdown();
     m_execute.shutdown();
     m_render_world.clear();
     m_initialized = false;

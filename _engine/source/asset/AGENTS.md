@@ -13,6 +13,7 @@
 | `mesh_asset.h` | `MeshAsset`（交错顶点流 position/normal/uv/tangent + 索引 + AABB，`computeBounds()`） |
 | `material_asset.h` | `MaterialAsset` 占位类型（`Handle<MaterialAsset>` 模板参数；字段待后续阶段填充） |
 | `texture_asset.h` | `TextureAsset`（RGBA8 像素 + 尺寸，stb_image 解码约定：左上原点） |
+| `mesh_primitives.h` | 程序化网格构建器：`buildCubeMesh()`（24 顶点六面立方体）/ `buildGroundMesh()`（XZ 平面 + UV 平铺），Prepare fallback 与游戏 demo 共用 |
 | `asset_handle.h` | `Handle<T>` 模板句柄（index + generation），8 字节 POD |
 | `handle_table.h` | `HandleTable<T>` 密集存储 + ABA 防护 + 引用计数表 + free list |
 | `assets.h` | `Assets<T>` 类型安全门面，提供 insert/get/remove/allocateEmpty/fill |

@@ -46,8 +46,10 @@ logs
 # Local environment overrides
 configs/environment.local.json
 
-# External content (e.g. Unity Classic-Sponza project, uses Git LFS upstream)
-_content/
+# External content (e.g. Intel NewSponza package, too large for git)
+# Exception: _content/demo/ holds tiny engine-made demo assets (checked in).
+_content/*
+!_content/demo/
 
 # Claude Code: skills is a generated link to .agents/skills
 .claude/skills
@@ -55,4 +57,3 @@ _content/
 __pycache__/
 .cache/
 imgui.ini
-_content/

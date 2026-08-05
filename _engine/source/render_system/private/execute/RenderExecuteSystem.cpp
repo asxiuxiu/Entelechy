@@ -1,4 +1,5 @@
 #include "render_system/execute/RenderExecuteSystem.h"
+#include "render_system/prepare/PrepareAssetsSystem.h"
 #include "render_system/components/RenderCamera.h"
 #include "render_system/components/RenderComponents.h"
 #include "render_system/phase/RenderResources.h"
@@ -10,28 +11,6 @@
 
 namespace Entelechy
 {
-
-namespace
-{
-
-// Unlit solid-color shader pair (same GLSL as SimpleCubeRenderer).
-const char *s_vertexShader = R"(#version 330 core
-layout(location = 0) in vec3 aPos;
-uniform mat4 uMVP;
-void main() {
-    gl_Position = uMVP * vec4(aPos, 1.0);
-}
-)";
-
-const char *s_fragmentShader = R"(#version 330 core
-uniform vec3 uColor;
-out vec4 FragColor;
-void main() {
-    FragColor = vec4(uColor, 1.0);
-}
-)";
-
-} // namespace
 
 RenderExecuteSystem::RenderExecuteSystem() = default;
 
@@ -65,13 +44,6 @@ void RenderExecuteSystem::shutdown()
     if (!m_initialized)
         return;
 
-    for (auto [id, material] : m_materials)
-    {
-        (void)id;
-        material.shutdown();
-    }
-    m_materials.clear();
-    m_meshes.clear();
     m_shader_cache.reset();
     if (m_device)
     {
@@ -81,77 +53,18 @@ void RenderExecuteSystem::shutdown()
     m_initialized = false;
 }
 
-bool RenderExecuteSystem::registerMesh(Handle<MeshAsset> handle, const void *vertexData, usize vertexBytes,
-                                       u32 vertexStride, const VertexAttributeDesc *attrs, u32 attrCount,
-                                       const u32 *indexData, u32 indexCount)
+IRHIDevice *RenderExecuteSystem::device()
 {
-    if (!m_initialized)
-        return false;
-
-    BufferDesc vbDesc{};
-    vbDesc.size = static_cast<u32>(vertexBytes);
-    vbDesc.usage = BufferUsage::Vertex;
-    vbDesc.vertexStride = vertexStride;
-    vbDesc.vertexAttributes = attrs;
-    vbDesc.vertexAttributeCount = attrCount;
-
-    GpuMesh mesh{};
-    mesh.vbo = m_device->createBuffer(vbDesc, vertexData);
-    if (!mesh.vbo)
-    {
-        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: failed to create vertex buffer (mesh %u)",
-                  handle.index);
-        return false;
-    }
-
-    BufferDesc ibDesc{};
-    ibDesc.size = indexCount * sizeof(u32);
-    ibDesc.usage = BufferUsage::Index;
-
-    mesh.ibo = m_device->createBuffer(ibDesc, indexData);
-    if (!mesh.ibo)
-    {
-        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: failed to create index buffer (mesh %u)",
-                  handle.index);
-        return false;
-    }
-    mesh.index_count = indexCount;
-
-    m_meshes.insert(handle, std::move(mesh));
-    return true;
+    return m_device.get();
 }
 
-bool RenderExecuteSystem::registerColorMaterial(Handle<MaterialAsset> handle, const Vec3 &color)
+ShaderCache *RenderExecuteSystem::shaderCache()
 {
-    if (!m_initialized)
-        return false;
-
-    // Parameter layout matches the shader uniforms.
-    MaterialParamDesc params[] = {
-        {"uMVP", MaterialParamType::Mat4},
-        {"uColor", MaterialParamType::Vec3},
-    };
-
-    PipelineStateDesc pipelineDesc{};
-    pipelineDesc.topology = PrimitiveTopology::Triangles;
-    pipelineDesc.rasterizerState.cullMode = CullMode::Back;
-    pipelineDesc.depthStencilState.depthTest = true;
-    pipelineDesc.depthStencilState.depthWrite = true;
-
-    Material material;
-    if (!material.init(m_device.get(), m_shader_cache.get(), s_vertexShader, s_fragmentShader, params, 2, pipelineDesc))
-    {
-        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: failed to init material (material %u)", handle.index);
-        return false;
-    }
-    material.setVec3("uColor"_sid, color);
-
-    m_materials.insert(handle, std::move(material));
-    return true;
+    return m_shader_cache.get();
 }
 
 void RenderExecuteSystem::drawItem(World &renderWorld, const ExtractedView &view, Entity renderEntity,
-                                   IRHICommandList *cmdList)
+                                   IRHICommandList *cmdList, PrepareAssetsSystem &prepare)
 {
     const RenderTransform *transform = renderWorld.getComponent<RenderTransform>(renderEntity);
     const RenderMesh *mesh = renderWorld.getComponent<RenderMesh>(renderEntity);
@@ -161,23 +74,23 @@ void RenderExecuteSystem::drawItem(World &renderWorld, const ExtractedView &view
         return;
     }
 
-    const GpuMesh *gpuMesh = m_meshes.find(mesh->mesh_asset_id);
+    const PreparedMesh *gpuMesh = prepare.findMesh(mesh->mesh_asset_id);
     if (!gpuMesh)
     {
-        ++m_stats.skipped_missing_mesh;
-        return;
+        gpuMesh = prepare.fallbackMesh();
+        ++m_stats.fallback_mesh_draws;
     }
 
     const RenderMaterial *materialRef = renderWorld.getComponent<RenderMaterial>(renderEntity);
-    Material *material = materialRef ? m_materials.find(materialRef->material_asset_id) : nullptr;
-    if (!material)
+    PreparedMaterial *prepared = materialRef ? prepare.findMaterial(materialRef->material_asset_id) : nullptr;
+    if (!prepared)
     {
-        ++m_stats.skipped_missing_material;
-        return;
+        prepared = prepare.fallbackMaterial();
+        ++m_stats.fallback_material_draws;
     }
 
-    material->setMat4("uMVP"_sid, view.proj_matrix * view.view_matrix * transform->world_matrix);
-    material->bind(cmdList);
+    prepared->material.setMat4("uMVP"_sid, view.proj_matrix * view.view_matrix * transform->world_matrix);
+    prepared->material.bind(cmdList);
 
     cmdList->bindVertexBuffer(gpuMesh->vbo.get(), 0, 0);
     cmdList->bindIndexBuffer(gpuMesh->ibo.get(), 0);
@@ -185,7 +98,7 @@ void RenderExecuteSystem::drawItem(World &renderWorld, const ExtractedView &view
     ++m_stats.draw_calls;
 }
 
-void RenderExecuteSystem::run(World &renderWorld)
+void RenderExecuteSystem::run(World &renderWorld, PrepareAssetsSystem &prepare)
 {
     m_stats = ExecuteStats{};
     if (!m_initialized)
@@ -217,14 +130,14 @@ void RenderExecuteSystem::run(World &renderWorld)
         {
             for (const PhaseItem &item : bin.items)
             {
-                drawItem(renderWorld, *view, item.render_entity, cmdList);
+                drawItem(renderWorld, *view, item.render_entity, cmdList, prepare);
             }
         }
         for (const PhaseBin &bin : binned->alpha_mask.getBins())
         {
             for (const PhaseItem &item : bin.items)
             {
-                drawItem(renderWorld, *view, item.render_entity, cmdList);
+                drawItem(renderWorld, *view, item.render_entity, cmdList, prepare);
             }
         }
     }
@@ -232,11 +145,11 @@ void RenderExecuteSystem::run(World &renderWorld)
     {
         for (const PhaseItem &item : sorted->transparent.getItems())
         {
-            drawItem(renderWorld, *view, item.render_entity, cmdList);
+            drawItem(renderWorld, *view, item.render_entity, cmdList, prepare);
         }
         for (const PhaseItem &item : sorted->ui.getItems())
         {
-            drawItem(renderWorld, *view, item.render_entity, cmdList);
+            drawItem(renderWorld, *view, item.render_entity, cmdList, prepare);
         }
     }
 

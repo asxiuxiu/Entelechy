@@ -27,7 +27,7 @@ Extract → Cull → Queue 三段链路在单元测试里各自成立，阶段 1
 
 ```
 阶段 1  管线自己转起来 ✅     ✅    ECS 实体经完整管线画出多个立方体，自由相机漫游（2026-08-04 完成）
-阶段 2  资源进管线         AssetServer 加载网格/纹理资产，画出带贴图的程序化场景
+阶段 2  资源进管线 ✅        拆为 2a/2b/2c（见 plan/RENDER_PHASE2_PLAN.md），2026-08-05 完成：Handle 集成 + MeshAsset/TextureAsset/stb_image loader + PrepareAssetsSystem（fallback 热替换）；详细验收记录见子计划
 阶段 3  看见 Sponza 骨架   glTF 导入，白模 Sponza 完整渲染
 阶段 4  还原材质与场景     glTF 场景图/材质还原，全贴图 Sponza
 阶段 5  让它像样           光照、深度/法线正确性、天空、调试统计面板

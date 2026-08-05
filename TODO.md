@@ -65,7 +65,7 @@
 - [ ] Render / RHI | `ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:23`）每帧对静态 AABB 全量拷贝，大多数模型的本地 AABB 是静态的但每帧都通过 `mainWorld.getComponent<AABB>(entity)` 提取到 render world，需在 `MainWorldSync` 中记录「上一帧是否有 AABB」或引入脏标记机制，仅当 AABB 组件被修改时才重新提取。
 - [ ] Render / RHI | `IRHICommandList::setUniform*` 仍为 OpenGL immediate mode（`glUniform*`），虽已引入 Uniform Location 缓存消除字符串查询，但每 Draw Call 仍单独调用驱动，无法合批。未来应迁移到 UBO / PushConstants / Bindless。
 - [ ] Render / RHI | `RenderExecuteSystem`（`render_system/private/execute/RenderExecuteSystem.cpp`）自持第二个 `GLRHIDevice` + `ShaderCache`（与 `render/example/simple_cube_renderer.h` 同款债务，同源），两个设备实例并存于主循环，需统一为由帧驱动层注入或 ECS Resource 化的单一设备。
-- [ ] Render / RHI | 阶段1 网格/材质由 `launch/templates/main.cpp.in` 手工调用 `RenderExecuteSystem::registerMesh` / `registerColorMaterial` 注册（2a 后 Handle 由 `_game/source/runtime/public/render_assets.h` 的 `renderAssets()` 提供），asset → GPU 资源解析散落在主循环，需由阶段2c Prepare 阶段（异步解析 + `PreparedMesh`/`PreparedMaterial`）替代。
+- [ ] Render / RHI | 阶段1 网格/材质由 `launch/templates/main.cpp.in` 手工注册（2c 已移除）：~~asset → GPU 资源解析散落在主循环~~ 已由 2c `PrepareAssetsSystem` 接管（`render_system/prepare/`）。残留简化：Prepare 不主动发起 `loadAsync`（Handle 无路径，加载由游戏侧发起），且每帧全量扫描 RenderMesh/RenderMaterial 组件（无 `Changed<T>` 增量），实体规模上量后需增量化。
 - [ ] Render / RHI | 固定步长 Scheduler 热身期：启动后首个累加周期内 `TransformPropagationSystem` 尚未执行，所有 `GlobalTransform` 仍是零矩阵（首帧渲染为空），且 `GlobalTransform` 默认零矩阵而非单位矩阵放大了该问题。需在 spawn 后强制一次传播、或让 `GlobalTransform` 默认为单位矩阵、或首帧 `tickOnce`。
 - [ ] Core / String | `_sid` 字面量是 consteval 纯哈希、不进驻留池，任何经 `StringInternPool::resolve` 反查字符串的消费者（如 `GLCommandList::getUniformLocation`）对未驻留 id 会**静默失败**（2026-08-04 因此导致 Material uniform 全部未上传、画面只剩清屏色，已通过 `MaterialParamDesc` 改 `const char*` + init 时 intern 修复）。后续新增 resolve 消费者时需确保上游驻留，或考虑为 resolve 失败路径加日志/断言。
 
@@ -213,6 +213,7 @@
 ## VFS / 虚拟文件系统
 
 - [ ] VFS / 虚拟文件系统 | `vfs/private/mount_point.cpp` `FileSystemMountPoint` 使用 `fopen/fread/fwrite` 做文件 IO，路径拼接限制 512 字节缓冲区，未来应支持超长路径和异步 IO。
+- [ ] VFS / 虚拟文件系统 | `VFS::mount()` 接口签名表现为非拥有（裸 `IMountPoint*`），但 `VFS::clear()` 实际会对 backend 调 `destroy_at` + `DefaultAllocator::free`——即 VFS 隐式取得所有权且要求 backend 必须用 `DefaultAllocator::alloc` 分配（成员对象或 `new` 分配都会在卸载时 AV，2026-08-05 阶段 2c 关闭崩溃根因之一）。所有权约定仅由实现暗示，接口无任何注释/类型约束，应在接口层显式化（注释 + 文档，或改为 `UniquePtr`/非拥有语义）。
 
 ## Window / 窗口系统
 
@@ -223,9 +224,12 @@
 ## Runtime / 游戏运行时
 
 - [ ] Runtime / 游戏运行时 | `_game/source/runtime/private/game_runtime.cpp` `main.cpp` 由 `launch/generator.py` 构建时生成，主循环逻辑散落在模板中，未来 Runtime 应接管更多主循环逻辑。
-- [ ] Runtime / 游戏运行时 | `_game/source/runtime/public/render_assets.h` 的 `renderAssets()` 使用函数内 static 全局存储持有 `Assets<MeshAsset>`/`Assets<MaterialAsset>` 与缓存 Handle，是阶段 2a demo 胶粘层的最小方案，阶段 2c 引入 Prepare/世界级 Assets 注册后应整体移除。
+- [ ] Runtime / 游戏运行时 | `_game/source/runtime/public/render_assets.h` 的 `renderAssets()` 使用函数内 static 全局存储持有 VFS + `AssetServer` + 三类 `Assets<T>` 与缓存 Handle（2c 后规模进一步增大），根因是 ECS 无 Resource 概念（见 ECS 条目）。待 ECS Resource 基础设施就绪后，资产存储应注册为 World 级全局数据，此静态层整体移除。
 
 ## Core / 基础库扩展缺口
+
+- [x] Core / 基础库扩展缺口 | `HashMap::clear()`（`core/container/hash_map.h`）曾将 key/value 就地析构后不重建，而 `~HashMap`/`grow`/移动赋值按「所有槽位始终存活」不变量对每个槽位再析构一次——clear 时存在的每个值都会被二次析构（POD 无害，RAII 类型如 `RHIRef` 会对已释放的 GPUResource 二次 release，关闭窗口时 AV 崩溃，2026-08-05 由阶段 2c Prepare 材质表触发）。
+  - 完成：2026-08-05，`clear()` 析构后就地重构造默认 key/value，维持槽位存活不变量；新增 `core/tests/test_containers.cpp`（RAII 探针断言构造/析构精确平衡 + clear 后槽位可复用）。
 
 > 2026-05-31：当前代码已按「基础库优先」规则消除了所有可替换的 STL/裸分配依赖。以下设施因基础库尚未提供对应实现，暂时保留 STL，待扩展后统一迁移。
 

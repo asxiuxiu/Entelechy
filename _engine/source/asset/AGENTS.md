@@ -10,6 +10,8 @@
 | 文件 | 职责 |
 |------|------|
 | `asset_types.h` | `AssetLoadState` 枚举、资源类型 ID 定义 |
+| `mesh_asset.h` | `MeshAsset` 占位类型（`Handle<MeshAsset>` 模板参数；字段待阶段 2b 填充） |
+| `material_asset.h` | `MaterialAsset` 占位类型（`Handle<MaterialAsset>` 模板参数；字段待阶段 2b 填充） |
 | `asset_handle.h` | `Handle<T>` 模板句柄（index + generation），8 字节 POD |
 | `handle_table.h` | `HandleTable<T>` 密集存储 + ABA 防护 + 引用计数表 + free list |
 | `assets.h` | `Assets<T>` 类型安全门面，提供 insert/get/remove/allocateEmpty/fill |

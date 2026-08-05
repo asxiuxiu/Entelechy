@@ -1,22 +1,25 @@
 #pragma once
 #include "core/foundation_types.h"
 #include "core/math/mat4.h"
+#include "asset/handle/asset_handle.h"
+#include "asset/type/material_asset.h"
+#include "asset/type/mesh_asset.h"
 #include "render/phase/RenderPhase.h"
 
 namespace Entelechy
 {
 
 // RenderMesh — render-world counterpart of MeshAssetRef.
-// Contains only the asset ID; GPU geometry resolution happens later.
+// Contains only the asset handle; GPU geometry resolution happens later.
 struct RenderMesh
 {
-    u32 mesh_asset_id = 0xFFFFFFFFu;
+    Handle<MeshAsset> mesh_asset_id;
 };
 
 // RenderMaterial — render-world counterpart of MaterialAssetRef.
 struct RenderMaterial
 {
-    u32 material_asset_id = 0xFFFFFFFFu;
+    Handle<MaterialAsset> material_asset_id;
     RenderPhase render_phase = RenderPhase::Opaque3D;
 };
 

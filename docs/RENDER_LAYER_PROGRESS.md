@@ -240,9 +240,9 @@
 |------|---------|---------|
 | `OwnedHandle` | RAII 包装器，析构时 drop ref | ❌ 不存在 |
 | 事件/Channel drop | SPSC/MoodyCamel queue 延迟回收 | ❌ 不存在 |
-| 与渲染组件集成 | RenderMesh/RenderMaterial 应使用 `Handle<T>` | ❌ 当前用裸 `u32 asset_id`（`MeshAssetRef`/`MaterialAssetRef` header 明确注释："NOT the engine's Handle<T>"） |
+| 与渲染组件集成 | RenderMesh/RenderMaterial 应使用 `Handle<T>` | ✅ 已集成（2026-08-05，阶段 2a）：`MeshAssetRef`/`MaterialAssetRef`/`RenderMesh`/`RenderMaterial` 全部改用 `Handle<MeshAsset>`/`Handle<MaterialAsset>`，`RenderExecuteSystem` 注册表以 `Handle<T>` 为键；新增占位类型 `asset/public/type/mesh_asset.h`、`material_asset.h`。遗留：Handle 字段反射未接入（现有 `REG_FIELD` 宏不支持嵌套/复合类型，已记 TODO.md） |
 
-**问题/风险**：`asset/` 模块有一套完整的 Handle 系统，但渲染组件完全不用它。这是最严重的集成断裂之一——两套资源标识体系并存，互不通信。
+**问题/风险**：~~两套资源标识体系并存~~ 已统一为 `Handle<T>`（断裂 #1 修复）。剩余缺口是 `OwnedHandle` RAII 与 channel-drop 延迟回收。
 
 ---
 
@@ -445,7 +445,7 @@
 
 | 依赖模块 | 所属阶段 | 状态 | 说明 |
 |---------|---------|------|------|
-| 资源句柄系统 (`Handle<T>`) | 5.8 | ✅ 存在于 `asset/` 模块 | 但未与 Render 组件集成 |
+| 资源句柄系统 (`Handle<T>`) | 5.8 | ✅ 存在于 `asset/` 模块 | 已与 Render 组件集成（2026-08-05，阶段 2a） |
 | 文件 IO / VFS | 3.5 | ✅ 存在 | `vfs/` 模块：VFS + mount、`readFile`/`writeFile`、`FileData`、`IMountPoint` |
 | 线程池 | 3.6 | ✅ 存在 | `thread_pool/` 模块：Chase-Lev work-stealing deques、`parallelFor`、overflow queue。已被 Cull 和 Queue 系统使用 |
 | 数学基础 | 3.2 | ✅ 存在 | Vec3/Mat4/Quat/AABB/Frustum |
@@ -465,7 +465,7 @@
 5.5  可见性判断与空间加速结构 ⭐      ███░░░░░░░  30%  仅基础视锥剔除，无 BVH/HZB/GPU-Driven
 5.6  渲染队列与 DrawCall 组织 ⭐      ████████░░  80%  SortKey/Binned/Sorted/Queue 完整，Instancing 预留
 5.7  RenderGraph 与多 Pass 资源管理 ⭐ ░░░░░░░░░░   0%  完全未开始
-5.8  资源句柄与引用计数              ████████░░  80%  asset 模块完整，但未与 Render 集成（严重断裂）
+5.8  资源句柄与引用计数              █████████░  90%  asset 模块完整且已集成 Render 组件（2a），缺 OwnedHandle/延迟回收
 5.9  异步加载管线 ⭐                  ████░░░░░░  35%  简化单线程实现，无 IO pool/DAG/状态机
 5.10 资源热重载系统                   ░░░░░░░░░░   0%  完全未开始
 5.11 材质系统架构                     ███░░░░░░░  25%  仅 Phase 1 单层简化，无 TAI 三层
@@ -484,8 +484,9 @@
 
 ## 关键集成断裂（Blocking Issues）
 
-### 断裂 #1: `asset/` Handle 系统与 Render 组件不互通
+### 断裂 #1: `asset/` Handle 系统与 Render 组件不互通 ✅ 已修复（2026-08-05，阶段 2a）
 `asset/` 模块有完整的 `Handle<T>` + `HandleTable<T>` + `Assets<T>`，但 `MeshAssetRef`/`MaterialAssetRef` 使用裸 `u32 asset_id`。两套资源标识体系并存，互不通信。
+→ 全部渲染组件迁移为 `Handle<MeshAsset>`/`Handle<MaterialAsset>`；新增占位类型 `MeshAsset`/`MaterialAsset`（asset 模块，字段留待 2b 填充）；`RenderExecuteSystem` 注册表键改为 `Handle<T>`；游戏侧 ID 常量改为 `render_assets.h` 中经 `Assets<T>::insert` 获得的 Handle。SortKey 仍取 `handle.index & 0xFFFF`（行为不变）。遗留：Handle 字段反射未接入（TODO.md）。
 
 ### 断裂 #2: Prepare 阶段缺失——Extract→Cull→Queue 链断裂
 `ExtractRenderablesSystem` 将 `(MeshAssetRef, MaterialAssetRef)` 拷贝进 Render World 为 `(RenderMesh, RenderMaterial)`，但没有任何 Prepare 阶段将 `asset_id` 解析为 GPU 几何/管线/材质参数。`QueueDrawsSystem` 用 `material_asset_id & 0xFFFF` 做粗略的分箱，但没有真正的管线状态对象。

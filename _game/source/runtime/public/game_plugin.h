@@ -19,7 +19,7 @@ namespace game
 // ------------------------------------------------------------------
 // Registers demo systems (movement, fly camera, transform propagation,
 // event cleanup) and spawns the demo scene: a free-fly camera plus a
-// static cube grid referencing the Phase-1 asset IDs in render_assets.h.
+// static cube grid referencing the asset handles in render_assets.h.
 // ------------------------------------------------------------------
 class GamePlugin : public Entelechy::IPlugin
 {

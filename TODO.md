@@ -63,7 +63,7 @@
 - [ ] Render / RHI | `ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:23`）每帧对静态 AABB 全量拷贝，大多数模型的本地 AABB 是静态的但每帧都通过 `mainWorld.getComponent<AABB>(entity)` 提取到 render world，需在 `MainWorldSync` 中记录「上一帧是否有 AABB」或引入脏标记机制，仅当 AABB 组件被修改时才重新提取。
 - [ ] Render / RHI | `IRHICommandList::setUniform*` 仍为 OpenGL immediate mode（`glUniform*`），虽已引入 Uniform Location 缓存消除字符串查询，但每 Draw Call 仍单独调用驱动，无法合批。未来应迁移到 UBO / PushConstants / Bindless。
 - [ ] Render / RHI | `RenderExecuteSystem`（`render_system/private/execute/RenderExecuteSystem.cpp`）自持第二个 `GLRHIDevice` + `ShaderCache`（与 `render/example/simple_cube_renderer.h` 同款债务，同源），两个设备实例并存于主循环，需统一为由帧驱动层注入或 ECS Resource 化的单一设备。
-- [ ] Render / RHI | 阶段1 网格/材质由 `launch/templates/main.cpp.in` 手工调用 `RenderExecuteSystem::registerMesh` / `registerColorMaterial` 注册（资产 ID 常量在 `_game/source/runtime/public/render_assets.h`），asset_id → GPU 资源解析散落在主循环，需由阶段2 Prepare 阶段（异步解析 + `PreparedMesh`/`PreparedMaterial`）替代。
+- [ ] Render / RHI | 阶段1 网格/材质由 `launch/templates/main.cpp.in` 手工调用 `RenderExecuteSystem::registerMesh` / `registerColorMaterial` 注册（2a 后 Handle 由 `_game/source/runtime/public/render_assets.h` 的 `renderAssets()` 提供），asset → GPU 资源解析散落在主循环，需由阶段2c Prepare 阶段（异步解析 + `PreparedMesh`/`PreparedMaterial`）替代。
 - [ ] Render / RHI | 固定步长 Scheduler 热身期：启动后首个累加周期内 `TransformPropagationSystem` 尚未执行，所有 `GlobalTransform` 仍是零矩阵（首帧渲染为空），且 `GlobalTransform` 默认零矩阵而非单位矩阵放大了该问题。需在 spawn 后强制一次传播、或让 `GlobalTransform` 默认为单位矩阵、或首帧 `tickOnce`。
 - [ ] Core / String | `_sid` 字面量是 consteval 纯哈希、不进驻留池，任何经 `StringInternPool::resolve` 反查字符串的消费者（如 `GLCommandList::getUniformLocation`）对未驻留 id 会**静默失败**（2026-08-04 因此导致 Material uniform 全部未上传、画面只剩清屏色，已通过 `MaterialParamDesc` 改 `const char*` + init 时 intern 修复）。后续新增 resolve 消费者时需确保上游驻留，或考虑为 resolve 失败路径加日志/断言。
 
@@ -185,6 +185,7 @@
   - 参考：知识库 `Notes/SelfGameEngine/核心运行时闭环/场景图与变换.md` 问题 2
 - [ ] Core Runtime | `imgui_panels.cpp` 中仍有 `Fallback: legacy ComponentDesc recursive lookup` 分支，新增组件若未走新反射路径会静默回退到旧逻辑，需补全 `AtomRegistry::registerBuiltinAtoms()` 覆盖所有引擎内置原子类型，`imgui_panels.cpp` 中删除 legacy 分支，强制走 `inspectorDrawComponent()` 递归绘制。
 - [ ] Core Runtime | `ViewBinnedPhases` / `ViewSortedPhases` / `ViewVisibleList`（`render/RenderResources.h`、`render/culling/ViewVisibleList.h`）未注册 `REFLECT_COMPONENT`，Inspector 和序列化系统无法遍历字段，需补全注册，并确认 `ViewVisibleList` 中的 `DynamicArray<Entity>` 反射系统是否支持容器字段（当前可能只支持 Atom/Composite）。
+- [ ] Core Runtime | 反射系统 `REG_FIELD` 宏基于 `offsetof` + 类型名字符串化，不支持嵌套/复合类型字段。阶段 2a 将 `MeshAssetRef`/`MaterialAssetRef`/`RenderMesh`/`RenderMaterial` 的 `u32 asset_id` 迁移为 `Handle<T>`（8 字节 index+generation）后，Handle 字段无法注册反射——`MeshAssetRef`/`MaterialAssetRef`/`RenderMesh` 目前注册为无字段组件，`RenderMaterial` 仅保留 `render_phase` 字段（`render_system/private/components/component_registration.cpp` 有 NOTE 注释）。需反射系统支持复合类型（如注册 `asset_id.index`/`asset_id.generation` 子字段或自定义 field descriptor）后补回。
 
 ## Build System / 构建体系重构
 > 2026-05-30：完成 Phase 1 — 引入 `entelechy_module()` 宏、去掉代理层、统一模块声明、CMake 直接驱动模块发现。
@@ -220,6 +221,7 @@
 ## Runtime / 游戏运行时
 
 - [ ] Runtime / 游戏运行时 | `_game/source/runtime/private/game_runtime.cpp` `main.cpp` 由 `launch/generator.py` 构建时生成，主循环逻辑散落在模板中，未来 Runtime 应接管更多主循环逻辑。
+- [ ] Runtime / 游戏运行时 | `_game/source/runtime/public/render_assets.h` 的 `renderAssets()` 使用函数内 static 全局存储持有 `Assets<MeshAsset>`/`Assets<MaterialAsset>` 与缓存 Handle，是阶段 2a demo 胶粘层的最小方案，阶段 2c 引入 Prepare/世界级 Assets 注册后应整体移除。
 
 ## Core / 基础库扩展缺口
 

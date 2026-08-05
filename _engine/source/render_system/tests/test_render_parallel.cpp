@@ -80,7 +80,7 @@ void populateRenderables(World &world, usize count)
         world.addComponent(e, AABB::fromCenterExtent(Vec3{x, 0.0f, 10.0f}, Vec3{0.05f, 0.05f, 0.05f}));
 
         RenderPhase phase = (i % 2 == 0) ? RenderPhase::Opaque3D : RenderPhase::Transparent3D;
-        world.addComponent(e, RenderMaterial{static_cast<u32>(i % 8), phase});
+        world.addComponent(e, RenderMaterial{Handle<MaterialAsset>{static_cast<u32>(i % 8), 0u}, phase});
     }
 }
 

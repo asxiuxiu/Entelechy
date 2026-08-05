@@ -2,6 +2,9 @@
 #include "core/foundation_types.h"
 #include "core/container/hash_map.h"
 #include "core/math/vec.h"
+#include "asset/handle/asset_handle.h"
+#include "asset/type/material_asset.h"
+#include "asset/type/mesh_asset.h"
 #include "ecs/type/entity_registry.h"
 #include "render/rhi/rhi_types.h"
 #include "render/rhi/rhi_resources.h"
@@ -45,13 +48,13 @@ public:
     bool init();
     void shutdown();
 
-    // Registers GPU geometry for a mesh asset ID. Returns false on failure.
-    bool registerMesh(u32 assetId, const void *vertexData, usize vertexBytes, u32 vertexStride,
+    // Registers GPU geometry for a mesh asset handle. Returns false on failure.
+    bool registerMesh(Handle<MeshAsset> handle, const void *vertexData, usize vertexBytes, u32 vertexStride,
                       const VertexAttributeDesc *attrs, u32 attrCount, const u32 *indexData, u32 indexCount);
 
     // Registers an unlit solid-color material (uMVP + uColor) for a material
-    // asset ID. The color is baked into the material at registration time.
-    bool registerColorMaterial(u32 assetId, const Vec3 &color);
+    // asset handle. The color is baked into the material at registration time.
+    bool registerColorMaterial(Handle<MaterialAsset> handle, const Vec3 &color);
 
     // Draws everything queued for the first view entity. No-op without a view.
     void run(World &renderWorld);
@@ -76,8 +79,8 @@ private:
 
     std::unique_ptr<GLRHIDevice> m_device;
     std::unique_ptr<ShaderCache> m_shader_cache;
-    HashMap<u32, GpuMesh> m_meshes;
-    HashMap<u32, Material> m_materials;
+    HashMap<Handle<MeshAsset>, GpuMesh> m_meshes;
+    HashMap<Handle<MaterialAsset>, Material> m_materials;
     ExecuteStats m_stats;
     bool m_initialized = false;
 };

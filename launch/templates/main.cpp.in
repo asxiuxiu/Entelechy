@@ -32,9 +32,8 @@
 #include "runtime/render_assets.h"
 
 // ------------------------------------------------------------------
-// Phase-1 demo mesh: unit cube (8 vertices, 36 indices).
-// Registered manually on the RenderExecuteSystem; replaced by the
-// Prepare stage in Phase 2.
+// Demo mesh: unit cube (8 vertices, 36 indices). Registered manually
+// on the RenderExecuteSystem; replaced by the Prepare stage in Phase 2c.
 // ------------------------------------------------------------------
 namespace {
 
@@ -109,6 +108,8 @@ int main() {
     // allocator (DefaultAllocator / mimalloc). Mixing std::make_unique (global
     // new) with DefaultAllocator::free causes a crash on shutdown.
     app.emplacePlugin<game::GamePlugin>();
+    // Mint the demo asset handles before setup() spawns the cube grid.
+    game::initRenderAssets();
     app.build();
     app.setup();
 
@@ -123,24 +124,27 @@ int main() {
         return -1;
     }
 
-    // Phase-1 manual GPU resource registration (matches the asset IDs
-    // referenced by GamePlugin via MeshAssetRef/MaterialAssetRef).
+    // Manual GPU resource registration keyed by the asset handles minted in
+    // initRenderAssets() (the same handles GamePlugin puts into
+    // MeshAssetRef/MaterialAssetRef components).
     {
+        const game::RenderAssets& assets = game::renderAssets();
+
         Entelechy::VertexAttributeDesc cubeAttr{};
         cubeAttr.location = 0;
         cubeAttr.components = 3;
         cubeAttr.normalized = false;
         cubeAttr.offset = 0;
 
-        if (!frameRunner.execute().registerMesh(game::CUBE_MESH_ID, CUBE_VERTICES, sizeof(CUBE_VERTICES),
+        if (!frameRunner.execute().registerMesh(assets.cube_mesh, CUBE_VERTICES, sizeof(CUBE_VERTICES),
                                                 3 * sizeof(f32), &cubeAttr, 1, CUBE_INDICES, 36)) {
             LOG_ERROR(Entelechy::LogCategories::kEngine, "Failed to register cube mesh");
             return -1;
         }
-        frameRunner.execute().registerColorMaterial(game::MAT_RED, {0.85f, 0.20f, 0.20f});
-        frameRunner.execute().registerColorMaterial(game::MAT_GREEN, {0.20f, 0.85f, 0.25f});
-        frameRunner.execute().registerColorMaterial(game::MAT_BLUE, {0.25f, 0.35f, 0.90f});
-        frameRunner.execute().registerColorMaterial(game::MAT_YELLOW, {0.90f, 0.80f, 0.20f});
+        frameRunner.execute().registerColorMaterial(assets.mat_red, {0.85f, 0.20f, 0.20f});
+        frameRunner.execute().registerColorMaterial(assets.mat_green, {0.20f, 0.85f, 0.25f});
+        frameRunner.execute().registerColorMaterial(assets.mat_blue, {0.25f, 0.35f, 0.90f});
+        frameRunner.execute().registerColorMaterial(assets.mat_yellow, {0.90f, 0.80f, 0.20f});
     }
 
     // Event loop with DeltaTime

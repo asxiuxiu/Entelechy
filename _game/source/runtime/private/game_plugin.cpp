@@ -80,10 +80,14 @@ void GamePlugin::setup(Entelechy::App &app)
     // -- Static cube grid --------------------------------------------------
     // 6x6 grid centered on the origin, spacing 2.0; every other row stacks a
     // second cube on top of the first column cube.
+    initRenderAssets();
+    const RenderAssets &assets = renderAssets();
+
     constexpr int GRID_SIZE = 6;
     constexpr f32 SPACING = 2.0f;
     constexpr f32 ORIGIN_OFFSET = -0.5f * SPACING * static_cast<f32>(GRID_SIZE - 1); // -5.0
-    constexpr u32 MATERIAL_IDS[] = {MAT_RED, MAT_GREEN, MAT_BLUE, MAT_YELLOW};
+    const Handle<MaterialAsset> materials[] = {assets.mat_red, assets.mat_green, assets.mat_blue,
+                                               assets.mat_yellow};
     constexpr Vec3 CUBE_EXTENT{0.5f, 0.5f, 0.5f};
 
     u32 colorIndex = 0;
@@ -97,8 +101,8 @@ void GamePlugin::setup(Entelechy::App &app)
             auto cube = world.spawn();
             world.addComponent<Transform>(cube, Transform{{x, 0.0f, z}});
             world.addComponent<GlobalTransform>(cube, GlobalTransform{});
-            world.addComponent<MeshAssetRef>(cube, MeshAssetRef{CUBE_MESH_ID});
-            world.addComponent<MaterialAssetRef>(cube, MaterialAssetRef{MATERIAL_IDS[colorIndex % 4]});
+            world.addComponent<MeshAssetRef>(cube, MeshAssetRef{assets.cube_mesh});
+            world.addComponent<MaterialAssetRef>(cube, MaterialAssetRef{materials[colorIndex % 4]});
             world.addComponent<AABB>(cube, AABB::fromCenterExtent(Vec3{x, 0.0f, z}, CUBE_EXTENT));
             ++colorIndex;
 
@@ -108,8 +112,8 @@ void GamePlugin::setup(Entelechy::App &app)
                 auto stacked = world.spawn();
                 world.addComponent<Transform>(stacked, Transform{{x, 1.0f, z}});
                 world.addComponent<GlobalTransform>(stacked, GlobalTransform{});
-                world.addComponent<MeshAssetRef>(stacked, MeshAssetRef{CUBE_MESH_ID});
-                world.addComponent<MaterialAssetRef>(stacked, MaterialAssetRef{MATERIAL_IDS[colorIndex % 4]});
+                world.addComponent<MeshAssetRef>(stacked, MeshAssetRef{assets.cube_mesh});
+                world.addComponent<MaterialAssetRef>(stacked, MaterialAssetRef{materials[colorIndex % 4]});
                 world.addComponent<AABB>(stacked, AABB::fromCenterExtent(Vec3{x, 1.0f, z}, CUBE_EXTENT));
                 ++colorIndex;
             }

@@ -6,6 +6,7 @@ entelechy_module(
         RenderCoreLib
         EcsLib
         CoreLib
+        AssetLib
     PRIVATE_DEPS
         ThreadPoolLib
         LogLib

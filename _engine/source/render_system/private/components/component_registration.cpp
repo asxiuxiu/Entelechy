@@ -25,16 +25,20 @@ REFLECT_COMPONENT(Camera, REG_FIELD(Camera, fov_y, f32), REG_FIELD(Camera, near_
                   REG_FIELD(Camera, far_plane, f32), REG_FIELD(Camera, orthographic, bool),
                   REG_FIELD(Camera, ortho_size, f32))
 
-REFLECT_COMPONENT(MeshAssetRef, REG_FIELD(MeshAssetRef, asset_id, u32))
+// NOTE (Phase 2a): Handle<T> fields are not reflected. REG_FIELD only
+// addresses flat members and stringifies the field type, so a nested
+// Handle<T> (or its index/generation pair) cannot be registered with the
+// current macros. These components are registered without fields until the
+// reflection system learns to decompose Handle<T>.
+REFLECT_COMPONENT(MeshAssetRef)
 
-REFLECT_COMPONENT(MaterialAssetRef, REG_FIELD(MaterialAssetRef, asset_id, u32))
+REFLECT_COMPONENT(MaterialAssetRef)
 
 // -- render-world components (spawned/extracted by systems) --
 
-REFLECT_COMPONENT(RenderMesh, REG_FIELD(RenderMesh, mesh_asset_id, u32))
+REFLECT_COMPONENT(RenderMesh)
 
-REFLECT_COMPONENT(RenderMaterial, REG_FIELD(RenderMaterial, material_asset_id, u32),
-                  REG_FIELD(RenderMaterial, render_phase, RenderPhase))
+REFLECT_COMPONENT(RenderMaterial, REG_FIELD(RenderMaterial, render_phase, RenderPhase))
 
 REFLECT_COMPONENT(RenderTransform, REG_FIELD(RenderTransform, world_matrix, Mat4))
 

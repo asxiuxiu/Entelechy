@@ -81,9 +81,9 @@ void RenderExecuteSystem::shutdown()
     m_initialized = false;
 }
 
-bool RenderExecuteSystem::registerMesh(u32 assetId, const void *vertexData, usize vertexBytes, u32 vertexStride,
-                                       const VertexAttributeDesc *attrs, u32 attrCount, const u32 *indexData,
-                                       u32 indexCount)
+bool RenderExecuteSystem::registerMesh(Handle<MeshAsset> handle, const void *vertexData, usize vertexBytes,
+                                       u32 vertexStride, const VertexAttributeDesc *attrs, u32 attrCount,
+                                       const u32 *indexData, u32 indexCount)
 {
     if (!m_initialized)
         return false;
@@ -99,7 +99,8 @@ bool RenderExecuteSystem::registerMesh(u32 assetId, const void *vertexData, usiz
     mesh.vbo = m_device->createBuffer(vbDesc, vertexData);
     if (!mesh.vbo)
     {
-        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: failed to create vertex buffer (mesh %u)", assetId);
+        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: failed to create vertex buffer (mesh %u)",
+                  handle.index);
         return false;
     }
 
@@ -110,16 +111,17 @@ bool RenderExecuteSystem::registerMesh(u32 assetId, const void *vertexData, usiz
     mesh.ibo = m_device->createBuffer(ibDesc, indexData);
     if (!mesh.ibo)
     {
-        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: failed to create index buffer (mesh %u)", assetId);
+        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: failed to create index buffer (mesh %u)",
+                  handle.index);
         return false;
     }
     mesh.index_count = indexCount;
 
-    m_meshes.insert(assetId, std::move(mesh));
+    m_meshes.insert(handle, std::move(mesh));
     return true;
 }
 
-bool RenderExecuteSystem::registerColorMaterial(u32 assetId, const Vec3 &color)
+bool RenderExecuteSystem::registerColorMaterial(Handle<MaterialAsset> handle, const Vec3 &color)
 {
     if (!m_initialized)
         return false;
@@ -139,12 +141,12 @@ bool RenderExecuteSystem::registerColorMaterial(u32 assetId, const Vec3 &color)
     Material material;
     if (!material.init(m_device.get(), m_shader_cache.get(), s_vertexShader, s_fragmentShader, params, 2, pipelineDesc))
     {
-        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: failed to init material (material %u)", assetId);
+        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: failed to init material (material %u)", handle.index);
         return false;
     }
     material.setVec3("uColor"_sid, color);
 
-    m_materials.insert(assetId, std::move(material));
+    m_materials.insert(handle, std::move(material));
     return true;
 }
 

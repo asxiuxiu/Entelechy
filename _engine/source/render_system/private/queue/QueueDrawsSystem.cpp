@@ -47,7 +47,7 @@ bool tryBuildPhaseItem(Entity entity, const World &renderWorld, const ExtractedV
 
     RenderPhase phase = material->render_phase;
     SortKey key{};
-    key.packed.material_id = static_cast<u16>(material->material_asset_id & 0xFFFFu);
+    key.packed.material_id = static_cast<u16>(material->material_asset_id.index & 0xFFFFu);
     key.packed.phase = static_cast<u8>(phase);
     key.packed.reserved = 0;
 

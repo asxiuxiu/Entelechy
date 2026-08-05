@@ -1,15 +1,15 @@
 #pragma once
-#include "core/foundation_types.h"
+#include "asset/handle/asset_handle.h"
+#include "asset/type/material_asset.h"
 
 namespace Entelechy
 {
 
 // MaterialAssetRef — main-world component referencing a material asset.
-// This is a lightweight asset identifier, NOT the engine's Handle<T>.
-// The asset ID is resolved to a pipeline + parameter set during the Prepare phase.
+// The handle is resolved to a pipeline + parameter set during the Prepare phase.
 struct MaterialAssetRef
 {
-    u32 asset_id = 0xFFFFFFFFu;
+    Handle<MaterialAsset> asset_id;
 };
 
 } // namespace Entelechy

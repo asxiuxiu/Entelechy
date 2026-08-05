@@ -7,6 +7,7 @@ entelechy_module(
         BridgeLib
         RenderSystemLib
         WindowLib
+        AssetLib
     INIT_FUNCTION initRuntime
     NAMESPACE game
 )

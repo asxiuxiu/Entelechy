@@ -2,6 +2,8 @@
 #include "render_system/prepare/PrepareAssetsSystem.h"
 #include "render_system/components/RenderCamera.h"
 #include "render_system/components/RenderComponents.h"
+#include "render_system/components/RenderLight.h"
+#include "core/math/mat3.h"
 #include "render_system/phase/RenderResources.h"
 #include "render/rhi/gl_rhi_device.h"
 #include "render/material/shader_cache.h"
@@ -63,8 +65,8 @@ ShaderCache *RenderExecuteSystem::shaderCache()
     return m_shader_cache.get();
 }
 
-void RenderExecuteSystem::drawItem(World &renderWorld, const ExtractedView &view, Entity renderEntity,
-                                   IRHICommandList *cmdList, PrepareAssetsSystem &prepare)
+void RenderExecuteSystem::drawItem(World &renderWorld, const ExtractedView &view, const ExtractedLight &light,
+                                   Entity renderEntity, IRHICommandList *cmdList, PrepareAssetsSystem &prepare)
 {
     const RenderTransform *transform = renderWorld.getComponent<RenderTransform>(renderEntity);
     const RenderMesh *mesh = renderWorld.getComponent<RenderMesh>(renderEntity);
@@ -89,7 +91,18 @@ void RenderExecuteSystem::drawItem(World &renderWorld, const ExtractedView &view
         ++m_stats.fallback_material_draws;
     }
 
+    // Per-draw object uniforms (Phase 5a): uMVP + world matrix + its
+    // inverse-transpose 3x3 for normals. Lighting uniforms are view-level but
+    // go through the same per-draw material mechanism until uniform data is
+    // frequency-layered (TODO.md Render/UniformBinding).
     prepared->material.setMat4("uMVP"_sid, view.proj_matrix * view.view_matrix * transform->world_matrix);
+    prepared->material.setMat4("uModel"_sid, transform->world_matrix);
+    prepared->material.setMat3("uNormalMatrix"_sid, Mat3::normalMatrix(transform->world_matrix));
+    prepared->material.setVec3("uViewPos"_sid, view.view_pos);
+    prepared->material.setVec3("uLightDir"_sid, light.direction);
+    prepared->material.setVec3("uLightColor"_sid, light.color);
+    prepared->material.setFloat("uLightIntensity"_sid, light.intensity);
+    prepared->material.setFloat("uAmbient"_sid, light.ambient);
     prepared->material.bind(cmdList);
 
     cmdList->bindVertexBuffer(gpuMesh->vbo.get(), 0, 0);
@@ -117,6 +130,18 @@ void RenderExecuteSystem::run(World &renderWorld, PrepareAssetsSystem &prepare)
     if (!view)
         return;
 
+    // Single directional light (Phase 5a). Without one the scene is lit by
+    // the ambient term only (intensity 0).
+    ExtractedLight light{};
+    light.intensity = 0.0f;
+    ConstQuery<ExtractedLight> lightQuery(renderWorld);
+    for (auto [le, el] : lightQuery)
+    {
+        (void)le;
+        light = *el;
+        break;
+    }
+
     const ViewBinnedPhases *binned = renderWorld.getComponent<ViewBinnedPhases>(viewEntity);
     const ViewSortedPhases *sorted = renderWorld.getComponent<ViewSortedPhases>(viewEntity);
     if (!binned && !sorted)
@@ -130,14 +155,14 @@ void RenderExecuteSystem::run(World &renderWorld, PrepareAssetsSystem &prepare)
         {
             for (const PhaseItem &item : bin.items)
             {
-                drawItem(renderWorld, *view, item.render_entity, cmdList, prepare);
+                drawItem(renderWorld, *view, light, item.render_entity, cmdList, prepare);
             }
         }
         for (const PhaseBin &bin : binned->alpha_mask.getBins())
         {
             for (const PhaseItem &item : bin.items)
             {
-                drawItem(renderWorld, *view, item.render_entity, cmdList, prepare);
+                drawItem(renderWorld, *view, light, item.render_entity, cmdList, prepare);
             }
         }
     }
@@ -145,11 +170,11 @@ void RenderExecuteSystem::run(World &renderWorld, PrepareAssetsSystem &prepare)
     {
         for (const PhaseItem &item : sorted->transparent.getItems())
         {
-            drawItem(renderWorld, *view, item.render_entity, cmdList, prepare);
+            drawItem(renderWorld, *view, light, item.render_entity, cmdList, prepare);
         }
         for (const PhaseItem &item : sorted->ui.getItems())
         {
-            drawItem(renderWorld, *view, item.render_entity, cmdList, prepare);
+            drawItem(renderWorld, *view, light, item.render_entity, cmdList, prepare);
         }
     }
 

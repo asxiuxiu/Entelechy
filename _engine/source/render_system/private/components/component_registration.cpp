@@ -8,10 +8,12 @@
 // anonymous-namespace static initializers run before main() as a side effect.
 
 #include "render_system/components/Camera.h"
+#include "render_system/components/DirectionalLight.h"
 #include "render_system/components/MaterialAssetRef.h"
 #include "render_system/components/MeshAssetRef.h"
 #include "render_system/components/RenderCamera.h"
 #include "render_system/components/RenderComponents.h"
+#include "render_system/components/RenderLight.h"
 #include "render_system/components/WorldAabb.h"
 #include "render_system/culling/ViewVisibleList.h"
 #include "render_system/phase/RenderResources.h"
@@ -40,6 +42,10 @@ REFLECT_COMPONENT(MaterialAssetRef)
 // the current reflection macros.
 REFLECT_COMPONENT(WorldAABB)
 
+REFLECT_COMPONENT(DirectionalLight, REG_FIELD(DirectionalLight, direction, Vec3),
+                  REG_FIELD(DirectionalLight, color, Vec3), REG_FIELD(DirectionalLight, intensity, f32),
+                  REG_FIELD(DirectionalLight, ambient, f32))
+
 // -- render-world components (spawned/extracted by systems) --
 
 REFLECT_COMPONENT(RenderMesh)
@@ -53,7 +59,11 @@ REFLECT_COMPONENT(RenderAABB)
 REFLECT_COMPONENT(ExtractedView, REG_FIELD(ExtractedView, view_matrix, Mat4),
                   REG_FIELD(ExtractedView, proj_matrix, Mat4), REG_FIELD(ExtractedView, frustum, Frustum),
                   REG_FIELD(ExtractedView, viewport, Rect), REG_FIELD(ExtractedView, near_plane, f32),
-                  REG_FIELD(ExtractedView, far_plane, f32))
+                  REG_FIELD(ExtractedView, far_plane, f32), REG_FIELD(ExtractedView, view_pos, Vec3))
+
+REFLECT_COMPONENT(ExtractedLight, REG_FIELD(ExtractedLight, direction, Vec3),
+                  REG_FIELD(ExtractedLight, color, Vec3), REG_FIELD(ExtractedLight, intensity, f32),
+                  REG_FIELD(ExtractedLight, ambient, f32))
 
 // -- view-resource components (output of culling/queue stages) --
 

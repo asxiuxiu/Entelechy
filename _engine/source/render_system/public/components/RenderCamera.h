@@ -1,6 +1,7 @@
 #pragma once
 #include "core/foundation_types.h"
 #include "core/math/mat4.h"
+#include "core/math/vec.h"
 #include "core/math/frustum.h"
 
 namespace Entelechy
@@ -25,6 +26,7 @@ struct ExtractedView
     Rect viewport;
     f32 near_plane = 0.1f;
     f32 far_plane = 1000.0f;
+    Vec3 view_pos; // camera world position (for view-dependent lighting)
 };
 
 } // namespace Entelechy

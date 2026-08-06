@@ -48,6 +48,7 @@
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与画面/GPU资源生命周期管理.md` 问题 4 分支 C。
 - [ ] Render / RHI | `PSOManager::getOrCreateAsync()` 缓存未命中时同步编译造成帧时间尖刺（hitch），需返回占位 PSO（如最简单的纯色着色器），同时启动后台线程编译，后台完成后自动切换。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/RHI抽象层.md` 问题 5。
+- [ ] Render / RHI | 纹理显存无预算控制：Sponza 73 张 PNG 全部以 RGBA8 + 完整 mip 链上传（5b 修复 minification aliasing 引入 mip 链后约 +33%），合计约 6.2 GiB 量级。无纹理压缩（BC7/ASTC）、无 cook 期降采样、无流式加载。当前场景能跑，但第二个更大场景或低端 GPU 会爆显存；压缩纹理格式支持需 RHI `TextureDesc` 增加压缩 format 枚举 + cooker 侧编码。
 - [ ] Render / RHI | RHI 抽象接口目前仅有 OpenGL 后端，需在接口已跑通带纹理旋转立方体、接口稳定后启动第二个后端，先钉死 D3D12（Windows 默认，调试工具顶尖），跑通全部上层管线后再移植 Vulkan。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/RHI抽象层.md` 问题 7。
 - [ ] Render / RHI | 主 World 与渲染未分离，无法支持 CPU-GPU 流水线并行、多视图隔离、确定性快照，需实现双 World 模型（主 World 跑逻辑 30Hz，Render World 跑渲染 60Hz），每帧 Extract 阶段单向只读复制可渲染数据到 Render World，Render World 内 System 生成命令，最终 `PresentSystem` 输出。
@@ -70,6 +71,8 @@
 - [ ] Render / RHI | `RenderExecuteSystem`（`render_system/private/execute/RenderExecuteSystem.cpp`）自持第二个 `GLRHIDevice` + `ShaderCache`（与 `render/example/simple_cube_renderer.h` 同款债务，同源），两个设备实例并存于主循环，需统一为由帧驱动层注入或 ECS Resource 化的单一设备。
 - [ ] Render / RHI | 阶段1 网格/材质由 `launch/templates/main.cpp.in` 手工注册（2c 已移除）：~~asset → GPU 资源解析散落在主循环~~ 已由 2c `PrepareAssetsSystem` 接管（`render_system/prepare/`）。残留简化：Prepare 不主动发起 `loadAsync`（Handle 无路径，加载由游戏侧发起），且每帧全量扫描 RenderMesh/RenderMaterial 组件（无 `Changed<T>` 增量），实体规模上量后需增量化。
 - [ ] Render / RHI | `render_system/private/prepare/PrepareAssetsSystem.cpp` 白模法线着色用 `mat3(uModel)` 直接变换法线，未使用 inverse-transpose 法线矩阵，非均匀缩放下法线方向错误（Sponza 变换为刚体/均匀缩放，阶段 3c 安全）；引入非均匀缩放资产或阶段 5 正式光照前需改为法线矩阵。
+- [ ] Render / RHI | `DirectionalLight.ambient`/`uAmbient`（`render_system/public/components/DirectionalLight.h`、`render_system/private/prepare/PrepareAssetsSystem.cpp` 内联 fs）为常量环境项 ambient×albedo，无 IBL/半球环境光，背阴面缺少天空/地面色变化，引入 IBL 或半球环境光后替换。
+- [ ] Render / RHI | `RenderExecuteSystem::drawItem`（`render_system/private/execute/RenderExecuteSystem.cpp`）自阶段 5a 起每 draw 上传对象/视图/光照共 8 个 uniform（`uModel`/`uNormalMatrix`/`uViewPos`/`uLightDir`/`uLightColor`/`uLightIntensity`/`uAmbient`），且每 draw 在 CPU 侧重算 Mat3 逆转置法线矩阵；视图/光照级数据应随 UBO/按更新频率分层移出逐 draw 路径，法线矩阵可在 Extract 期预计算或按实体缓存。
 - [ ] Render / RHI | 固定步长 Scheduler 热身期：启动后首个累加周期内 `TransformPropagationSystem` 尚未执行，所有 `GlobalTransform` 仍是零矩阵（首帧渲染为空），且 `GlobalTransform` 默认零矩阵而非单位矩阵放大了该问题。需在 spawn 后强制一次传播、或让 `GlobalTransform` 默认为单位矩阵、或首帧 `tickOnce`。
 - [ ] Core / String | `_sid` 字面量是 consteval 纯哈希、不进驻留池，任何经 `StringInternPool::resolve` 反查字符串的消费者（如 `GLCommandList::getUniformLocation`）对未驻留 id 会**静默失败**（2026-08-04 因此导致 Material uniform 全部未上传、画面只剩清屏色，已通过 `MaterialParamDesc` 改 `const char*` + init 时 intern 修复）。后续新增 resolve 消费者时需确保上游驻留，或考虑为 resolve 失败路径加日志/断言。
 
@@ -93,7 +96,9 @@
 - [ ] Material / Shader | `MaterialAssetRef`（`render/components/MaterialAssetRef.h`）缺少 `render_phase` 信息，`ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:20`）无法推断 phase，全部默认 `Opaque3D`，透明材质被错误分箱到 `BinnedRenderPhase`，需在材质系统（`Material` / `MaterialAsset`）增加 `RenderPhase` 声明，`ExtractRenderablesSystem` 从材质元数据读取 phase。
 - [ ] Material / Shader | `PrepareAssetsSystem.cpp` 的 `prepareMaterial` 把 `AlphaMode::Blend` 当 opaque 处理（目前仅 dirt_decal 一个材质），正确混合需要透明排序 + 独立 translucent pass，随光照阶段（阶段 5+）再议。
 - [ ] Material / Shader | `PrepareAssetsSystem.cpp` 内联 GLSL 的 `uAlphaCutoff` discard 分支（`AlphaMode::Mask`）未经实测——Sponza 无 mask 材质可触发；首次引入 mask 材质时必须实跑验证裁剪正确性。
-- [ ] Material / Shader | `MaterialAsset` 的 normal/MR 贴图已随阶段 4c 经 `SceneLoader` 回填 Handle 落位到 `Assets<TextureAsset>`（D4 只加载不采样），shader 无消费端；阶段 5 光照落地时需在 Prepare 侧绑定并由 shader 采样（含 MR 的 G=roughness、B=metallic 解包约定）。
+- [ ] Material / Shader | `PrepareAssetsSystem.cpp` 内联 fs 用 `pow(2.2)`/`pow(1/2.2)` 近似 gamma（阶段 5a D8），纹理仍按 `RGBA8_UNORM` 采样、无 SRGB framebuffer，并非正确的色彩管理；引入 SRGB 纹理格式/帧缓冲或完整线性 workflow 后移除两处 pow 近似。
+- [x] Material / Shader | `MaterialAsset` 的 normal/MR 贴图已随阶段 4c 经 `SceneLoader` 回填 Handle 落位到 `Assets<TextureAsset>`（D4 只加载不采样），shader 无消费端；阶段 5b 需在 Prepare 侧绑定并由 shader 采样（含 MR 的 G=roughness、B=metallic 解包约定）。5a 期间的临时收窄：`prepareMaterial` 对有 MR 贴图的材质忽略 `.emat` 的 `metallic_factor`/`roughness_factor`（glTF factor 是贴图乘数、有贴图时导出方留 spec 默认 1.0，当常量用会把材质判成全金属杀掉漫反射——2026-08-06 天花板纯色事故的根因），改用占位 metallic 0.0/roughness 0.9；5b 采样 MR 贴图后必须恢复 factor×texture 语义。
+  - 完成：2026-08-06（阶段 5b），`prepareMaterial` 扩展 prepare normal/MR 贴图（复用 baseColor 的 pending/fallback/热替换机制），vs 输出 TBN（Gram-Schmidt 正交化，B = cross(N,T)×tangentW），fs 采样法线贴图扰动 N、MR 贴图与 factor 相乘；5a 的 metallic 0.0/roughness 0.9 占位已移除，恢复 factor×texture 语义。
 
 ## AI / Agent 基建
 > 2026-04-13 讨论纪要：AI 不应是独立的第三个 exe，而是「协议 + 桥梁」。先记录为技术债务，后续渐进补齐。

@@ -18,7 +18,7 @@
 | `opengl_backend.cpp` | OpenGL 初始化、视口管理、清除与呈现（SwapChain 层，保留兼容） |
 | `opengl_backend.h` | `OpenGLBackend` 类声明 |
 | `render_backend.h` | `IRenderBackend` 接口 + `RenderSettings`（SwapChain 兼容层） |
-| `material_types.h` | 材质参数类型枚举（Float/Vec2/Vec3/Vec4/Mat4/Texture）与布局描述 |
+| `material_types.h` | 材质参数类型枚举（Float/Vec2/Vec3/Vec4/Mat3/Mat4/Texture）与布局描述 |
 | `shader_cache.h` / `.cpp` | Shader 编译缓存：按 (stage, sourceHash) 去重，同步编译，内存缓存 |
 | `material.h` / `.cpp` | **材质系统核心**：Shader 引用 + CPU uniform 块 + 参数按名设置 + PSO 绑定 |
 | `simple_cube_renderer.cpp` | 最小可行立方体渲染器：通过 `Material` + `GLRHIDevice` 绘制（批次 B 验证用）。**保留在仓库，但 2026-08-04 起主循环已改用 RenderFrameRunner，不再被 main 使用** |

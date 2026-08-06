@@ -13,6 +13,7 @@ class World;
 class IRHICommandList;
 class PrepareAssetsSystem;
 struct ExtractedView;
+struct ExtractedLight;
 struct PreparedMesh;
 struct PreparedMaterial;
 
@@ -64,8 +65,8 @@ public:
     }
 
 private:
-    void drawItem(World &renderWorld, const ExtractedView &view, Entity renderEntity, IRHICommandList *cmdList,
-                  PrepareAssetsSystem &prepare);
+    void drawItem(World &renderWorld, const ExtractedView &view, const ExtractedLight &light, Entity renderEntity,
+                  IRHICommandList *cmdList, PrepareAssetsSystem &prepare);
 
     std::unique_ptr<GLRHIDevice> m_device;
     std::unique_ptr<ShaderCache> m_shader_cache;

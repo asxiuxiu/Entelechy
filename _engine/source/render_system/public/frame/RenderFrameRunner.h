@@ -2,6 +2,7 @@
 #include "core/foundation_types.h"
 #include "render_system/render_world/RenderWorld.h"
 #include "render_system/extract/ExtractCameraSystem.h"
+#include "render_system/extract/ExtractLightSystem.h"
 #include "render_system/extract/ExtractRenderablesSystem.h"
 #include "render_system/culling/FrustumCullSystem.h"
 #include "render_system/queue/QueueDrawsSystem.h"
@@ -68,6 +69,7 @@ public:
 private:
     RenderWorld m_render_world;
     ExtractCameraSystem m_extract_camera{nullptr}; // window bound in init()
+    ExtractLightSystem m_extract_light;
     ExtractRenderablesSystem m_extract_renderables{m_render_world.sync()};
     PrepareAssetsSystem m_prepare;
     FrustumCullSystem m_cull;

@@ -31,7 +31,7 @@
 阶段 2  资源进管线 ✅        拆为 2a/2b/2c（见 plan/RENDER_PHASE2_PLAN.md），2026-08-05 完成：Handle 集成 + MeshAsset/TextureAsset/stb_image loader + PrepareAssetsSystem（fallback 热替换）；详细验收记录见子计划
 阶段 3  看见 Sponza 骨架 ✅  拆为 3a/3b/3c（见 plan/RENDER_PHASE3_PLAN.md），2026-08-05 完成：.emesh 格式+Loader → cgltf cook 工具（405 primitive 零告警）→ spawn+白模渲染（405 实体异步加载无 fallback 残留，剔除生效，~60fps）；详细验收记录见子计划
 阶段 4  还原材质与场景 ✅  拆为 4a/4b/4c（见 plan/RENDER_PHASE4_PLAN.md），2026-08-06 完成：cooker 材质导出（28 个 .emat）+ MaterialAssetLoader → baseColor 贴图上屏（V 翻转/alpha/doubleSided 落地）→ scene_loader 迁引擎 asset/scene + normal/MR 贴图加载落位（只加载不采样，D4）；详细验收记录见子计划
-阶段 5  让它像样           光照、深度/法线正确性、天空、调试统计面板
+阶段 5  让它像样           拆为 5a/5b/5c（见 plan/RENDER_PHASE5_PLAN.md）：方向光+lit PBR shader → 法线/MR 贴图采样 → 天空渐变+调试统计面板
 阶段 6+ 架构补全           RenderGraph / 延迟命令缓冲 / TAI 材质 / BindGroup（按文档优先级推进）
 ```
 
@@ -114,6 +114,8 @@
 ---
 
 ## 阶段 5 —— 让它像样
+
+> **已拆分子计划**（2026-08-06）：见 [RENDER_PHASE5_PLAN.md](RENDER_PHASE5_PLAN.md)，拆为 5a（方向光+lit PBR shader）/ 5b（法线贴图+MR 采样）/ 5c（天空渐变+调试统计面板）。
 
 **可见成果**：有方向光（阳光）照射的 Sponza，明暗正确、有法线贴图效果；天空色/简易天空盒；ImGui 面板显示 FPS、draw call 数、剔除前后实体数、GPU 内存。
 

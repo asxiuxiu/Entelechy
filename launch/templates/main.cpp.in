@@ -8,6 +8,7 @@
 #include "log/core/log_macros.h"
 #include "render/rhi/opengl_backend.h"
 #include "render_system/frame/RenderFrameRunner.h"
+#include "render_system/components/DirectionalLight.h"
 #include "imgui/imgui_manager.h"
 #include "imgui/imgui_panels.h"
 #include "editor/editor_panels.h"
@@ -178,8 +179,39 @@ int main() {
         int currentW, currentH;
         window->getSize(currentW, currentH);
 
+        // Mirror the first main-world directional light into the debug
+        // panel and write edits back the same frame (Phase 5a).
+        Entelechy::DirectionalLightParams lightParams;
+        Entelechy::DirectionalLight* sunLight = nullptr;
+        {
+            Entelechy::Query<Entelechy::DirectionalLight> lightQuery(world);
+            for (auto [lightEntity, light] : lightQuery) {
+                (void)lightEntity;
+                sunLight = light;
+                break;
+            }
+        }
+        if (sunLight) {
+            lightParams.direction[0] = sunLight->direction.x;
+            lightParams.direction[1] = sunLight->direction.y;
+            lightParams.direction[2] = sunLight->direction.z;
+            lightParams.color[0] = sunLight->color.x;
+            lightParams.color[1] = sunLight->color.y;
+            lightParams.color[2] = sunLight->color.z;
+            lightParams.intensity = sunLight->intensity;
+            lightParams.ambient = sunLight->ambient;
+        }
+
         Entelechy::WindowSizeRequest sizeRequest;
-        Entelechy::buildDebugPanel(dt, fps, clearColor, currentW, currentH, sizeRequest);
+        Entelechy::buildDebugPanel(dt, fps, clearColor, sunLight ? &lightParams : nullptr, currentW, currentH,
+                                   sizeRequest);
+
+        if (sunLight) {
+            sunLight->direction = {lightParams.direction[0], lightParams.direction[1], lightParams.direction[2]};
+            sunLight->color = {lightParams.color[0], lightParams.color[1], lightParams.color[2]};
+            sunLight->intensity = lightParams.intensity;
+            sunLight->ambient = lightParams.ambient;
+        }
         {
             const auto& rstats = frameRunner.stats();
             Entelechy::buildRenderStatsPanel(rstats.draw_calls, rstats.visible, rstats.culled, rstats.total_renderables);

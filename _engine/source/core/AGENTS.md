@@ -45,6 +45,7 @@
 | `math/math_config.h` | NaN/Inf 诊断宏开关 |
 | `math/vec.h` | 向量（Vec2 / Vec3 / Vec4） |
 | `math/mat4.h` | 4×4 列主序矩阵及运算 |
+| `math/mat3.h` | 3×3 列主序矩阵（inverse/transpose/`normalMatrix` 法线矩阵） |
 | `math/quat.h` | 四元数及旋转相关运算 |
 | `math/aabb.h` | 轴对齐包围盒（AABB），含 `transformed(Mat4)` 8 角点世界盒变换 |
 | `math/ray.h` | 射线（Ray），含 `intersectAABB` |

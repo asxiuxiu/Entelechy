@@ -8,6 +8,7 @@ entelechy_module(
         ${CMAKE_CURRENT_LIST_DIR}/test_memory.cpp
         ${CMAKE_CURRENT_LIST_DIR}/test_vec.cpp
         ${CMAKE_CURRENT_LIST_DIR}/test_mat4.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/test_mat3.cpp
         ${CMAKE_CURRENT_LIST_DIR}/test_quat.cpp
         ${CMAKE_CURRENT_LIST_DIR}/test_geometry.cpp
         ${CMAKE_CURRENT_LIST_DIR}/test_misc.cpp

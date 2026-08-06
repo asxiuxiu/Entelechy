@@ -200,6 +200,7 @@ public:
     void setUniformVec2(StringId name, const f32 *value) override;
     void setUniformVec3(StringId name, const f32 *value) override;
     void setUniformVec4(StringId name, const f32 *value) override;
+    void setUniformMat3(StringId name, const f32 *value, bool transpose = false) override;
     void setUniformMat4(StringId name, const f32 *value, bool transpose = false) override;
     void bindTexture(u32 slot, RHITexture *texture) override;
 

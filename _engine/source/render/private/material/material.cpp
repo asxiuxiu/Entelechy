@@ -27,6 +27,8 @@ static u32 getParamAlign(MaterialParamType type)
         return 16;
     case MaterialParamType::Vec4:
         return 16;
+    case MaterialParamType::Mat3:
+        return 16;
     case MaterialParamType::Mat4:
         return 16;
     default:
@@ -46,6 +48,8 @@ static u32 getParamSize(MaterialParamType type)
         return 16; // std140: vec3 padded to 16
     case MaterialParamType::Vec4:
         return 16;
+    case MaterialParamType::Mat3:
+        return 36; // 9 floats; uploaded via glUniformMatrix3fv (no std140 padding needed)
     case MaterialParamType::Mat4:
         return 64;
     default:
@@ -253,6 +257,16 @@ void Material::setVec4(StringId name, const Vec4 &value)
     std::memcpy(m_uniform_data + slot->offset, &value.x, 4 * sizeof(f32));
 }
 
+void Material::setMat3(StringId name, const Mat3 &value, bool /*transpose*/)
+{
+    if (!m_uniform_data || name.value() == 0)
+        return;
+    auto *slot = m_params.find(name);
+    if (!slot || slot->type != MaterialParamType::Mat3)
+        return;
+    std::memcpy(m_uniform_data + slot->offset, value.m, 9 * sizeof(f32));
+}
+
 void Material::setMat4(StringId name, const Mat4 &value, bool /*transpose*/)
 {
     if (!m_uniform_data || name.value() == 0)
@@ -311,6 +325,11 @@ void Material::bind(IRHICommandList *cmdList)
         case MaterialParamType::Vec4:
         {
             cmdList->setUniformVec4(name, reinterpret_cast<f32 *>(m_uniform_data + slot.offset));
+            break;
+        }
+        case MaterialParamType::Mat3:
+        {
+            cmdList->setUniformMat3(name, reinterpret_cast<f32 *>(m_uniform_data + slot.offset), false);
             break;
         }
         case MaterialParamType::Mat4:

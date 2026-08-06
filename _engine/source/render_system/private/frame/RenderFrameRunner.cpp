@@ -17,6 +17,7 @@ bool RenderFrameRunner::init(IWindow *window)
 
     m_extract_camera = ExtractCameraSystem(window);
     m_render_world.extractSchedule().registerSystem(&m_extract_camera);
+    m_render_world.extractSchedule().registerSystem(&m_extract_light);
     m_render_world.extractSchedule().registerSystem(&m_extract_renderables);
 
     if (!m_execute.init())

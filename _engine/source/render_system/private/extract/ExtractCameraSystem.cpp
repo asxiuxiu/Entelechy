@@ -28,6 +28,8 @@ void ExtractCameraSystem::extract(const World &mainWorld, World &renderWorld, Fr
     {
         Mat4 view_matrix = transform->matrix.inverse();
         Mat4 proj_matrix;
+        // Camera world position = translation column of the camera transform.
+        const Vec3 view_pos{transform->matrix.m[12], transform->matrix.m[13], transform->matrix.m[14]};
 
         if (camera->orthographic)
         {
@@ -51,6 +53,7 @@ void ExtractCameraSystem::extract(const World &mainWorld, World &renderWorld, Fr
             ev->viewport = Rect{0.0f, 0.0f, static_cast<f32>(w), static_cast<f32>(h)};
             ev->near_plane = camera->near_plane;
             ev->far_plane = camera->far_plane;
+            ev->view_pos = view_pos;
             found = true;
             break;
         }
@@ -65,6 +68,7 @@ void ExtractCameraSystem::extract(const World &mainWorld, World &renderWorld, Fr
             view.viewport = Rect{0.0f, 0.0f, static_cast<f32>(w), static_cast<f32>(h)};
             view.near_plane = camera->near_plane;
             view.far_plane = camera->far_plane;
+            view.view_pos = view_pos;
             renderWorld.addComponent(viewEntity, view);
 
             // Pre-bind downstream view resources to the same entity so that

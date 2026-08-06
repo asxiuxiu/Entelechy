@@ -10,6 +10,7 @@
 #include "core/string/string_intern_pool.h"
 #include "core/math/vec.h"
 #include "core/math/mat4.h"
+#include "core/math/mat3.h"
 
 namespace Entelechy
 {
@@ -52,6 +53,7 @@ public:
     void setVec2(StringId name, const Vec2 &value);
     void setVec3(StringId name, const Vec3 &value);
     void setVec4(StringId name, const Vec4 &value);
+    void setMat3(StringId name, const Mat3 &value, bool transpose = false);
     void setMat4(StringId name, const Mat4 &value, bool transpose = false);
     void setTexture(StringId name, RHITextureRef texture);
 

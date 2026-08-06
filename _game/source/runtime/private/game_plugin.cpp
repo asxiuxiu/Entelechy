@@ -5,6 +5,7 @@
 #include "ecs/type/type_registry.h"
 #include "core/string/string_intern_pool.h"
 #include "render_system/components/Camera.h"
+#include "render_system/components/DirectionalLight.h"
 
 namespace game
 {
@@ -65,6 +66,14 @@ void GamePlugin::setup(Entelechy::App &app)
     world.addComponent<GlobalTransform>(camera, GlobalTransform{});
     world.addComponent<Camera>(camera, Camera{1.0472f, 0.1f, 200.0f, false, 10.0f});
     world.addComponent<FlyCameraTag>(camera, FlyCameraTag{});
+
+    // -- Sun (Phase 5a) -----------------------------------------------------
+    // Single directional light roughly matching the official Sponza renders:
+    // warm daylight slanting into the atrium from one side. Tunable at
+    // runtime through the ImGui debug panel.
+    auto sun = world.spawn();
+    world.addComponent<DirectionalLight>(
+        sun, DirectionalLight{{0.45f, -0.85f, -0.25f}, {1.0f, 0.956f, 0.839f}, 3.0f, 0.15f});
 
     // -- Cooked Sponza scene (Phase 3c/4c) --------------------------------
     // Spawns one entity per scene.json entry (405 for NewSponza); meshes

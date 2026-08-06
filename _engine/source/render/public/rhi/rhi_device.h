@@ -135,6 +135,7 @@ public:
     virtual void setUniformVec2(StringId name, const f32 *value) = 0;
     virtual void setUniformVec3(StringId name, const f32 *value) = 0;
     virtual void setUniformVec4(StringId name, const f32 *value) = 0;
+    virtual void setUniformMat3(StringId name, const f32 *value, bool transpose = false) = 0;
     virtual void setUniformMat4(StringId name, const f32 *value, bool transpose = false) = 0;
     virtual void bindTexture(u32 slot, RHITexture *texture) = 0;
 

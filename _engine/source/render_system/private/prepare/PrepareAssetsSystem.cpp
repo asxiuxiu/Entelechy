@@ -14,33 +14,150 @@ namespace
 
 constexpr LogCategory kLogPrepare("Render");
 
-// Unlit textured shader pair. The shader always samples; materials without
-// a texture bind the 1x1 white fallback so uColor passes through unchanged.
-// uAlphaCutoff implements AlphaMode::Mask (discard below cutoff); opaque
-// materials pass 0 which disables the test. NOTE: the mask branch is
-// unverified — Sponza has no mask materials to exercise it (Phase 4b).
+// Lit PBR shader pair (Phase 5a, D1/D8; Phase 5b, D5): single directional
+// light + constant ambient, Lambert diffuse + GGX Cook-Torrance specular,
+// approximate gamma (pow 2.2 in, pow 1/2.2 out — not true sRGB, see TODO.md).
+// The shader always samples; materials without a texture bind the 1x1 white
+// fallback so uColor passes through unchanged. uAlphaCutoff implements
+// AlphaMode::Mask (discard below cutoff); opaque materials pass 0 which
+// disables the test. NOTE: the mask branch is unverified — Sponza has no
+// mask materials to exercise it (Phase 4b).
+// Phase 5b: the vs outputs a Gram-Schmidt orthogonalized world-space TBN
+// (B reconstructed in the fs as cross(N,T) * tangentW handedness, per D5);
+// the fs perturbs N with the tangent-space normal map and multiplies the
+// metallic/roughness factors with the MR texture (glTF: G=roughness,
+// B=metallic). Materials without those textures take factor-only branches
+// gated by uHasNormalTex/uHasMRTex (hand-written branches, no variant
+// system — Phase 6+).
 const char *s_vertexShader = R"(#version 330 core
 layout(location = 0) in vec3 aPos;
+layout(location = 1) in vec3 aNormal;
 layout(location = 2) in vec2 aUV;
+layout(location = 3) in vec4 aTangent; // xyz = tangent, w = handedness (+/-1)
 uniform mat4 uMVP;
+uniform mat4 uModel;
+uniform mat3 uNormalMatrix;
+out vec3 vWorldPos;
+out vec3 vNormal;
+out vec3 vTangent;
+out float vTangentW;
 out vec2 vUV;
 void main() {
+    vWorldPos = (uModel * vec4(aPos, 1.0)).xyz;
+    // D5 (Phase 5b): N goes through the normal matrix (inverse-transpose),
+    // T through the plain model matrix, then T is re-orthogonalized
+    // against N (Gram-Schmidt) — B is rebuilt in the fragment shader.
+    vec3 N = uNormalMatrix * aNormal;
+    vec3 T = mat3(uModel) * aTangent.xyz;
+    T = normalize(T - dot(T, N) * N);
+    vNormal = N;
+    vTangent = T;
+    vTangentW = aTangent.w;
     vUV = aUV;
     gl_Position = uMVP * vec4(aPos, 1.0);
 }
 )";
 
 const char *s_fragmentShader = R"(#version 330 core
+in vec3 vWorldPos;
+in vec3 vNormal;
+in vec3 vTangent;
+in float vTangentW;
 in vec2 vUV;
 uniform vec3 uColor;
+uniform float uMetallic;
+uniform float uRoughness;
 uniform float uAlphaCutoff;
 uniform sampler2D uBaseColorTex;
+uniform sampler2D uNormalTex;
+uniform sampler2D uMRTex;
+uniform float uHasNormalTex;
+uniform float uHasMRTex;
+uniform vec3 uViewPos;
+uniform vec3 uLightDir;       // direction the light travels
+uniform vec3 uLightColor;
+uniform float uLightIntensity;
+uniform float uAmbient;
 out vec4 FragColor;
+
+const float PI = 3.14159265359;
+
+// D: GGX / Trowbridge-Reitz.
+float distributionGGX(vec3 N, vec3 H, float roughness) {
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float NdotH = max(dot(N, H), 0.0);
+    float denom = NdotH * NdotH * (a2 - 1.0) + 1.0;
+    return a2 / (PI * denom * denom);
+}
+
+// G: Schlick-GGX (direct-lighting k).
+float geometrySchlickGGX(float NdotX, float roughness) {
+    float r = roughness + 1.0;
+    float k = (r * r) / 8.0;
+    return NdotX / (NdotX * (1.0 - k) + k);
+}
+
+float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
+    return geometrySchlickGGX(max(dot(N, V), 0.0), roughness) *
+           geometrySchlickGGX(max(dot(N, L), 0.0), roughness);
+}
+
+// F: Schlick approximation.
+vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
 void main() {
     vec4 tex = texture(uBaseColorTex, vUV);
     if (uAlphaCutoff > 0.0 && tex.a < uAlphaCutoff)
         discard;
-    FragColor = vec4(uColor * tex.rgb, 1.0);
+
+    vec3 albedo = pow(uColor * tex.rgb, vec3(2.2));
+    float metallic = uMetallic;
+    float roughness = uRoughness;
+    if (uHasMRTex > 0.5) {
+        // glTF metallicRoughnessTexture: G = roughness, B = metallic,
+        // multiplied with the factors.
+        vec3 mr = texture(uMRTex, vUV).rgb;
+        metallic *= mr.b;
+        roughness *= mr.g;
+    }
+    metallic = clamp(metallic, 0.0, 1.0);
+    roughness = clamp(roughness, 0.05, 1.0);
+
+    vec3 N = normalize(vNormal);
+    if (uHasNormalTex > 0.5) {
+        // D5 (Phase 5b): B = cross(N,T) * handedness; the normal map is
+        // tangent-space, so N = TBN * (tex*2-1).
+        vec3 T = normalize(vTangent - dot(vTangent, N) * N);
+        vec3 B = cross(N, T) * vTangentW;
+        N = normalize(mat3(T, B, N) * (texture(uNormalTex, vUV).xyz * 2.0 - 1.0));
+    }
+    if (!gl_FrontFacing)
+        N = -N; // double-sided materials: flip normals on backfaces
+    vec3 V = normalize(uViewPos - vWorldPos);
+    vec3 L = normalize(-uLightDir);
+    vec3 H = normalize(V + L);
+
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+
+    float NdotL = max(dot(N, L), 0.0);
+    vec3 radiance = uLightColor * uLightIntensity;
+
+    float NDF = distributionGGX(N, H, roughness);
+    float G = geometrySmith(N, V, L, roughness);
+    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+    vec3 specular = (NDF * G * F) / (4.0 * max(dot(N, V), 0.0) * NdotL + 0.0001);
+
+    vec3 kS = F;
+    vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+
+    vec3 Lo = (kD * albedo / PI + specular) * radiance * NdotL;
+    vec3 color = uAmbient * albedo + Lo;
+
+    FragColor = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);
 }
 )";
 
@@ -108,27 +225,50 @@ bool PrepareAssetsSystem::init(IRHIDevice *device, ShaderCache *shaderCache)
     }
 
     // Fallback material: unlit magenta, doubles as the "asset pending" marker.
+    // View/lighting params (uViewPos/uLight*/uAmbient) are part of every
+    // material's table so the execute stage can push them per draw through
+    // the existing material mechanism (frequency layering is TODO.md debt).
     MaterialParamDesc params[] = {
         {"uMVP", MaterialParamType::Mat4},
+        {"uModel", MaterialParamType::Mat4},
+        {"uNormalMatrix", MaterialParamType::Mat3},
+        {"uViewPos", MaterialParamType::Vec3},
+        {"uLightDir", MaterialParamType::Vec3},
+        {"uLightColor", MaterialParamType::Vec3},
+        {"uLightIntensity", MaterialParamType::Float},
+        {"uAmbient", MaterialParamType::Float},
         {"uColor", MaterialParamType::Vec3},
+        {"uMetallic", MaterialParamType::Float},
+        {"uRoughness", MaterialParamType::Float},
         {"uAlphaCutoff", MaterialParamType::Float},
         {"uBaseColorTex", MaterialParamType::Texture},
+        {"uNormalTex", MaterialParamType::Texture},
+        {"uMRTex", MaterialParamType::Texture},
+        {"uHasNormalTex", MaterialParamType::Float},
+        {"uHasMRTex", MaterialParamType::Float},
     };
+    constexpr u32 s_materialParamCount = 17;
     PipelineStateDesc pipelineDesc{};
     pipelineDesc.topology = PrimitiveTopology::Triangles;
     pipelineDesc.rasterizerState.cullMode = CullMode::Back;
     pipelineDesc.depthStencilState.depthTest = true;
     pipelineDesc.depthStencilState.depthWrite = true;
 
-    if (!m_fallback_material.material.init(m_device, m_shader_cache, s_vertexShader, s_fragmentShader, params, 4,
+    if (!m_fallback_material.material.init(m_device, m_shader_cache, s_vertexShader, s_fragmentShader, params, s_materialParamCount,
                                            pipelineDesc))
     {
         LOG_ERROR(kLogPrepare, "PrepareAssetsSystem: failed to init fallback material");
         return false;
     }
     m_fallback_material.material.setVec3("uColor"_sid, Vec3{1.0f, 0.0f, 1.0f});
+    m_fallback_material.material.setFloat("uMetallic"_sid, 0.0f);
+    m_fallback_material.material.setFloat("uRoughness"_sid, 0.9f);
     m_fallback_material.material.setFloat("uAlphaCutoff"_sid, 0.0f);
     m_fallback_material.material.setTexture("uBaseColorTex"_sid, m_white_texture);
+    m_fallback_material.material.setTexture("uNormalTex"_sid, m_white_texture);
+    m_fallback_material.material.setTexture("uMRTex"_sid, m_white_texture);
+    m_fallback_material.material.setFloat("uHasNormalTex"_sid, 0.0f);
+    m_fallback_material.material.setFloat("uHasMRTex"_sid, 0.0f);
 
     m_initialized = true;
     LOG_INFO(kLogPrepare, "PrepareAssetsSystem initialized (fallback cube + pink material ready)");
@@ -238,6 +378,14 @@ RHITextureRef PrepareAssetsSystem::prepareTexture(Handle<TextureAsset> handle)
     desc.height = asset->height;
     desc.format = TextureFormat::RGBA8_UNORM;
     desc.usage = TextureUsage::Sampled;
+    // Full mip chain: without mipmaps, minified 4K textures alias badly
+    // (visible as high-frequency speckle, worst on normal maps).
+    u32 mip_extent = desc.width > desc.height ? desc.width : desc.height;
+    while (mip_extent > 1)
+    {
+        mip_extent >>= 1;
+        ++desc.mipLevels;
+    }
 
     RHITextureRef texture = m_device->createTexture(desc, asset->pixels.data());
     if (!texture)
@@ -271,7 +419,10 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
     // backfill has not issued the texture load yet — stay pending instead
     // of preparing against the white texture (prepared materials are
     // never rebuilt, so preparing here would stick on white).
-    if (asset->base_color_texture_path.length() > 0 && !asset->base_color_texture.valid())
+    // Phase 5b: same guard for the normal/MR textures.
+    if ((asset->base_color_texture_path.length() > 0 && !asset->base_color_texture.valid()) ||
+        (asset->normal_texture_path.length() > 0 && !asset->normal_texture.valid()) ||
+        (asset->mr_texture_path.length() > 0 && !asset->mr_texture.valid()))
     {
         if (!loggedBefore(m_pending_logged, handle))
         {
@@ -282,6 +433,10 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
         return false;
     }
 
+    // A material stays pending (pink fallback) until every texture it
+    // references has been uploaded; the prepared material then binds the
+    // real textures — the same "not ready -> fallback -> hot-swap"
+    // mechanism baseColor already used (Phase 5b extends it to normal/MR).
     RHITextureRef texture = m_white_texture;
     if (asset->base_color_texture.valid())
     {
@@ -298,12 +453,63 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
         }
     }
 
+    RHITextureRef normalTexture = m_white_texture;
+    const bool hasNormalTexture = asset->normal_texture.valid();
+    if (hasNormalTexture)
+    {
+        normalTexture = prepareTexture(asset->normal_texture);
+        if (!normalTexture)
+        {
+            if (!loggedBefore(m_pending_logged, handle))
+            {
+                m_pending_logged.pushBack(handle);
+                LOG_INFO(kLogPrepare, "Prepare: material %u waiting for texture %u, using pink fallback",
+                         handle.index, asset->normal_texture.index);
+            }
+            return false;
+        }
+    }
+
+    RHITextureRef mrTexture = m_white_texture;
+    const bool hasMrTexture = asset->mr_texture.valid();
+    if (hasMrTexture)
+    {
+        mrTexture = prepareTexture(asset->mr_texture);
+        if (!mrTexture)
+        {
+            if (!loggedBefore(m_pending_logged, handle))
+            {
+                m_pending_logged.pushBack(handle);
+                LOG_INFO(kLogPrepare, "Prepare: material %u waiting for texture %u, using pink fallback",
+                         handle.index, asset->mr_texture.index);
+            }
+            return false;
+        }
+    }
+
+    // View/lighting params (uViewPos/uLight*/uAmbient) are part of every
+    // material's table so the execute stage can push them per draw through
+    // the existing material mechanism (frequency layering is TODO.md debt).
     MaterialParamDesc params[] = {
         {"uMVP", MaterialParamType::Mat4},
+        {"uModel", MaterialParamType::Mat4},
+        {"uNormalMatrix", MaterialParamType::Mat3},
+        {"uViewPos", MaterialParamType::Vec3},
+        {"uLightDir", MaterialParamType::Vec3},
+        {"uLightColor", MaterialParamType::Vec3},
+        {"uLightIntensity", MaterialParamType::Float},
+        {"uAmbient", MaterialParamType::Float},
         {"uColor", MaterialParamType::Vec3},
+        {"uMetallic", MaterialParamType::Float},
+        {"uRoughness", MaterialParamType::Float},
         {"uAlphaCutoff", MaterialParamType::Float},
         {"uBaseColorTex", MaterialParamType::Texture},
+        {"uNormalTex", MaterialParamType::Texture},
+        {"uMRTex", MaterialParamType::Texture},
+        {"uHasNormalTex", MaterialParamType::Float},
+        {"uHasMRTex", MaterialParamType::Float},
     };
+    constexpr u32 s_materialParamCount = 17;
     PipelineStateDesc pipelineDesc{};
     pipelineDesc.topology = PrimitiveTopology::Triangles;
     // D3 (Phase 4b): hand-written pipeline variant — double-sided materials
@@ -313,22 +519,33 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
     pipelineDesc.depthStencilState.depthWrite = true;
 
     PreparedMaterial prepared;
-    if (!prepared.material.init(m_device, m_shader_cache, s_vertexShader, s_fragmentShader, params, 4, pipelineDesc))
+    if (!prepared.material.init(m_device, m_shader_cache, s_vertexShader, s_fragmentShader, params, s_materialParamCount, pipelineDesc))
     {
         LOG_ERROR(kLogPrepare, "Prepare: failed to init material %u", handle.index);
         return false;
     }
     prepared.material.setVec3("uColor"_sid, asset->base_color);
+    // glTF semantics: metallic/roughness factors are multipliers for the MR
+    // texture (G=roughness, B=metallic). The factors are sent as-is; the
+    // shader multiplies them with the texture when uHasMRTex is set
+    // (Phase 5b — the Phase 5a dielectric placeholder for MR-textured
+    // materials is gone).
+    prepared.material.setFloat("uMetallic"_sid, asset->metallic_factor);
+    prepared.material.setFloat("uRoughness"_sid, asset->roughness_factor);
     // AlphaMode::Mask discards below the cutoff; opaque and blend-as-opaque
     // (D3, correct blending is Phase 5+) pass 0 to disable the test.
     prepared.material.setFloat("uAlphaCutoff"_sid,
                                asset->alpha_mode == AlphaMode::Mask ? asset->alpha_cutoff : 0.0f);
     prepared.material.setTexture("uBaseColorTex"_sid, texture);
+    prepared.material.setTexture("uNormalTex"_sid, normalTexture);
+    prepared.material.setTexture("uMRTex"_sid, mrTexture);
+    prepared.material.setFloat("uHasNormalTex"_sid, hasNormalTexture ? 1.0f : 0.0f);
+    prepared.material.setFloat("uHasMRTex"_sid, hasMrTexture ? 1.0f : 0.0f);
 
     m_materials.insert(handle, std::move(prepared));
-    LOG_INFO(kLogPrepare, "Prepare: material %u ready (textured=%d double_sided=%d alpha_mode=%d)", handle.index,
-             asset->base_color_texture.valid() ? 1 : 0, asset->double_sided ? 1 : 0,
-             static_cast<int>(asset->alpha_mode));
+    LOG_INFO(kLogPrepare, "Prepare: material %u ready (textured=%d normal=%d mr=%d double_sided=%d alpha_mode=%d)",
+             handle.index, asset->base_color_texture.valid() ? 1 : 0, hasNormalTexture ? 1 : 0,
+             hasMrTexture ? 1 : 0, asset->double_sided ? 1 : 0, static_cast<int>(asset->alpha_mode));
     return true;
 }
 

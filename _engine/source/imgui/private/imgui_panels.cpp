@@ -54,8 +54,8 @@ void buildDockSpace()
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 }
 
-void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4], int windowWidth, int windowHeight,
-                     WindowSizeRequest &outRequest)
+void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4], DirectionalLightParams *light, int windowWidth,
+                     int windowHeight, WindowSizeRequest &outRequest)
 {
     // First-use defaults: top-left corner, large enough for all controls.
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
@@ -72,6 +72,18 @@ void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4], int windowWidth, int wi
         clearColor[0] = 0.15f;
         clearColor[1] = 0.17f;
         clearColor[2] = 0.13f;
+    }
+
+    if (light)
+    {
+        ImGui::Separator();
+        ImGui::Text("Directional Light:");
+        // Direction is re-normalized by ExtractLightSystem every frame, so
+        // the raw drag values are safe to leave unnormalized here.
+        ImGui::DragFloat3("Direction", light->direction, 0.01f, -1.0f, 1.0f);
+        ImGui::ColorEdit3("Light Color", light->color);
+        ImGui::DragFloat("Intensity", &light->intensity, 0.05f, 0.0f, 20.0f);
+        ImGui::DragFloat("Ambient", &light->ambient, 0.005f, 0.0f, 1.0f);
     }
 
     ImGui::Separator();

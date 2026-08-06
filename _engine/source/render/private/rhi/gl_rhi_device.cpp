@@ -1077,6 +1077,15 @@ void GLCommandList::setUniformVec4(StringId name, const f32 *value)
         glUniform4fv(loc, 1, value);
 }
 
+void GLCommandList::setUniformMat3(StringId name, const f32 *value, bool transpose)
+{
+    if (!value)
+        return;
+    GLint loc = getUniformLocation(name);
+    if (loc >= 0)
+        glUniformMatrix3fv(loc, 1, transpose ? GL_TRUE : GL_FALSE, value);
+}
+
 void GLCommandList::setUniformMat4(StringId name, const f32 *value, bool transpose)
 {
     if (!value)

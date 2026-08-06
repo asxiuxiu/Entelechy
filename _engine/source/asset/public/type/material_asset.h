@@ -35,8 +35,9 @@ enum class AlphaMode : u8
 // `base_color` doubles as baseColorFactor — glTF's factor is RGBA but
 // the engine keeps Vec3 and drops A (opacity comes from the texture;
 // a constant-factor alpha has no consumer until the lighting phase).
-// Per D4, normal/MR textures are parsed and loaded but never sampled
-// by the shader (no consumer until the lighting phase).
+// Per D4 (Phase 4c), normal/MR textures are parsed and loaded; since
+// Phase 5b they are sampled by the lit PBR shader (normal map perturbs
+// N via TBN; MR texture multiplies the factors, G=roughness/B=metallic).
 // The `*_texture_path` strings hold the content-relative texture paths
 // parsed from .emat; the scene spawn side loadAsync's them and
 // back-fills the Handle fields (Phase 4b). The loader itself never

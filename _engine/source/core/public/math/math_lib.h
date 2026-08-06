@@ -5,6 +5,7 @@
 #include "core/math/vec.h"
 #include "core/math/quat.h"
 #include "core/math/mat4.h"
+#include "core/math/mat3.h"
 #include "core/math/aabb.h"
 #include "core/math/random.h"
 #include "core/math/simd.h"

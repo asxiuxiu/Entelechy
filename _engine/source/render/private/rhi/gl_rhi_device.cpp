@@ -804,7 +804,7 @@ RHIShaderRef GLRHIDevice::createShader(ShaderStage stage, const void *bytecode, 
 
 RHIPipelineStateRef GLRHIDevice::createPipelineState(const PipelineStateDesc &desc)
 {
-    // Phase 5c: route PSO creation through the cache. Identical descs (same
+    // Route PSO creation through the cache. Identical descs (same
     // shader pair + state) share one GL program — before this, every Material
     // linked its own program and the PSOManager below was dead code.
     if (RHIPipelineStateRef cached = m_pso_manager.find(desc))
@@ -857,7 +857,7 @@ RHIPipelineStateRef GLRHIDevice::createPipelineStateUncached(const PipelineState
 
 IRHICommandList *GLRHIDevice::createCommandList()
 {
-    // Phase 1: return the single internal command list
+    // Return the single internal command list
     m_cmd_list.begin();
     return &m_cmd_list;
 }
@@ -866,14 +866,14 @@ void GLRHIDevice::submit(IRHICommandList *cmdList)
 {
     if (!cmdList)
         return;
-    // Phase 1 (immediate GL): commands have already been executed.
-    // In future phases this will translate and queue to GPU.
+    // Immediate GL: commands have already been executed. Future
+    // backends will translate and queue to GPU.
     cmdList->end();
 }
 
 void GLRHIDevice::present()
 {
-    // Phase 1: SwapBuffers is handled by OpenGLBackend / Window layer.
+    // SwapBuffers is handled by OpenGLBackend / Window layer.
     // Signal the end of the frame so deferred deletes have a fence to wait on.
     signalFrame();
 }
@@ -1058,7 +1058,7 @@ usize PSOManager::getCacheSize() const
 }
 
 // ==================================================================
-// GLCommandList — Uniform and texture binding (Phase 1)
+// GLCommandList — Uniform and texture binding
 // ==================================================================
 
 void GLCommandList::setUniformFloat(StringId name, f32 value)

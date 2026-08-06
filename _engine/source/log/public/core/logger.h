@@ -29,11 +29,11 @@ namespace Entelechy
 // - Logger is intentionally a global singleton, NOT an ECS-driven system.
 //   Logging is lower-level than ECS (memory allocators, ECS bootstrap,
 //   and thread pools all need to log before a World exists).
-// - Future evolution (Phase 2~3): replace mutex+vector with TLS lock-free
-//   ring buffers (UE TraceLog style) to eliminate contention under
-//   >1000 logs/frame from many worker threads.
-// - Future evolution (Phase 1+): ECS can emit LogEvent components; a
-//   LogSinkSystem reads them and forwards to Logger::instance().log().
+// - Future evolution: replace mutex+vector with TLS lock-free ring
+//   buffers (UE TraceLog style) to eliminate contention under >1000
+//   logs/frame from many worker threads.
+// - Future evolution: ECS can emit LogEvent components; a LogSinkSystem
+//   reads them and forwards to Logger::instance().log().
 class Logger
 {
 public:

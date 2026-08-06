@@ -24,7 +24,7 @@ struct DefaultHash
 // ------------------------------------------------------------------
 // Open-addressing hash table with linear probing.
 // Capacity is always a power of two; index = hash & (capacity - 1).
-// No deletion support in Phase B (no tombstones).
+// No deletion support (no tombstones).
 template <typename K, typename V, typename Hash = DefaultHash<K>, typename Allocator = DefaultAllocator>
 class HashMap
 {

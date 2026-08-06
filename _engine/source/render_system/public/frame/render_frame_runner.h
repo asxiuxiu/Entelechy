@@ -1,14 +1,14 @@
 #pragma once
 #include "core/foundation_types.h"
-#include "render_system/render_world/RenderWorld.h"
-#include "render_system/extract/ExtractCameraSystem.h"
-#include "render_system/extract/ExtractLightSystem.h"
-#include "render_system/extract/ExtractSkySystem.h"
-#include "render_system/extract/ExtractRenderablesSystem.h"
-#include "render_system/culling/FrustumCullSystem.h"
-#include "render_system/queue/QueueDrawsSystem.h"
-#include "render_system/prepare/PrepareAssetsSystem.h"
-#include "render_system/execute/RenderExecuteSystem.h"
+#include "render_system/render_world/render_world.h"
+#include "render_system/extract/extract_camera_system.h"
+#include "render_system/extract/extract_light_system.h"
+#include "render_system/extract/extract_sky_system.h"
+#include "render_system/extract/extract_renderables_system.h"
+#include "render_system/culling/frustum_cull_system.h"
+#include "render_system/queue/queue_draws_system.h"
+#include "render_system/prepare/prepare_assets_system.h"
+#include "render_system/execute/render_execute_system.h"
 
 namespace Entelechy
 {
@@ -23,7 +23,7 @@ struct FrameStats
     u32 visible = 0;
     u32 culled = 0;
     u32 draw_calls = 0;
-    // Phase 5c (D7): PSO cache + GPU memory counters for the stats panel.
+    // PSO cache + GPU memory counters for the stats panel.
     u32 pso_cache_size = 0;
     u64 tracked_memory_bytes = 0; // RHI-tracked resident GPU memory (always valid)
     u64 gpu_total_bytes = 0;      // vendor extension (NVX/ATI); 0 = unsupported

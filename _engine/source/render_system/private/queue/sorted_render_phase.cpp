@@ -1,4 +1,4 @@
-#include "render_system/queue/SortedRenderPhase.h"
+#include "render_system/queue/sorted_render_phase.h"
 #include "core/algorithm/radix_sort.h"
 
 namespace Entelechy

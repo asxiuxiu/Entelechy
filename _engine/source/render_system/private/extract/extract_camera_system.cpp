@@ -1,10 +1,10 @@
-#include "render_system/extract/ExtractCameraSystem.h"
+#include "render_system/extract/extract_camera_system.h"
 #include "window/window.h"
-#include "render_system/components/Camera.h"
+#include "render_system/components/camera.h"
 #include "ecs/component/transform_component.h"
-#include "render_system/components/RenderCamera.h"
-#include "render_system/culling/ViewVisibleList.h"
-#include "render_system/phase/RenderResources.h"
+#include "render_system/components/render_camera.h"
+#include "render_system/culling/view_visible_list.h"
+#include "render_system/phase/render_resources.h"
 #include "core/math/mat4.h"
 #include "ecs/query/query.h"
 
@@ -79,7 +79,7 @@ void ExtractCameraSystem::extract(const World &mainWorld, World &renderWorld, Fr
             renderWorld.addComponent(viewEntity, ViewSortedPhases{});
         }
 
-        // Checkpoint 1: only the first camera is extracted.
+        // Only the first camera is extracted.
         break;
     }
 }

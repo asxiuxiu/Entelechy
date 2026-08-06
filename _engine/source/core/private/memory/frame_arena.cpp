@@ -130,7 +130,7 @@ void FrameArena::rollback(const MemMark &mark)
     }
     else
     {
-        // Overflow rollback not precisely supported in Phase A.
+        // Overflow rollback not precisely supported.
         // Safe fallback: free all overflow and clamp to capacity.
         OverflowBlock *block = m_overflow_head;
         while (block)

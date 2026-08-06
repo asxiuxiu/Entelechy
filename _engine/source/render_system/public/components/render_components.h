@@ -5,7 +5,7 @@
 #include "asset/handle/asset_handle.h"
 #include "asset/type/material_asset.h"
 #include "asset/type/mesh_asset.h"
-#include "render/phase/RenderPhase.h"
+#include "render/phase/render_phase.h"
 
 namespace Entelechy
 {

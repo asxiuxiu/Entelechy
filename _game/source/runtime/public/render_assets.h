@@ -23,7 +23,7 @@ namespace game
 // between GamePlugin (component refs in the main world) and main.cpp
 // (binding the storages to the render Prepare stage).
 //
-// Phase 2c: owns the VFS + AssetServer + loader used to stream the demo
+// Owns the VFS + AssetServer + loader used to stream the demo
 // texture asynchronously. Procedural meshes/materials are inserted
 // directly; the checker texture arrives via loadAsync, so the ground
 // starts on the pink fallback and flips to the checker once loaded.
@@ -41,8 +41,8 @@ struct RenderAssets
     Entelechy::Assets<Entelechy::MaterialAsset> material_assets;
     Entelechy::Assets<Entelechy::TextureAsset> texture_assets;
 
-    // Cooked-scene loading (Phase 4c): the engine-side SceneLoader parses
-    // scene.json/.emat (both engine cooker formats, D5) and owns the
+    // Cooked-scene loading: the engine-side SceneLoader parses
+    // scene.json/.emat (both engine cooker formats) and owns the
     // MaterialAssetLoader plus the unique-material list used by the
     // texture backfill. Everything it needs is injected from this
     // struct — the engine holds no game-side globals.

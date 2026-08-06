@@ -1,8 +1,8 @@
 #include "test/test_framework.h"
-#include "render_system/render_world/RenderWorld.h"
-#include "render_system/extract/ExtractLightSystem.h"
-#include "render_system/components/DirectionalLight.h"
-#include "render_system/components/RenderLight.h"
+#include "render_system/render_world/render_world.h"
+#include "render_system/extract/extract_light_system.h"
+#include "render_system/components/directional_light.h"
+#include "render_system/components/render_light.h"
 #include "ecs/query/query.h"
 
 using namespace Entelechy;

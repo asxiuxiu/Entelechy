@@ -1,6 +1,6 @@
-#include "render_system/extract/ExtractLightSystem.h"
-#include "render_system/components/DirectionalLight.h"
-#include "render_system/components/RenderLight.h"
+#include "render_system/extract/extract_light_system.h"
+#include "render_system/components/directional_light.h"
+#include "render_system/components/render_light.h"
 #include "ecs/query/query.h"
 
 namespace Entelechy
@@ -24,7 +24,7 @@ void ExtractLightSystem::extract(const World &mainWorld, World &renderWorld, Fra
         extracted.ambient = light->ambient;
         renderWorld.addComponent(lightEntity, extracted);
 
-        // Phase 5a: only the first directional light is extracted.
+        // Only the first directional light is extracted.
         break;
     }
 }

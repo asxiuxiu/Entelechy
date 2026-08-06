@@ -16,7 +16,7 @@ struct DirectionalLightParams
 };
 
 // Editable sky-gradient state mirrored from the main-world SkySettings
-// component by the main loop (Phase 5c, D6). Plain floats keep ImGuiLib a
+// component by the main loop. Plain floats keep ImGuiLib a
 // pure UI layer, same as DirectionalLightParams.
 struct SkyParams
 {
@@ -33,7 +33,7 @@ struct WindowSizeRequest
     bool requested = false;
 };
 
-// Read-only snapshot for the render stats panel (Phase 5c, D7). Plain
+// Read-only snapshot for the render stats panel. Plain
 // scalars keep ImGuiLib free of render_system/RHI types.
 struct RenderStatsParams
 {

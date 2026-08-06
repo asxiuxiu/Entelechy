@@ -74,7 +74,7 @@ private:
 };
 
 // Ring of N arenas for double-buffering / multi-threaded frame overlap.
-// Phase A: interface only; not yet wired into Scheduler.
+// Interface only; not yet wired into Scheduler.
 template <usize N>
 class FrameArenaRing
 {

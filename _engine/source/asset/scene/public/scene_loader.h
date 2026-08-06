@@ -11,7 +11,6 @@
 #include "core/container/dynamic_array.h"
 #include "core/foundation_types.h"
 #include "core/math/aabb.h"
-#include "ecs/world/scheduler.h"
 
 namespace Entelechy
 {
@@ -27,7 +26,7 @@ struct SceneSpawnResult
 };
 
 // ------------------------------------------------------------------
-// SceneLoader — cooked scene.json manifest loading (Phase 4c, D5)
+// SceneLoader — cooked scene.json manifest loading
 // ------------------------------------------------------------------
 // Parses the fixed-format manifest emitted by mesh_cooker:
 //
@@ -36,14 +35,13 @@ struct SceneSpawnResult
 //                 "material":"materials/x.emat"}]}
 //
 // scene.json and .emat are both engine-owned formats (mesh_cooker is
-// an engine tool), so the loader lives in the engine (moved here from
-// the game side in Phase 4c). Every manifest entity becomes one ECS
-// entity with a baked GlobalTransform (no local Transform — the
-// propagation system only touches entities that have one), an
-// async-loaded MeshAssetRef, its own async-loaded MaterialAssetRef
-// (deduplicated by .emat path, Phase 4b) and a world-space WorldAABB
-// for culling. Parsing uses the shared core JsonCursor (fixed schema,
-// no JSON library).
+// an engine tool), so the loader lives in the engine. Every manifest
+// entity becomes one ECS entity with a baked GlobalTransform (no local
+// Transform — the propagation system only touches entities that have
+// one), an async-loaded MeshAssetRef, its own async-loaded
+// MaterialAssetRef (deduplicated by .emat path) and a world-space
+// WorldAABB for culling. Parsing uses the shared core JsonCursor (fixed
+// schema, no JSON library).
 //
 // All collaborators (VFS / AssetServer / loaders / Assets<T> storages)
 // are injected by the caller — the engine holds no game-side globals.
@@ -66,10 +64,10 @@ public:
     SceneSpawnResult spawnCookedScene(World &world, const char *scenePath);
 
     // ------------------------------------------------------------------
-    // Texture handle backfill (Phase 4b/4c)
+    // Texture handle backfill
     // ------------------------------------------------------------------
     // .emat files load asynchronously and only carry texture *paths*
-    // (MaterialAssetLoader never triggers texture loads, D1). Called
+    // (MaterialAssetLoader never triggers texture loads). Called
     // once per frame (via MaterialTextureBackfillSystem); scans the
     // scene materials recorded by spawnCookedScene and, once a
     // material's data has landed, loadAsync's each texture path and
@@ -77,7 +75,7 @@ public:
     // material on the pink fallback; once the baseColor texture lands
     // the existing prepare/retry path picks it up.
     // Normal/MR textures are loaded and back-filled the same way but
-    // are never sampled by the shader (D4 — no consumer until the
+    // are never sampled by the shader (no consumer until the
     // lighting phase).
     // The per-frame polling scan is a transitional mechanism — see
     // TODO.md.
@@ -95,26 +93,6 @@ private:
 
     MaterialAssetLoader m_material_loader;
     DynamicArray<Handle<MaterialAsset>> m_scene_materials;
-};
-
-// ------------------------------------------------------------------
-// MaterialTextureBackfillSystem — ECS adapter for the backfill
-// ------------------------------------------------------------------
-// Thin System wrapper so the game can schedule SceneLoader's per-frame
-// texture backfill. Touches no ECS components.
-// ------------------------------------------------------------------
-class MaterialTextureBackfillSystem : public System
-{
-public:
-    explicit MaterialTextureBackfillSystem(SceneLoader &sceneLoader)
-        : m_scene_loader(&sceneLoader)
-    {
-    }
-
-    void tick(World &world, FrameArena &arena, f32 dt) override;
-
-private:
-    SceneLoader *m_scene_loader;
 };
 
 } // namespace Entelechy

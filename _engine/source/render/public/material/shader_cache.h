@@ -12,7 +12,7 @@ namespace Entelechy
 // ShaderCache
 //
 // Compile-time deduplication of shader modules by (stage, sourceHash).
-// Phase 1: in-memory cache only. No async compilation, no DDC.
+// In-memory cache only. No async compilation, no DDC.
 // Future: add file-system derived data cache and async build queue.
 // ------------------------------------------------------------------
 class ShaderCache

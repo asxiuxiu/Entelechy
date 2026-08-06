@@ -1,5 +1,5 @@
 #pragma once
-#include "render_system/render_world/ExtractSchedule.h"
+#include "render_system/render_world/extract_schedule.h"
 
 namespace Entelechy
 {
@@ -7,7 +7,7 @@ namespace Entelechy
 // ExtractSkySystem — copies the first main-world SkySettings into an
 // ExtractedSky in the render world. No SkySettings in the main world means
 // no ExtractedSky; the execute stage then skips the sky pass entirely and
-// the plain clear color shows through (Phase 5c behavior).
+// the plain clear color shows through.
 class ExtractSkySystem : public IExtractSystem
 {
 public:

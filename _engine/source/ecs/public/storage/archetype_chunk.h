@@ -5,10 +5,10 @@ namespace Entelechy
 {
 
 // ========================================================================
-// Archetype Chunk Storage — Interface Sketch (Phase 4.1 Pre-research)
+// Archetype Chunk Storage — interface sketch
 // ========================================================================
 // This header contains ONLY forward-looking sketches and does not affect
-// the current ECS runtime. It exists so Phase C→D migration can reference
+// the current ECS runtime. It exists so a later migration can reference
 // a concrete target shape.
 //
 // Design decisions (from knowledge base):
@@ -49,7 +49,7 @@ inline ArchetypeID makeArchetypeID(u32 componentMask)
 // Where ArchetypeRecord = { Chunk* chunk; u16 indexInChunk; }.
 //
 // Migration path from ComponentArray<T> (current SparseSet+Column):
-//   1. Keep SparseSet+Column for Phase C/D as the stable backend.
+//   1. Keep SparseSet+Column as the stable backend for now.
 //   2. When Archetype storage lands, ComponentArray becomes a compatibility
 //      view over Chunk columns for legacy Query<> paths.
 //   3. New QueryArchetype<> iterates Chunk lists directly.

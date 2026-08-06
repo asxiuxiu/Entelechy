@@ -1,4 +1,4 @@
-﻿#include "render_system/queue/BinnedRenderPhase.h"
+#include "render_system/queue/binned_render_phase.h"
 
 namespace Entelechy
 {

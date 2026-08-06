@@ -14,7 +14,7 @@ void TransformPropagationSystem::tick(World &world, FrameArena &arena, f32 dt)
     (void)dt;
 
     // ------------------------------------------------------------------
-    // Phase 1: Mark dirty trees.
+    // Step 1: Mark dirty trees.
     // Any entity whose Transform.dirty == 1 gets TransformTreeChanged,
     // and the marker propagates up the parent chain to root.
     // ------------------------------------------------------------------
@@ -39,7 +39,7 @@ void TransformPropagationSystem::tick(World &world, FrameArena &arena, f32 dt)
     }
 
     // ------------------------------------------------------------------
-    // Phase 2: Collect only entities marked for update.
+    // Step 2: Collect only entities marked for update.
     // ------------------------------------------------------------------
     struct Entry
     {
@@ -63,7 +63,7 @@ void TransformPropagationSystem::tick(World &world, FrameArena &arena, f32 dt)
         return;
 
     // ------------------------------------------------------------------
-    // Phase 3: Build rank buckets (O(n) instead of O(n log n) sort)
+    // Step 3: Build rank buckets (O(n) instead of O(n log n) sort)
     // ------------------------------------------------------------------
     u32 maxRank = 0;
     for (const auto &entry : entries)
@@ -80,7 +80,7 @@ void TransformPropagationSystem::tick(World &world, FrameArena &arena, f32 dt)
     }
 
     // ------------------------------------------------------------------
-    // Phase 4: Propagate local → world by rank, parents before children.
+    // Step 4: Propagate local → world by rank, parents before children.
     // Within the same rank, entities have no parent-child dependency
     // and can be processed in parallel.
     // ------------------------------------------------------------------
@@ -132,7 +132,7 @@ void TransformPropagationSystem::tick(World &world, FrameArena &arena, f32 dt)
     }
 
     // ------------------------------------------------------------------
-    // Phase 5: Clean up dirty markers.
+    // Step 5: Clean up dirty markers.
     // ------------------------------------------------------------------
     for (const auto &entry : entries)
     {

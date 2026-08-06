@@ -7,9 +7,9 @@
 #include "window/input/input_event.h"
 #include "log/core/log_macros.h"
 #include "render/rhi/opengl_backend.h"
-#include "render_system/frame/RenderFrameRunner.h"
-#include "render_system/components/DirectionalLight.h"
-#include "render_system/components/SkySettings.h"
+#include "render_system/frame/render_frame_runner.h"
+#include "render_system/components/directional_light.h"
+#include "render_system/components/sky_settings.h"
 #include "imgui/imgui_manager.h"
 #include "imgui/imgui_panels.h"
 #include "editor/editor_panels.h"
@@ -181,7 +181,7 @@ int main() {
         window->getSize(currentW, currentH);
 
         // Mirror the first main-world directional light into the debug
-        // panel and write edits back the same frame (Phase 5a).
+        // panel and write edits back the same frame.
         Entelechy::DirectionalLightParams lightParams;
         Entelechy::DirectionalLight* sunLight = nullptr;
         {
@@ -204,7 +204,7 @@ int main() {
         }
 
         // Mirror the first main-world sky settings into the debug panel and
-        // write edits back the same frame (Phase 5c).
+        // write edits back the same frame.
         Entelechy::SkyParams skyParams;
         Entelechy::SkySettings* skySettings = nullptr;
         {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phase 3 migration script: public/private directory boundary + module-prefix includes.
+Historical migration script: public/private directory boundary + module-prefix includes.
 Moves .h files to public/module/ and .cpp files to private/, then updates
 CMakeLists.txt and all #include statements.
 """

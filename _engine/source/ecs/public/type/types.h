@@ -41,7 +41,7 @@ struct NameTag
 REFLECT_COMPONENT(NameTag, REG_FIELD(NameTag, name, StringId))
 
 // ------------------------------------------------------------------
-// Hierarchy relationship components (batch A foundation for batch B)
+// Hierarchy relationship components (foundation for parented transforms)
 // ------------------------------------------------------------------
 struct ChildOf
 {

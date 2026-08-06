@@ -16,13 +16,13 @@ namespace Entelechy
 // ------------------------------------------------------------------
 // AssetServer — loading scheduler with a single background thread
 // ------------------------------------------------------------------
-// Simplified path (Phase 5):
+// Simplified path:
 //   - One dedicated loader thread (not the full ThreadPool).
 //   - Mutex-protected task queue for pending loads.
 //   - Mutex-protected callback queue for completed loads.
 //   - Main thread calls processEvents() to consume completions.
 //
-// Future upgrades (Phase 8+):
+// Future upgrades:
 //   - Replace single thread with ThreadPool + work-stealing.
 //   - Replace mutex queues with lock-free MPSC channels.
 //   - Add LoadingGraph for dependency DAG + topological post-process.

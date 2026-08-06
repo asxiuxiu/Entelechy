@@ -10,7 +10,7 @@ namespace Entelechy
 // ------------------------------------------------------------------
 // MeshVertex — interleaved vertex layout
 // ------------------------------------------------------------------
-// Matches the Phase 3 glTF cook output: position / normal / uv /
+// Matches the glTF cook output: position / normal / uv /
 // tangent. `tangentW` is the bitangent handedness (glTF TANGENT.w,
 // +1 or -1). Core has no Vec4 type, so the tangent is split into
 // Vec3 + f32; the GPU-side attribute layout is still 4 floats.
@@ -29,7 +29,7 @@ struct MeshVertex
 // ------------------------------------------------------------------
 // Owns the interleaved vertex stream, the index buffer and the local
 // AABB (used for frustum culling). Populated either procedurally on
-// the game side (Phase 2) or by the offline glTF cook (Phase 3).
+// the game side or by the offline glTF cook.
 // Must remain default-constructible (HandleTable<T> requirement).
 // ------------------------------------------------------------------
 struct MeshAsset

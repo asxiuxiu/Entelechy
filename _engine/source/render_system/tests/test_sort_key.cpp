@@ -1,5 +1,5 @@
 #include "test/test_framework.h"
-#include "render_system/queue/PhaseItem.h"
+#include "render_system/queue/phase_item.h"
 
 using namespace Entelechy;
 

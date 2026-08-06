@@ -167,7 +167,7 @@ struct UniformLocKeyHash
 };
 
 // ==================================================================
-// OpenGL Command List (immediate execution for Phase 1)
+// OpenGL Command List (immediate execution)
 // ==================================================================
 
 class GLCommandList : public IRHICommandList
@@ -194,7 +194,7 @@ public:
     void resourceBarrier(const BarrierDesc *barriers, u32 count) override;
     void clearRenderTarget(u32 attachmentIndex, const f32 color[4]) override;
 
-    // Uniform and texture binding (Phase 1 immediate GL)
+    // Uniform and texture binding (immediate GL)
     void setUniformFloat(StringId name, f32 value) override;
     void setUniformInt(StringId name, i32 value) override;
     void setUniformVec2(StringId name, const f32 *value) override;
@@ -291,7 +291,7 @@ private:
     void trackResourceDestroyed(const GPUResource *resource);
 
     // Raw PSO creation (no cache). The public createPipelineState routes
-    // through m_pso_manager (Phase 5c); this is the uncached worker.
+    // through m_pso_manager; this is the uncached worker.
     RHIPipelineStateRef createPipelineStateUncached(const PipelineStateDesc &desc);
 
     PSOManager m_pso_manager;

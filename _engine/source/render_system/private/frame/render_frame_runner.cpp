@@ -1,7 +1,7 @@
-#include "render_system/frame/RenderFrameRunner.h"
-#include "render_system/components/RenderCamera.h"
-#include "render_system/components/RenderComponents.h"
-#include "render_system/culling/ViewVisibleList.h"
+#include "render_system/frame/render_frame_runner.h"
+#include "render_system/components/render_camera.h"
+#include "render_system/components/render_components.h"
+#include "render_system/culling/view_visible_list.h"
 #include "render/rhi/rhi_device.h"
 #include "ecs/world/world.h"
 #include "ecs/query/query.h"
@@ -68,7 +68,7 @@ void RenderFrameRunner::runFrame(const World &mainWorld, f32 dt)
     m_stats.culled = m_stats.total_renderables - m_stats.visible;
     m_stats.draw_calls = m_execute.stats().draw_calls;
 
-    // Phase 5c (D7): PSO cache + GPU memory counters for the stats panel.
+    // PSO cache + GPU memory counters for the stats panel.
     // queryMemoryInfo() returns zeros when neither vendor extension exists.
     if (IRHIDevice *device = m_execute.device())
     {

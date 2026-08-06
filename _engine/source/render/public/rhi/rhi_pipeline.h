@@ -118,8 +118,8 @@ struct PipelineStateDescHash
 // ------------------------------------------------------------------
 // PSO Manager
 //
-// Phase 1 (skeleton): synchronous GetOrCreate with global hash cache.
-// Phase 2 (future): async compilation with placeholder fallback.
+// Currently: synchronous GetOrCreate with global hash cache.
+// Future: async compilation with placeholder fallback.
 // ------------------------------------------------------------------
 class PSOManager
 {

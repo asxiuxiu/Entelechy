@@ -271,7 +271,7 @@ void *GlfwWindow::getNativeDisplay() const
     {
         return nullptr;
     }
-    // Phase 1 stub: reserved for Vulkan surface creation.
+    // Reserved for Vulkan surface creation.
     // Full implementation will use platform-specific APIs:
     //   Windows: GetModuleHandle(nullptr) as HINSTANCE
     //   Linux:   glfwGetX11Display() as Display*

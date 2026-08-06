@@ -1,6 +1,6 @@
-#include "render_system/extract/ExtractSkySystem.h"
-#include "render_system/components/SkySettings.h"
-#include "render_system/components/RenderSky.h"
+#include "render_system/extract/extract_sky_system.h"
+#include "render_system/components/sky_settings.h"
+#include "render_system/components/render_sky.h"
 #include "ecs/query/query.h"
 
 namespace Entelechy
@@ -22,7 +22,7 @@ void ExtractSkySystem::extract(const World &mainWorld, World &renderWorld, Frame
         extracted.enabled = sky->enabled;
         renderWorld.addComponent(skyEntity, extracted);
 
-        // Phase 5c: only the first sky settings component is extracted.
+        // Only the first sky settings component is extracted.
         break;
     }
 }

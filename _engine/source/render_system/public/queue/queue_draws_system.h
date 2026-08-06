@@ -9,10 +9,10 @@ class ThreadPool;
 // QueueDrawsSystem — generates PhaseItems from ViewVisibleList.
 // Opaque/AlphaMask go to BinnedRenderPhase; Transparent/UI go to SortedRenderPhase.
 //
-// Phase 1: single-threaded fallback for small visible lists.
-// Phase 2: when a ThreadPool is supplied and the visible count exceeds a
-// threshold, items are generated in parallel into thread-local buffers and
-// merged deterministically in batch order before binning/sorting.
+// Single-threaded fallback for small visible lists when no ThreadPool is
+// supplied. With a ThreadPool, once the visible count exceeds a threshold
+// items are generated in parallel into thread-local buffers and merged
+// deterministically in batch order before binning/sorting.
 class QueueDrawsSystem
 {
 public:

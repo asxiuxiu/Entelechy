@@ -56,7 +56,7 @@ public:
     IRHIDevice *device();
     ShaderCache *shaderCache();
 
-    // PSO cache size of the owned device (Phase 5c stats panel, D7).
+    // PSO cache size of the owned device (for the stats panel).
     usize psoCacheSize() const;
 
     // Draws everything queued for the first view entity. No-op without a view.
@@ -74,7 +74,7 @@ private:
     void drawItem(World &renderWorld, const ExtractedView &view, const ExtractedLight &light, Entity renderEntity,
                   IRHICommandList *cmdList, PrepareAssetsSystem &prepare);
 
-    // Sky gradient pass (Phase 5c, D6). initSkyPass is best-effort: on
+    // Sky gradient pass. initSkyPass is best-effort: on
     // failure the pass stays disabled and the plain clear color shows.
     bool initSkyPass();
     void drawSky(const ExtractedView &view, const ExtractedSky &sky, IRHICommandList *cmdList);

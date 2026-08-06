@@ -12,7 +12,7 @@ using HeapAllocator = DefaultAllocator;
 using ColumnAllocator = DefaultAllocator;
 
 // ECS component array shells (ComponentArray<T> instances).
-// Very few in number (= component type count); Phase 2.2 may replace with ObjectPool.
+// Very few in number (= component type count); may later switch to ObjectPool.
 using ComponentArrayAllocator = DefaultAllocator;
 
 } // namespace Entelechy

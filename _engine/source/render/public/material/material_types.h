@@ -8,7 +8,7 @@ namespace Entelechy
 // ------------------------------------------------------------------
 // Material parameter type enumeration
 //
-// Phase 1: simplified scalar/vector/matrix types + texture reference.
+// Simplified scalar/vector/matrix types + texture reference.
 // Future: add arrays, structured buffers, sampler states.
 // ------------------------------------------------------------------
 enum class MaterialParamType : u8

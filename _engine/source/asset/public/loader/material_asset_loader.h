@@ -8,7 +8,7 @@ namespace Entelechy
 // ------------------------------------------------------------------
 // MaterialAssetLoader — deserializes .emat files into MaterialAsset
 // ------------------------------------------------------------------
-// Parses the fixed-schema JSON emitted by mesh_cooker (Phase 4a):
+// Parses the fixed-schema JSON emitted by mesh_cooker:
 //
 //   {"base_color_texture":"sponza/textures/x.png",
 //    "normal_texture":"...","mr_texture":"...",
@@ -21,7 +21,7 @@ namespace Entelechy
 // truncation, wrong value type, unknown key or alpha mode) rejects the
 // file: the returned MaterialAsset is default-constructed and the
 // error is logged with the source path.
-// Per D1 the loader only parses — texture fields land in the
+// The loader only parses — texture fields land in the
 // *_texture_path strings and it never triggers texture loads; the
 // spawn side loadAsync's the paths and back-fills the Handle fields.
 // Called from the AssetServer IO thread, so the loader stays

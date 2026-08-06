@@ -564,7 +564,12 @@ def generate_ninja_compile_commands(build_type, shipping):
                 encoding="utf-8",
             )
             try:
-                run(["cmd", "/C", str(batch)])
+                # Invoke via an explicit .\ or absolute path: when the
+                # NoDefaultCurrentDirectoryInExePath env var is set, cmd /C
+                # will not resolve a bare batch filename against the current
+                # directory, so "cmd /C build_ninja_setup.bat" fails with
+                # "not recognized". Prefixing "." pins the path explicitly.
+                run(["cmd", "/C", os.path.join(".", str(batch))])
             finally:
                 batch.unlink(missing_ok=True)
     else:

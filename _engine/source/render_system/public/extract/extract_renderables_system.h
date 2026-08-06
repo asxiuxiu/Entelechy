@@ -1,6 +1,6 @@
 #pragma once
-#include "render_system/render_world/ExtractSchedule.h"
-#include "render_system/extract/MainWorldSync.h"
+#include "render_system/render_world/extract_schedule.h"
+#include "render_system/extract/main_world_sync.h"
 
 namespace Entelechy
 {

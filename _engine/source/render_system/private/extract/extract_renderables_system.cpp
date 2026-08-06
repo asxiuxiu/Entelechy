@@ -1,9 +1,9 @@
-#include "render_system/extract/ExtractRenderablesSystem.h"
-#include "render_system/components/MeshAssetRef.h"
-#include "render_system/components/MaterialAssetRef.h"
-#include "render_system/components/WorldAabb.h"
+#include "render_system/extract/extract_renderables_system.h"
+#include "render_system/components/mesh_asset_ref.h"
+#include "render_system/components/material_asset_ref.h"
+#include "render_system/components/world_aabb.h"
 #include "ecs/component/transform_component.h"
-#include "render_system/components/RenderComponents.h"
+#include "render_system/components/render_components.h"
 #include "ecs/query/query.h"
 
 namespace Entelechy

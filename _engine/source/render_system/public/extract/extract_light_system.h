@@ -1,5 +1,5 @@
 #pragma once
-#include "render_system/render_world/ExtractSchedule.h"
+#include "render_system/render_world/extract_schedule.h"
 
 namespace Entelechy
 {

@@ -6,7 +6,7 @@ namespace Entelechy
 
 // ------------------------------------------------------------------
 // Ring-buffer based event queue (branch B fallback).
-// Not used by default in Phase 4; reserved for high-frequency
+// Not used by default; reserved for high-frequency
 // event optimizations where ECS entity spawn cost is a hotspot.
 // ------------------------------------------------------------------
 template <typename T, usize Capacity = 1024>

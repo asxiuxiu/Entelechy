@@ -1,11 +1,11 @@
-#include "render_system/execute/RenderExecuteSystem.h"
-#include "render_system/prepare/PrepareAssetsSystem.h"
-#include "render_system/components/RenderCamera.h"
-#include "render_system/components/RenderComponents.h"
-#include "render_system/components/RenderLight.h"
-#include "render_system/components/RenderSky.h"
+#include "render_system/execute/render_execute_system.h"
+#include "render_system/prepare/prepare_assets_system.h"
+#include "render_system/components/render_camera.h"
+#include "render_system/components/render_components.h"
+#include "render_system/components/render_light.h"
+#include "render_system/components/render_sky.h"
 #include "core/math/mat3.h"
-#include "render_system/phase/RenderResources.h"
+#include "render_system/phase/render_resources.h"
 #include "render/rhi/gl_rhi_device.h"
 #include "render/material/shader_cache.h"
 #include "ecs/world/world.h"
@@ -18,12 +18,12 @@ namespace Entelechy
 namespace
 {
 
-// Sky gradient shader pair (Phase 5c, D6): a fullscreen triangle drawn right
+// Sky gradient shader pair: a fullscreen triangle drawn right
 // after clear and before the opaque phase. The vs pins the triangle to the
 // far plane (NDC z = 1) and reconstructs the world-space far-plane position
 // via the inverse view-projection; the fs normalizes the view ray and blends
 // horizon -> zenith along its y component. Output uses the same approximate
-// gamma as the lit PBR shader (pow(1/2.2), Phase 5a D8 — not true sRGB).
+// gamma as the lit PBR shader (pow(1/2.2), not true sRGB).
 const char *s_skyVertexShader = R"(#version 330 core
 layout(location = 0) in vec2 aNDC;
 uniform mat4 uInvViewProj;
@@ -73,7 +73,7 @@ bool RenderExecuteSystem::init()
 
     m_shader_cache = std::make_unique<ShaderCache>();
 
-    // Sky gradient pass (Phase 5c, D6). Best-effort: failure only disables
+    // Sky gradient pass. Best-effort: failure only disables
     // the sky, the rest of the pipeline keeps working.
     m_sky_ready = initSkyPass();
     if (!m_sky_ready)
@@ -143,7 +143,7 @@ bool RenderExecuteSystem::initSkyPass()
     PipelineStateDesc pipelineDesc{};
     pipelineDesc.topology = PrimitiveTopology::Triangles;
     pipelineDesc.rasterizerState.cullMode = CullMode::None;
-    // D6: the triangle sits at NDC z = 1 against the freshly cleared depth
+    // The triangle sits at NDC z = 1 against the freshly cleared depth
     // buffer, so LessEqual passes everywhere the scene has not drawn yet;
     // depth write stays off and the opaque phase overwrites the sky normally.
     pipelineDesc.depthStencilState.depthTest = true;
@@ -198,7 +198,7 @@ void RenderExecuteSystem::drawItem(World &renderWorld, const ExtractedView &view
         ++m_stats.fallback_material_draws;
     }
 
-    // Per-draw object uniforms (Phase 5a): uMVP + world matrix + its
+    // Per-draw object uniforms: uMVP + world matrix + its
     // inverse-transpose 3x3 for normals. Lighting uniforms are view-level but
     // go through the same per-draw material mechanism until uniform data is
     // frequency-layered (TODO.md Render/UniformBinding).
@@ -237,7 +237,7 @@ void RenderExecuteSystem::run(World &renderWorld, PrepareAssetsSystem &prepare)
     if (!view)
         return;
 
-    // Single directional light (Phase 5a). Without one the scene is lit by
+    // Single directional light. Without one the scene is lit by
     // the ambient term only (intensity 0).
     ExtractedLight light{};
     light.intensity = 0.0f;
@@ -256,7 +256,7 @@ void RenderExecuteSystem::run(World &renderWorld, PrepareAssetsSystem &prepare)
 
     IRHICommandList *cmdList = m_device->createCommandList();
 
-    // Sky gradient pass (Phase 5c, D6): right after the main loop's clear,
+    // Sky gradient pass: right after the main loop's clear,
     // before the opaque phase. No SkySettings in the main world means no
     // ExtractedSky and the plain clear color shows through.
     if (m_sky_ready)

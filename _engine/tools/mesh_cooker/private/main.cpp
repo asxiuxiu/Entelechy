@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------
-// mesh_cooker — offline glTF -> .emesh cook tool (Phase 3b)
+// mesh_cooker — offline glTF -> .emesh cook tool
 // ------------------------------------------------------------------
 // Parses a glTF 2.0 scene with cgltf, decodes every unique primitive
 // into the interleaved MeshVertex layout and writes one .emesh binary
@@ -16,7 +16,7 @@
 // the .emesh header); the game side transforms it into world space for
 // frustum culling.
 //
-// Phase 4a: every glTF material is cooked into materials/<name>.emat
+// Every glTF material is cooked into materials/<name>.emat
 // (hand-emitted JSON: texture content paths + pbrMetallicRoughness
 // factors + alphaMode/doubleSided), and the manifest's material field
 // references it by manifest-relative path. A primitive without a
@@ -62,8 +62,8 @@ struct CookStats
     usize m_primitives_skipped = 0;
     usize m_entities = 0;
     usize m_warnings = 0;
-    // Phase 4a material tallies: alpha/doubleSided numbers scope the
-    // pipeline-variant work of Phase 4b.
+    // Material tallies: alpha/doubleSided numbers scope the
+    // pipeline-variant work for those materials.
     usize m_materials_written = 0;
     usize m_materials_mask = 0;
     usize m_materials_blend = 0;
@@ -150,7 +150,7 @@ bool cookPrimitive(const cgltf_primitive *prim, const std::filesystem::path &out
             v.normal = Vec3{0.0f, 0.0f, 1.0f};
 
         if (uvAcc != nullptr && cgltf_accessor_read_float(uvAcc, i, buf, 2))
-            // D2 (Phase 4b): flip V — glTF UV origin is top-left while
+            // Flip V — glTF UV origin is top-left while
             // OpenGL textures are addressed bottom-left. Flipping here (in
             // the cooked geometry) keeps the texture loader convention
             // (stb top-row-first, no global stbi flip) untouched.
@@ -219,7 +219,7 @@ std::string jsonEscape(const char *text)
 }
 
 // ------------------------------------------------------------------
-// Phase 4a: material cooking
+// Material cooking
 // ------------------------------------------------------------------
 
 // File stems must stay portable: replace anything outside

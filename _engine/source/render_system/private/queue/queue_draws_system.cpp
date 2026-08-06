@@ -1,9 +1,9 @@
-#include "render_system/queue/QueueDrawsSystem.h"
-#include "render_system/components/RenderComponents.h"
-#include "render_system/components/RenderCamera.h"
-#include "render_system/culling/ViewVisibleList.h"
-#include "render_system/phase/RenderResources.h"
-#include "render_system/queue/PhaseItem.h"
+#include "render_system/queue/queue_draws_system.h"
+#include "render_system/components/render_components.h"
+#include "render_system/components/render_camera.h"
+#include "render_system/culling/view_visible_list.h"
+#include "render_system/phase/render_resources.h"
+#include "render_system/queue/phase_item.h"
 #include "ecs/query/query.h"
 #include "thread_pool/thread_pool.h"
 #include "core/math/vec.h"
@@ -54,7 +54,7 @@ bool tryBuildPhaseItem(Entity entity, const World &renderWorld, const ExtractedV
     switch (phase)
     {
     case RenderPhase::ShadowMap:
-        // Not handled in this simplified checkpoint.
+        // Not handled in this simplified implementation.
         return false;
     case RenderPhase::Opaque3D:
     case RenderPhase::AlphaMask:

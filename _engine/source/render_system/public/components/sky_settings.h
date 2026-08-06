@@ -5,8 +5,8 @@
 namespace Entelechy
 {
 
-// SkySettings — main-world component describing the gradient sky pass
-// (Phase 5c, D6). The sky is a fullscreen triangle drawn right after clear
+// SkySettings — main-world component describing the gradient sky pass.
+// The sky is a fullscreen triangle drawn right after clear
 // and before the opaque phase, colored by interpolating between
 // horizon_color and zenith_color along the view ray's y component. It is NOT
 // a skybox — the asset pack contains none (roadmap defers it, see TODO.md).

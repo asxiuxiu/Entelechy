@@ -1,5 +1,5 @@
-#include "render_system/prepare/PrepareAssetsSystem.h"
-#include "render_system/components/RenderComponents.h"
+#include "render_system/prepare/prepare_assets_system.h"
+#include "render_system/components/render_components.h"
 #include "asset/type/mesh_primitives.h"
 #include "ecs/world/world.h"
 #include "ecs/query/query.h"
@@ -14,21 +14,20 @@ namespace
 
 constexpr LogCategory kLogPrepare("Render");
 
-// Lit PBR shader pair (Phase 5a, D1/D8; Phase 5b, D5): single directional
-// light + constant ambient, Lambert diffuse + GGX Cook-Torrance specular,
-// approximate gamma (pow 2.2 in, pow 1/2.2 out — not true sRGB, see TODO.md).
-// The shader always samples; materials without a texture bind the 1x1 white
-// fallback so uColor passes through unchanged. uAlphaCutoff implements
-// AlphaMode::Mask (discard below cutoff); opaque materials pass 0 which
-// disables the test. NOTE: the mask branch is unverified — Sponza has no
-// mask materials to exercise it (Phase 4b).
-// Phase 5b: the vs outputs a Gram-Schmidt orthogonalized world-space TBN
-// (B reconstructed in the fs as cross(N,T) * tangentW handedness, per D5);
-// the fs perturbs N with the tangent-space normal map and multiplies the
+// Lit PBR shader pair: single directional light + constant ambient, Lambert
+// diffuse + GGX Cook-Torrance specular, approximate gamma (pow 2.2 in, pow
+// 1/2.2 out — not true sRGB, see TODO.md). The shader always samples;
+// materials without a texture bind the 1x1 white fallback so uColor passes
+// through unchanged. uAlphaCutoff implements AlphaMode::Mask (discard below
+// cutoff); opaque materials pass 0 which disables the test. NOTE: the mask
+// branch is unverified — Sponza has no mask materials to exercise it.
+// The vs outputs a Gram-Schmidt orthogonalized world-space TBN
+// (B reconstructed in the fs as cross(N,T) * tangentW handedness); the fs
+// perturbs N with the tangent-space normal map and multiplies the
 // metallic/roughness factors with the MR texture (glTF: G=roughness,
 // B=metallic). Materials without those textures take factor-only branches
 // gated by uHasNormalTex/uHasMRTex (hand-written branches, no variant
-// system — Phase 6+).
+// system).
 const char *s_vertexShader = R"(#version 330 core
 layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec3 aNormal;
@@ -44,7 +43,7 @@ out float vTangentW;
 out vec2 vUV;
 void main() {
     vWorldPos = (uModel * vec4(aPos, 1.0)).xyz;
-    // D5 (Phase 5b): N goes through the normal matrix (inverse-transpose),
+    // N goes through the normal matrix (inverse-transpose),
     // T through the plain model matrix, then T is re-orthogonalized
     // against N (Gram-Schmidt) — B is rebuilt in the fragment shader.
     vec3 N = uNormalMatrix * aNormal;
@@ -128,7 +127,7 @@ void main() {
 
     vec3 N = normalize(vNormal);
     if (uHasNormalTex > 0.5) {
-        // D5 (Phase 5b): B = cross(N,T) * handedness; the normal map is
+        // B = cross(N,T) * handedness; the normal map is
         // tangent-space, so N = TBN * (tex*2-1).
         vec3 T = normalize(vTangent - dot(vTangent, N) * N);
         vec3 B = cross(N, T) * vTangentW;
@@ -415,11 +414,11 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
         return false;
     }
 
-    // Phase 4b: a texture path without a Handle means the spawn-side
+    // A texture path without a Handle means the spawn-side
     // backfill has not issued the texture load yet — stay pending instead
     // of preparing against the white texture (prepared materials are
     // never rebuilt, so preparing here would stick on white).
-    // Phase 5b: same guard for the normal/MR textures.
+    // Same guard for the normal/MR textures.
     if ((asset->base_color_texture_path.length() > 0 && !asset->base_color_texture.valid()) ||
         (asset->normal_texture_path.length() > 0 && !asset->normal_texture.valid()) ||
         (asset->mr_texture_path.length() > 0 && !asset->mr_texture.valid()))
@@ -436,7 +435,7 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
     // A material stays pending (pink fallback) until every texture it
     // references has been uploaded; the prepared material then binds the
     // real textures — the same "not ready -> fallback -> hot-swap"
-    // mechanism baseColor already used (Phase 5b extends it to normal/MR).
+    // mechanism baseColor already used (now extended to normal/MR).
     RHITextureRef texture = m_white_texture;
     if (asset->base_color_texture.valid())
     {
@@ -512,7 +511,7 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
     constexpr u32 s_materialParamCount = 17;
     PipelineStateDesc pipelineDesc{};
     pipelineDesc.topology = PrimitiveTopology::Triangles;
-    // D3 (Phase 4b): hand-written pipeline variant — double-sided materials
+    // Hand-written pipeline variant — double-sided materials
     // disable backface culling; no generic PSO variant system yet.
     pipelineDesc.rasterizerState.cullMode = asset->double_sided ? CullMode::None : CullMode::Back;
     pipelineDesc.depthStencilState.depthTest = true;
@@ -528,12 +527,11 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
     // glTF semantics: metallic/roughness factors are multipliers for the MR
     // texture (G=roughness, B=metallic). The factors are sent as-is; the
     // shader multiplies them with the texture when uHasMRTex is set
-    // (Phase 5b — the Phase 5a dielectric placeholder for MR-textured
-    // materials is gone).
+    // (the dielectric-only placeholder for MR-textured materials is gone).
     prepared.material.setFloat("uMetallic"_sid, asset->metallic_factor);
     prepared.material.setFloat("uRoughness"_sid, asset->roughness_factor);
     // AlphaMode::Mask discards below the cutoff; opaque and blend-as-opaque
-    // (D3, correct blending is Phase 5+) pass 0 to disable the test.
+    // (correct blending is not yet implemented) pass 0 to disable the test.
     prepared.material.setFloat("uAlphaCutoff"_sid,
                                asset->alpha_mode == AlphaMode::Mask ? asset->alpha_cutoff : 0.0f);
     prepared.material.setTexture("uBaseColorTex"_sid, texture);

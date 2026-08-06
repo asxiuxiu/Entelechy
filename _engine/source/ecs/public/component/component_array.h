@@ -182,7 +182,7 @@ private:
 };
 
 // ComponentArray backed by SparseSet + Column.
-// TODO(Phase 4.1): evaluate migration to Archetype Chunk storage for better SoA/cache.
+// TODO: evaluate migration to Archetype Chunk storage for better SoA/cache.
 template <typename T>
 class ComponentArray : public IComponentArray
 {

@@ -1,6 +1,6 @@
 # EntelechyModule.cmake
 # Unified module creation macros for the Entelechy build system.
-# Phase 3: public/private directory boundary with module-prefix includes.
+# Establishes the public/private directory boundary with module-prefix includes.
 
 function(entelechy_module)
     cmake_parse_arguments(MOD
@@ -95,7 +95,7 @@ function(entelechy_module)
     target_compile_features(${MOD_NAME} PUBLIC cxx_std_20)
 
     # ---- Include directories ----
-    # Phase 3: public/private boundary with module-prefix includes via staging links.
+    # Public/private boundary with module-prefix includes via staging links.
     # Physical layout: <module>/public/event/...
     # Staging link:    build/include/<module>/ -> <module>/public/
     # Include path:    build/include/
@@ -148,7 +148,7 @@ function(entelechy_module)
 
     # Transition compatibility: expose parent directory as PRIVATE for internal includes
     # that haven't been migrated to module-prefix style yet.
-    # TODO(Phase 3+): Remove once all internal relative includes are eliminated.
+    # TODO: Remove once all internal relative includes are eliminated.
     target_include_directories(${MOD_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/..
     )

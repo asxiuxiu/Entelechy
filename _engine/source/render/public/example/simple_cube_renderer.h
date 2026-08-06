@@ -15,10 +15,10 @@ namespace Entelechy
 class GLRHIDevice;
 
 // ------------------------------------------------------------------
-// Minimal cube renderer for batch B visual validation.
+// Minimal cube renderer for visual validation.
 // Indexed cube mesh + MVP shader, now backed by Material + RHI.
 //
-// Phase 1: uses an internal GLRHIDevice to exercise the RHI layer.
+// Uses an internal GLRHIDevice to exercise the RHI layer.
 // Future: cube mesh and material will be managed by ECS + render pipeline.
 // ------------------------------------------------------------------
 class SimpleCubeRenderer

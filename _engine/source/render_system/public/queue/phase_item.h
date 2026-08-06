@@ -1,7 +1,7 @@
 #pragma once
 #include "core/foundation_types.h"
 #include "ecs/type/entity_registry.h"
-#include "render/phase/RenderPhase.h"
+#include "render/phase/render_phase.h"
 #include <algorithm>
 
 namespace Entelechy

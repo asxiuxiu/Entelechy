@@ -1,7 +1,7 @@
 #pragma once
 #include "core/foundation_types.h"
 #include "core/container/dynamic_array.h"
-#include "render_system/queue/PhaseItem.h"
+#include "render_system/queue/phase_item.h"
 
 namespace Entelechy
 {

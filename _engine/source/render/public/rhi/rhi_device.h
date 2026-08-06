@@ -18,8 +18,8 @@ class IRHICommandList;
 // denominator" across backends. Each backend implements resource
 // creation in its own native API.
 //
-// Phase 1 note: OpenGL backend implements this with immediate
-// execution. The interface shape is future-proof for D3D12/Vulkan.
+// OpenGL backend implements this with immediate execution. The interface
+// shape is future-proof for D3D12/Vulkan.
 // ------------------------------------------------------------------
 class IRHIDevice
 {
@@ -91,8 +91,8 @@ public:
 // - Whether commands are buffered or executed immediately is an
 //   implementation detail of the backend.
 //
-// Phase 1 note: OpenGL GLCommandList executes immediately. The
-// interface is command-style to leave room for deferred execution.
+// OpenGL GLCommandList executes immediately. The interface is
+// command-style to leave room for deferred execution.
 // ------------------------------------------------------------------
 class IRHICommandList
 {
@@ -126,7 +126,7 @@ public:
     // Clear render target attachment (convenience)
     virtual void clearRenderTarget(u32 attachmentIndex, const f32 color[4]) = 0;
 
-    // Phase 1 note: OpenGL-style immediate uniform setting.
+    // OpenGL-style immediate uniform setting.
     // Future backends (Vulkan/D3D12) implement these via push constants
     // or dynamic UBO offsets. This interface is intentionally minimal
     // and will be revisited when the bindless architecture is ready.

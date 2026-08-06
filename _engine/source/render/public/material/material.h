@@ -18,14 +18,14 @@ namespace Entelechy
 // ------------------------------------------------------------------
 // Material
 //
-// Phase 1 simplified material system:
+// Simplified material system:
 // - Directly references a vertex + fragment shader pair (no template layer)
 // - Synchronous compilation on init (no async build)
 // - CPU-side uniform block with per-draw-call glUniform* upload
 // - Single shared layout concept: parameters are set by name and uploaded
 //   via IRHICommandList uniform-setting APIs
 //
-// Future extensions (Phase 2+):
+// Future extensions:
 // - ShaderTemplate reference for variant management
 // - Async Technique compilation with fallback
 // - GPU UBO + BindGroup pool

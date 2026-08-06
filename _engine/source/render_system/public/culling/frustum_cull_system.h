@@ -9,10 +9,10 @@ class ThreadPool;
 // FrustumCullSystem — per-entity frustum culling against the ExtractedView.
 // Entities without a RenderAABB are always visible (e.g. skyboxes).
 //
-// Phase 1: single-threaded fallback for small scenes.
-// Phase 2: when a ThreadPool is supplied and the entity count exceeds a
-// threshold, the visible list is built in parallel using thread-local buffers
-// and merged deterministically in batch order.
+// Single-threaded fallback for small scenes when no ThreadPool is supplied.
+// With a ThreadPool, once the entity count exceeds a threshold the visible
+// list is built in parallel using thread-local buffers and merged
+// deterministically in batch order.
 class FrustumCullSystem
 {
 public:

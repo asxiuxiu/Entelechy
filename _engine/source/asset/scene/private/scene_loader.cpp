@@ -1,16 +1,16 @@
 // ------------------------------------------------------------------
-// scene_loader — cooked scene.json manifest loading (Phase 4c)
+// scene_loader — cooked scene.json manifest loading
 // ------------------------------------------------------------------
 // Engine home of the mesh_cooker scene manifest consumer (moved from
-// the game side in Phase 4c, D5). See the header for the manifest
-// schema and the injection contract.
+// the game side). See the header for the manifest schema and the
+// injection contract.
 // ------------------------------------------------------------------
 #include "scene/scene_loader.h"
 #include "ecs/world/world.h"
 #include "ecs/component/transform_component.h"
-#include "render_system/components/MeshAssetRef.h"
-#include "render_system/components/MaterialAssetRef.h"
-#include "render_system/components/WorldAabb.h"
+#include "render_system/components/mesh_asset_ref.h"
+#include "render_system/components/material_asset_ref.h"
+#include "render_system/components/world_aabb.h"
 #include "core/container/hash_map.h"
 #include "core/json/json_cursor.h"
 #include "core/math/mat4.h"
@@ -195,7 +195,7 @@ void SceneLoader::backfillMaterialTextures()
             continue; // .emat still streaming in
 
         // One async load per texture path whose Handle is not yet
-        // back-filled. Normal/MR are loaded for the lighting phase (D4):
+        // back-filled. Normal/MR are loaded for the lighting phase:
         // the data lands in Assets<TextureAsset> and the Handle in the
         // material, but Prepare never binds them (no shader consumer).
         const u32 materialIndex = m_scene_materials[i].index;
@@ -214,14 +214,6 @@ void SceneLoader::backfillMaterialTextures()
         backfill(material->normal_texture_path, material->normal_texture, "normal");
         backfill(material->mr_texture_path, material->mr_texture, "MR");
     }
-}
-
-void MaterialTextureBackfillSystem::tick(World &world, FrameArena &arena, f32 dt)
-{
-    (void)world;
-    (void)arena;
-    (void)dt;
-    m_scene_loader->backfillMaterialTextures();
 }
 
 } // namespace Entelechy

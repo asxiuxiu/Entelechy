@@ -9,7 +9,7 @@ namespace Entelechy
 {
 
 // ------------------------------------------------------------------
-// .emesh — cooked mesh binary format (Phase 3a)
+// .emesh — cooked mesh binary format
 // ------------------------------------------------------------------
 // Little-endian binary, written by the offline mesh cooker and read
 // back by MeshAssetLoader. Layout:

@@ -7,18 +7,18 @@
 // MSVC's linker to pull this translation unit from RenderSystemLib.lib; the
 // anonymous-namespace static initializers run before main() as a side effect.
 
-#include "render_system/components/Camera.h"
-#include "render_system/components/DirectionalLight.h"
-#include "render_system/components/MaterialAssetRef.h"
-#include "render_system/components/MeshAssetRef.h"
-#include "render_system/components/RenderCamera.h"
-#include "render_system/components/RenderComponents.h"
-#include "render_system/components/RenderLight.h"
-#include "render_system/components/RenderSky.h"
-#include "render_system/components/SkySettings.h"
-#include "render_system/components/WorldAabb.h"
-#include "render_system/culling/ViewVisibleList.h"
-#include "render_system/phase/RenderResources.h"
+#include "render_system/components/camera.h"
+#include "render_system/components/directional_light.h"
+#include "render_system/components/material_asset_ref.h"
+#include "render_system/components/mesh_asset_ref.h"
+#include "render_system/components/render_camera.h"
+#include "render_system/components/render_components.h"
+#include "render_system/components/render_light.h"
+#include "render_system/components/render_sky.h"
+#include "render_system/components/sky_settings.h"
+#include "render_system/components/world_aabb.h"
+#include "render_system/culling/view_visible_list.h"
+#include "render_system/phase/render_resources.h"
 #include "ecs/type/type_registry.h"
 
 namespace Entelechy
@@ -30,7 +30,7 @@ REFLECT_COMPONENT(Camera, REG_FIELD(Camera, fov_y, f32), REG_FIELD(Camera, near_
                   REG_FIELD(Camera, far_plane, f32), REG_FIELD(Camera, orthographic, bool),
                   REG_FIELD(Camera, ortho_size, f32))
 
-// NOTE (Phase 2a): Handle<T> fields are not reflected. REG_FIELD only
+// NOTE: Handle<T> fields are not reflected. REG_FIELD only
 // addresses flat members and stringifies the field type, so a nested
 // Handle<T> (or its index/generation pair) cannot be registered with the
 // current macros. These components are registered without fields until the

@@ -89,7 +89,7 @@ void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4], DirectionalLightParams 
     if (sky)
     {
         ImGui::Separator();
-        ImGui::Text("Sky (Phase 5c):");
+        ImGui::Text("Sky:");
         ImGui::Checkbox("Enabled", &sky->enabled);
         ImGui::ColorEdit3("Horizon Color", sky->horizonColor);
         ImGui::ColorEdit3("Zenith Color", sky->zenithColor);

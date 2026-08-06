@@ -1,6 +1,6 @@
 #pragma once
-#include "render_system/queue/BinnedRenderPhase.h"
-#include "render_system/queue/SortedRenderPhase.h"
+#include "render_system/queue/binned_render_phase.h"
+#include "render_system/queue/sorted_render_phase.h"
 
 namespace Entelechy
 {

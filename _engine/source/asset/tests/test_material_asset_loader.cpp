@@ -74,7 +74,8 @@ TEST(Asset, MaterialLoaderRoundTrip)
     ASSERT_TRUE(loaded.alpha_mode == Entelechy::AlphaMode::Mask);
     ASSERT_EQ(loaded.alpha_cutoff, 0.35f);
     ASSERT_TRUE(loaded.double_sided);
-    // D1: the loader never resolves texture handles (Phase 4b back-fill).
+    // The loader never resolves texture handles (handles are back-filled
+    // on the spawn side).
     ASSERT_FALSE(loaded.base_color_texture.valid());
     ASSERT_FALSE(loaded.normal_texture.valid());
     ASSERT_FALSE(loaded.mr_texture.valid());

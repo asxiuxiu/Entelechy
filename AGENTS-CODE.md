@@ -71,6 +71,25 @@
 
 **自检口诀**：`m_` 之后全小写加下划线；函数首单词全小写；类名每个单词首字母大写；枚举值每个单词首字母大写；宏全部大写。
 
+## 文件命名
+
+**源文件一律使用 snake_case（小写下划线）**。头文件名默认取自动头内定义的**主类型**的 snake_case 化，但**不强求一个头文件只放一个类型**——强相关的类型（如一组 ECS 组件、公共的 POD 数据结构）可以聚类在同一个文件里，文件名反映这个聚类而不是单个类型。
+
+| 场景 | 文件名 | 说明 |
+|------|--------|------|
+| 单一主类型 | `scene_loader.h` ↔ `class SceneLoader` | 直接用主类型名的 snake_case |
+| 聚类（多个强相关类型） | `render_components.h` ↔ RenderMesh / RenderMaterial / ... | 文件名用聚类语义，不必等于任何一个类型 |
+| 实现 / 辅助 / 值类型 | `phase_item.h` ↔ `PhaseItem`、`view_visible_list.h` | 描述性 snake_case |
+
+**规则要点**：
+- **禁止 `PascalCase` 文件名**（如 `Camera.h`、`RenderExecuteSystem.h` 一律写成 `camera.h`、`render_execute_system.h`）。
+- **文件名 ≠ `class` 名**是允许的（聚类文件），但文件名必须是 snake_case。
+- **.h / .cpp 同名配对**：`scene_loader.h` ↔ `scene_loader.cpp`；非单类型文件的 .h 与 .cpp 也保持同一 basename。
+- **一个关注点的类型不要塞进别人的文件**：当文件里出现与主类型无关、但自成体系的类型时（如从 `scene_loader.h` 拆出的 `MaterialTextureBackfillSystem`），把它拆到独立文件 `material_texture_backfill_system.h` / `.cpp`。
+- 重命名文件时要同步更新所有 `#include` 引用；源文件发现由 CMake 自动完成，无需改动 CMakeLists（除非显式列了 `SOURCES`）。
+
+**自检口诀**：看到大写字母开头的 `.h`/`.cpp` 文件名就停下来想——这应该是蛇形命名；看到 `.h` 里躺着那个 `.cpp` 里才该有的、另一个关注点的类，就想拆。
+
 ## 反例墙
 
 | 违规写法 | 正确写法 |
@@ -92,6 +111,32 @@
 - **禁止**：Commit message 中不得包含 `Co-Authored-By:`、`Signed-off-by:` 等自动化签名尾注，也不得包含前导/尾随 `@` 符号。项目只由实际开发者署名，不由工具/AI 代理追加。
 - **文件编码**：UTF-8（项目 CMake 已配置 MSVC `/utf-8` 编译选项，无需 BOM）
 - **换行符**：C++ / CMake / Python / JSON / Markdown 等统一使用 LF；仅 `.bat` / `.cmd` 使用 CRLF
+
+## 注释规范
+
+代码注释只承担两类职责：**解释代码**（说明一段逻辑为什么这样写、如何处理边界情况）与**备注**（TODO / FIXME / NOTE 等提醒）。注释必须与具体落地代码强绑定，禁止把执行计划、排期、项目节点写进代码注释。
+
+### 禁止行为
+
+1. **禁止在代码注释里引用计划节点 / 编号**
+   - ❌ `// Phase 5c: only the first sky settings component is extracted`
+   - ❌ `// Lit PBR shader pair (Phase 5a, D1/D8)`
+   - ❌ `// TODO(Phase 3+): Remove once all internal relative includes are eliminated`
+   - ✅ 只保留对代码本身的解释：`// Only the first sky settings component is extracted`
+   - ✅ `// TODO: Remove once all internal relative includes are eliminated`
+
+2. **禁止用 `Phase X` / `Checkpoint Y` / `D1` / `D5` / `Batch A` 等作阶段标注前缀词**
+   - 这类标识把注释和某个外部执行计划耦合在一起，计划一旦调整/拆解，注释就会失准或误导阅读者。
+   - 若是算法内的顺序步骤（如 "先标记脏树 → 再传播变换"），改用 `Step 1` / `Step 2` 表达执行顺序，而不是 `Phase`。
+
+3. **计划信息不放代码里，放文档里**
+   - 里程碑、排期、目标、进度 → 写进设计文档或 `TODO.md`（见下文"技术债务记录"），不要在源文件注释里重复。
+
+### 自检口诀
+
+> 注释只回答两件事：**"这行/这段代码为什么这么写？"** 和 **"这里有什么做法需要留意？"**——不回答 **"这在计划第几步？"**。
+
+选择标准：如果某条注释删掉后，代码阅读者不依赖任何外部计划文档仍能完全理解，那就是合格的注释；反之若注释把理解绑定在一个编号上（Phase/D/Checkpoint），就要改写或删除。
 
 ## 自动化检查
 

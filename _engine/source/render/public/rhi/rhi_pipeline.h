@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "core/foundation_types.h"
 #include "core/container/hash_map.h"
 #include "render/rhi/rhi_types.h"
@@ -139,6 +139,11 @@ public:
 
     // Check if a PSO exists in cache.
     bool contains(const PipelineStateDesc &desc) const;
+
+    // Lookup/insert primitives for devices that route their public
+    // createPipelineState through the cache themselves (GLRHIDevice does).
+    RHIPipelineStateRef find(const PipelineStateDesc &desc) const;
+    void insert(const PipelineStateDesc &desc, RHIPipelineStateRef pso);
 
     // Clear all cached PSOs.
     void clear();

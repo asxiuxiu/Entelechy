@@ -804,6 +804,20 @@ RHIShaderRef GLRHIDevice::createShader(ShaderStage stage, const void *bytecode, 
 
 RHIPipelineStateRef GLRHIDevice::createPipelineState(const PipelineStateDesc &desc)
 {
+    // Phase 5c: route PSO creation through the cache. Identical descs (same
+    // shader pair + state) share one GL program — before this, every Material
+    // linked its own program and the PSOManager below was dead code.
+    if (RHIPipelineStateRef cached = m_pso_manager.find(desc))
+        return cached;
+
+    RHIPipelineStateRef pso = createPipelineStateUncached(desc);
+    if (pso)
+        m_pso_manager.insert(desc, pso);
+    return pso;
+}
+
+RHIPipelineStateRef GLRHIDevice::createPipelineStateUncached(const PipelineStateDesc &desc)
+{
     GLuint program = glCreateProgram();
     if (!program)
     {
@@ -1004,22 +1018,33 @@ RHIPipelineStateRef PSOManager::getOrCreate(const PipelineStateDesc &desc, IRHID
     if (!device)
         return nullptr;
 
-    if (auto *existing = m_cache.find(desc))
-    {
-        return *existing;
-    }
+    if (RHIPipelineStateRef existing = find(desc))
+        return existing;
 
     auto pso = device->createPipelineState(desc);
-    if (pso)
-    {
+    // GLRHIDevice::createPipelineState already routes through this cache, in
+    // which case the entry exists by now; only insert for devices that do
+    // not self-cache.
+    if (pso && !contains(desc))
         m_cache.insert(desc, pso);
-    }
     return pso;
 }
 
 bool PSOManager::contains(const PipelineStateDesc &desc) const
 {
     return m_cache.contains(desc);
+}
+
+RHIPipelineStateRef PSOManager::find(const PipelineStateDesc &desc) const
+{
+    if (const auto *existing = m_cache.find(desc))
+        return *existing;
+    return nullptr;
+}
+
+void PSOManager::insert(const PipelineStateDesc &desc, RHIPipelineStateRef pso)
+{
+    m_cache.insert(desc, pso);
 }
 
 void PSOManager::clear()

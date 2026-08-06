@@ -14,6 +14,8 @@
 #include "render_system/components/RenderCamera.h"
 #include "render_system/components/RenderComponents.h"
 #include "render_system/components/RenderLight.h"
+#include "render_system/components/RenderSky.h"
+#include "render_system/components/SkySettings.h"
 #include "render_system/components/WorldAabb.h"
 #include "render_system/culling/ViewVisibleList.h"
 #include "render_system/phase/RenderResources.h"
@@ -46,6 +48,9 @@ REFLECT_COMPONENT(DirectionalLight, REG_FIELD(DirectionalLight, direction, Vec3)
                   REG_FIELD(DirectionalLight, color, Vec3), REG_FIELD(DirectionalLight, intensity, f32),
                   REG_FIELD(DirectionalLight, ambient, f32))
 
+REFLECT_COMPONENT(SkySettings, REG_FIELD(SkySettings, zenith_color, Vec3),
+                  REG_FIELD(SkySettings, horizon_color, Vec3), REG_FIELD(SkySettings, enabled, bool))
+
 // -- render-world components (spawned/extracted by systems) --
 
 REFLECT_COMPONENT(RenderMesh)
@@ -64,6 +69,9 @@ REFLECT_COMPONENT(ExtractedView, REG_FIELD(ExtractedView, view_matrix, Mat4),
 REFLECT_COMPONENT(ExtractedLight, REG_FIELD(ExtractedLight, direction, Vec3),
                   REG_FIELD(ExtractedLight, color, Vec3), REG_FIELD(ExtractedLight, intensity, f32),
                   REG_FIELD(ExtractedLight, ambient, f32))
+
+REFLECT_COMPONENT(ExtractedSky, REG_FIELD(ExtractedSky, zenith_color, Vec3),
+                  REG_FIELD(ExtractedSky, horizon_color, Vec3), REG_FIELD(ExtractedSky, enabled, bool))
 
 // -- view-resource components (output of culling/queue stages) --
 

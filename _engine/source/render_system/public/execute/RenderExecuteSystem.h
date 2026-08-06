@@ -1,6 +1,8 @@
 #pragma once
 #include "core/foundation_types.h"
 #include "ecs/type/entity_registry.h"
+#include "render/material/material.h"
+#include "render/rhi/rhi_resources.h"
 #include <memory>
 
 namespace Entelechy
@@ -14,6 +16,7 @@ class IRHICommandList;
 class PrepareAssetsSystem;
 struct ExtractedView;
 struct ExtractedLight;
+struct ExtractedSky;
 struct PreparedMesh;
 struct PreparedMaterial;
 
@@ -53,6 +56,9 @@ public:
     IRHIDevice *device();
     ShaderCache *shaderCache();
 
+    // PSO cache size of the owned device (Phase 5c stats panel, D7).
+    usize psoCacheSize() const;
+
     // Draws everything queued for the first view entity. No-op without a view.
     void run(World &renderWorld, PrepareAssetsSystem &prepare);
 
@@ -68,8 +74,16 @@ private:
     void drawItem(World &renderWorld, const ExtractedView &view, const ExtractedLight &light, Entity renderEntity,
                   IRHICommandList *cmdList, PrepareAssetsSystem &prepare);
 
+    // Sky gradient pass (Phase 5c, D6). initSkyPass is best-effort: on
+    // failure the pass stays disabled and the plain clear color shows.
+    bool initSkyPass();
+    void drawSky(const ExtractedView &view, const ExtractedSky &sky, IRHICommandList *cmdList);
+
     std::unique_ptr<GLRHIDevice> m_device;
     std::unique_ptr<ShaderCache> m_shader_cache;
+    Material m_sky_material;
+    RHIBufferRef m_sky_vbo;
+    bool m_sky_ready = false;
     ExecuteStats m_stats;
     bool m_initialized = false;
 };

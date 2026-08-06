@@ -3,6 +3,7 @@
 #include "render_system/components/RenderCamera.h"
 #include "render_system/components/RenderComponents.h"
 #include "render_system/components/RenderLight.h"
+#include "render_system/components/RenderSky.h"
 #include "core/math/mat3.h"
 #include "render_system/phase/RenderResources.h"
 #include "render/rhi/gl_rhi_device.h"
@@ -13,6 +14,42 @@
 
 namespace Entelechy
 {
+
+namespace
+{
+
+// Sky gradient shader pair (Phase 5c, D6): a fullscreen triangle drawn right
+// after clear and before the opaque phase. The vs pins the triangle to the
+// far plane (NDC z = 1) and reconstructs the world-space far-plane position
+// via the inverse view-projection; the fs normalizes the view ray and blends
+// horizon -> zenith along its y component. Output uses the same approximate
+// gamma as the lit PBR shader (pow(1/2.2), Phase 5a D8 — not true sRGB).
+const char *s_skyVertexShader = R"(#version 330 core
+layout(location = 0) in vec2 aNDC;
+uniform mat4 uInvViewProj;
+out vec3 vFarPos;
+void main() {
+    gl_Position = vec4(aNDC, 1.0, 1.0);
+    vec4 world = uInvViewProj * vec4(aNDC, 1.0, 1.0);
+    vFarPos = world.xyz / world.w;
+}
+)";
+
+const char *s_skyFragmentShader = R"(#version 330 core
+in vec3 vFarPos;
+uniform vec3 uViewPos;
+uniform vec3 uHorizonColor;
+uniform vec3 uZenithColor;
+out vec4 FragColor;
+void main() {
+    vec3 dir = normalize(vFarPos - uViewPos);
+    float t = clamp(dir.y, 0.0, 1.0);
+    vec3 color = mix(uHorizonColor, uZenithColor, t);
+    FragColor = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);
+}
+)";
+
+} // namespace
 
 RenderExecuteSystem::RenderExecuteSystem() = default;
 
@@ -36,6 +73,14 @@ bool RenderExecuteSystem::init()
 
     m_shader_cache = std::make_unique<ShaderCache>();
 
+    // Sky gradient pass (Phase 5c, D6). Best-effort: failure only disables
+    // the sky, the rest of the pipeline keeps working.
+    m_sky_ready = initSkyPass();
+    if (!m_sky_ready)
+    {
+        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: sky pass init failed, sky disabled");
+    }
+
     m_initialized = true;
     LOG_INFO(LogCategories::kEngine, "RenderExecuteSystem initialized (RHI + ShaderCache)");
     return true;
@@ -46,6 +91,9 @@ void RenderExecuteSystem::shutdown()
     if (!m_initialized)
         return;
 
+    m_sky_material.shutdown();
+    m_sky_vbo.reset();
+    m_sky_ready = false;
     m_shader_cache.reset();
     if (m_device)
     {
@@ -63,6 +111,65 @@ IRHIDevice *RenderExecuteSystem::device()
 ShaderCache *RenderExecuteSystem::shaderCache()
 {
     return m_shader_cache.get();
+}
+
+usize RenderExecuteSystem::psoCacheSize() const
+{
+    return m_device ? m_device->getPSOManager().getCacheSize() : 0;
+}
+
+bool RenderExecuteSystem::initSkyPass()
+{
+    // Fullscreen triangle in NDC, oversized so 3 vertices cover the viewport.
+    const f32 vertices[] = {-1.0f, -1.0f, 3.0f, -1.0f, -1.0f, 3.0f};
+    const VertexAttributeDesc attrs[] = {{0, 2, false, 0}};
+
+    BufferDesc vbDesc{};
+    vbDesc.size = sizeof(vertices);
+    vbDesc.usage = BufferUsage::Vertex;
+    vbDesc.vertexStride = sizeof(f32) * 2;
+    vbDesc.vertexAttributes = attrs;
+    vbDesc.vertexAttributeCount = 1;
+    m_sky_vbo = m_device->createBuffer(vbDesc, vertices);
+    if (!m_sky_vbo)
+        return false;
+
+    MaterialParamDesc params[] = {
+        {"uInvViewProj", MaterialParamType::Mat4},
+        {"uViewPos", MaterialParamType::Vec3},
+        {"uHorizonColor", MaterialParamType::Vec3},
+        {"uZenithColor", MaterialParamType::Vec3},
+    };
+    PipelineStateDesc pipelineDesc{};
+    pipelineDesc.topology = PrimitiveTopology::Triangles;
+    pipelineDesc.rasterizerState.cullMode = CullMode::None;
+    // D6: the triangle sits at NDC z = 1 against the freshly cleared depth
+    // buffer, so LessEqual passes everywhere the scene has not drawn yet;
+    // depth write stays off and the opaque phase overwrites the sky normally.
+    pipelineDesc.depthStencilState.depthTest = true;
+    pipelineDesc.depthStencilState.depthWrite = false;
+    pipelineDesc.depthStencilState.depthFunc = CompareFunc::LessEqual;
+
+    if (!m_sky_material.init(m_device.get(), m_shader_cache.get(), s_skyVertexShader, s_skyFragmentShader, params, 4,
+                             pipelineDesc))
+        return false;
+
+    m_sky_material.setVec3("uHorizonColor"_sid, Vec3{0.55f, 0.65f, 0.75f});
+    m_sky_material.setVec3("uZenithColor"_sid, Vec3{0.10f, 0.23f, 0.55f});
+    return true;
+}
+
+void RenderExecuteSystem::drawSky(const ExtractedView &view, const ExtractedSky &sky, IRHICommandList *cmdList)
+{
+    m_sky_material.setMat4("uInvViewProj"_sid, (view.proj_matrix * view.view_matrix).inverse());
+    m_sky_material.setVec3("uViewPos"_sid, view.view_pos);
+    m_sky_material.setVec3("uHorizonColor"_sid, sky.horizon_color);
+    m_sky_material.setVec3("uZenithColor"_sid, sky.zenith_color);
+    m_sky_material.bind(cmdList);
+    cmdList->bindVertexBuffer(m_sky_vbo.get(), 0, 0);
+    cmdList->draw(3, 0);
+    // The sky pass is view-level, not a queued phase item — keep it out of
+    // m_stats.draw_calls so draw_calls == visible stays meaningful.
 }
 
 void RenderExecuteSystem::drawItem(World &renderWorld, const ExtractedView &view, const ExtractedLight &light,
@@ -148,6 +255,21 @@ void RenderExecuteSystem::run(World &renderWorld, PrepareAssetsSystem &prepare)
         return;
 
     IRHICommandList *cmdList = m_device->createCommandList();
+
+    // Sky gradient pass (Phase 5c, D6): right after the main loop's clear,
+    // before the opaque phase. No SkySettings in the main world means no
+    // ExtractedSky and the plain clear color shows through.
+    if (m_sky_ready)
+    {
+        ConstQuery<ExtractedSky> skyQuery(renderWorld);
+        for (auto [skyEntity, sky] : skyQuery)
+        {
+            (void)skyEntity;
+            if (sky->enabled)
+                drawSky(*view, *sky, cmdList);
+            break;
+        }
+    }
 
     if (binned)
     {

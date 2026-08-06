@@ -6,6 +6,7 @@
 #include "core/string/string_intern_pool.h"
 #include "render_system/components/Camera.h"
 #include "render_system/components/DirectionalLight.h"
+#include "render_system/components/SkySettings.h"
 
 namespace game
 {
@@ -74,6 +75,12 @@ void GamePlugin::setup(Entelechy::App &app)
     auto sun = world.spawn();
     world.addComponent<DirectionalLight>(
         sun, DirectionalLight{{0.45f, -0.85f, -0.25f}, {1.0f, 0.956f, 0.839f}, 3.0f, 0.15f});
+
+    // -- Sky gradient (Phase 5c) --------------------------------------------
+    // Daylight gradient: hazy bright horizon to a deeper blue zenith. Tunable
+    // at runtime through the ImGui debug panel.
+    auto sky = world.spawn();
+    world.addComponent<SkySettings>(sky, SkySettings{});
 
     // -- Cooked Sponza scene (Phase 3c/4c) --------------------------------
     // Spawns one entity per scene.json entry (405 for NewSponza); meshes

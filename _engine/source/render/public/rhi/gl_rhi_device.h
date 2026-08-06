@@ -290,6 +290,10 @@ private:
     void trackResourceCreated(const GPUResource *resource);
     void trackResourceDestroyed(const GPUResource *resource);
 
+    // Raw PSO creation (no cache). The public createPipelineState routes
+    // through m_pso_manager (Phase 5c); this is the uncached worker.
+    RHIPipelineStateRef createPipelineStateUncached(const PipelineStateDesc &desc);
+
     PSOManager m_pso_manager;
     GLCommandList m_cmd_list;
     bool m_initialized = false;

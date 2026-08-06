@@ -11,7 +11,7 @@
 | `rhi_types.h` | RHI 基础类型：Buffer/Texture/Shader 枚举、资源描述结构、渲染通道描述、`RHIFenceValue`、`RHIMemoryInfo` |
 | `rhi_resources.h` | GPUResource 基类（引用计数 + 延迟删除支持）、RHIRef 智能句柄、具体资源类型声明 |
 | `rhi_device.h` | `IRHIDevice`（资源工厂 + 提交 + Frame Fence + 延迟删除 + 显存预算）与 `IRHICommandList`（命令录制 + 调试标注）纯虚接口 |
-| `rhi_pipeline.h` | `PipelineStateDesc`（完整 PSO 描述，含哈希支持）、`PSOManager`（全局缓存） |
+| `rhi_pipeline.h` | `PipelineStateDesc`（完整 PSO 描述，含哈希支持）、`PSOManager`（设备级缓存；2026-08-06 阶段 5c 起 `GLRHIDevice::createPipelineState` 经 `find`/`insert` 走缓存，相同 shader pair + 状态共享一个 GL program） |
 | `rhi_transient_resource_pool.h` / `.cpp` | 瞬态纹理池：按描述符分组复用单帧生命周期纹理，预留显存别名接口 |
 | `gl_rhi_device.h` / `.cpp` | OpenGL 后端对 RHI 接口的实现：`GLRHIDevice`、`GLCommandList`、GL 资源对象、Fence 跟踪、延迟删除队列、显存统计 |
 | `rhi_resources.cpp` | `GPUResource::release()` 实现：引用计数归零后交给所属设备延迟删除 |
@@ -26,15 +26,21 @@
 | `components/MeshAssetRef.h` | 主 World 组件：`MeshAssetRef`（`Handle<MeshAsset>`） |
 | `components/MaterialAssetRef.h` | 主 World 组件：`MaterialAssetRef`（`Handle<MaterialAsset>`） |
 | `components/Camera.h` | 主 World 组件：`Camera`（fov/near/far/ortho 参数） |
+| `components/DirectionalLight.h` | 主 World 组件：`DirectionalLight`（direction/color/intensity/ambient，阶段 5a） |
+| `components/SkySettings.h` | 主 World 组件：`SkySettings`（天空渐变 zenith/horizon 颜色 + enabled，阶段 5c） |
 | `components/WorldAabb.h` | 主 World 组件：`WorldAABB`（世界空间包围盒，剔除用；包装 core `AABB`，保持数学库零 ECS 依赖） |
 | `components/RenderComponents.h` | Render World 组件：`RenderMesh`, `RenderMaterial`, `RenderTransform`, `RenderAABB` |
-| `components/RenderCamera.h` | Render World 组件：`ExtractedView`（view/proj/frustum/viewport）+ `Rect` |
+| `components/RenderCamera.h` | Render World 组件：`ExtractedView`（view/proj/frustum/viewport/view_pos）+ `Rect` |
+| `components/RenderLight.h` | Render World 组件：`ExtractedLight`（方向光快照，阶段 5a） |
+| `components/RenderSky.h` | Render World 组件：`ExtractedSky`（天空设置快照，阶段 5c） |
 | `RenderPhase.h` | 渲染阶段枚举：`ShadowMap`, `Opaque3D`, `AlphaMask`, `Transparent3D`, `UI` |
 | `extract/MainWorldSync.h` | 主世界 ↔ 渲染世界实体双向映射表 |
 | `render_world/RenderWorld.h/cpp` | Render World 容器：ECS World + ExtractSchedule + `MainWorldSync` |
 | `render_world/ExtractSchedule.h/cpp` | Extract 阶段调度器：`IExtractSystem` 注册与顺序执行 |
 | `extract/ExtractRenderablesSystem.h/cpp` | 搬运 `(MeshAssetRef, MaterialAssetRef, GlobalTransform)` → Render World |
 | `extract/ExtractCameraSystem.h/cpp` | 搬运 `(Camera, GlobalTransform)` → `ExtractedView` |
+| `extract/ExtractLightSystem.h/cpp` | 搬运第一个 `DirectionalLight` → `ExtractedLight`（阶段 5a） |
+| `extract/ExtractSkySystem.h/cpp` | 搬运第一个 `SkySettings` → `ExtractedSky`（阶段 5c） |
 | `culling/FrustumCullSystem.h/cpp` | 逐实体视锥剔除：`ExtractedView.frustum` vs `RenderAABB`；无 `RenderAABB` 则始终可见。**当实体数 > 256 且传入 `ThreadPool*` 时自动并行化** |
 | `culling/ViewVisibleList.h` | Culling 阶段显式产出：可见实体列表 |
 | `queue/PhaseItem.h` | 渲染阶段最小单元：`SortKey`（64-bit）+ `Entity` + `instance_count` |
@@ -42,8 +48,8 @@
 | `queue/SortedRenderPhase.h/cpp` | Transparent/UI 深度排序：远→近（`~depthBits`），使用 **64-bit 稳定基数排序** |
 | `queue/QueueDrawsSystem.h/cpp` | 按 Phase 生成 Items：深度计算 + SortKey 构造 + 分箱/排序。**当可见实体数 > 256 且传入 `ThreadPool*` 时自动并行化** |
 | `RenderResources.h` | Queue 阶段产出：`ViewBinnedPhases` + `ViewSortedPhases` |
-| `execute/RenderExecuteSystem.h/cpp` | Execute 阶段：消费四个 Phase 容器发出 GPU draw call；自持网格/材质注册表（阶段1 手工注册，待 Prepare 替代） |
-| `frame/RenderFrameRunner.h/cpp` | 帧驱动层：`runFrame()` 串联 Extract → Cull → Queue → Execute，产出 `FrameStats`；主循环唯一渲染入口 |
+| `execute/RenderExecuteSystem.h/cpp` | Execute 阶段：消费四个 Phase 容器发出 GPU draw call（GPU 资源由 Prepare 阶段解析）；每 draw 下发 uMVP/uModel/uNormalMatrix/uViewPos/光照 uniform（5a）；自持天空渐变 pass（全屏三角形 + 内联 sky shader，clear 后 opaque 前，5c） |
+| `frame/RenderFrameRunner.h/cpp` | 帧驱动层：`runFrame()` 串联 Extract → Prepare → Cull → Queue → Execute，产出 `FrameStats`（含 PSO 缓存/显存计数，5c）；主循环唯一渲染入口 |
 
 ## 重要入口
 - 改**RHI 抽象接口** → 动 `rhi_device.h` / `rhi_types.h`

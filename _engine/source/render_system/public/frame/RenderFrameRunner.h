@@ -3,6 +3,7 @@
 #include "render_system/render_world/RenderWorld.h"
 #include "render_system/extract/ExtractCameraSystem.h"
 #include "render_system/extract/ExtractLightSystem.h"
+#include "render_system/extract/ExtractSkySystem.h"
 #include "render_system/extract/ExtractRenderablesSystem.h"
 #include "render_system/culling/FrustumCullSystem.h"
 #include "render_system/queue/QueueDrawsSystem.h"
@@ -22,6 +23,11 @@ struct FrameStats
     u32 visible = 0;
     u32 culled = 0;
     u32 draw_calls = 0;
+    // Phase 5c (D7): PSO cache + GPU memory counters for the stats panel.
+    u32 pso_cache_size = 0;
+    u64 tracked_memory_bytes = 0; // RHI-tracked resident GPU memory (always valid)
+    u64 gpu_total_bytes = 0;      // vendor extension (NVX/ATI); 0 = unsupported
+    u64 gpu_available_bytes = 0;  // vendor extension (NVX/ATI); 0 = unsupported
 };
 
 // RenderFrameRunner — production frame driver that chains the render
@@ -70,6 +76,7 @@ private:
     RenderWorld m_render_world;
     ExtractCameraSystem m_extract_camera{nullptr}; // window bound in init()
     ExtractLightSystem m_extract_light;
+    ExtractSkySystem m_extract_sky;
     ExtractRenderablesSystem m_extract_renderables{m_render_world.sync()};
     PrepareAssetsSystem m_prepare;
     FrustumCullSystem m_cull;

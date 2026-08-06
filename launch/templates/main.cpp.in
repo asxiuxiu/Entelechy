@@ -9,6 +9,7 @@
 #include "render/rhi/opengl_backend.h"
 #include "render_system/frame/RenderFrameRunner.h"
 #include "render_system/components/DirectionalLight.h"
+#include "render_system/components/SkySettings.h"
 #include "imgui/imgui_manager.h"
 #include "imgui/imgui_panels.h"
 #include "editor/editor_panels.h"
@@ -202,9 +203,31 @@ int main() {
             lightParams.ambient = sunLight->ambient;
         }
 
+        // Mirror the first main-world sky settings into the debug panel and
+        // write edits back the same frame (Phase 5c).
+        Entelechy::SkyParams skyParams;
+        Entelechy::SkySettings* skySettings = nullptr;
+        {
+            Entelechy::Query<Entelechy::SkySettings> skyQuery(world);
+            for (auto [skyEntity, sky] : skyQuery) {
+                (void)skyEntity;
+                skySettings = sky;
+                break;
+            }
+        }
+        if (skySettings) {
+            skyParams.horizonColor[0] = skySettings->horizon_color.x;
+            skyParams.horizonColor[1] = skySettings->horizon_color.y;
+            skyParams.horizonColor[2] = skySettings->horizon_color.z;
+            skyParams.zenithColor[0] = skySettings->zenith_color.x;
+            skyParams.zenithColor[1] = skySettings->zenith_color.y;
+            skyParams.zenithColor[2] = skySettings->zenith_color.z;
+            skyParams.enabled = skySettings->enabled;
+        }
+
         Entelechy::WindowSizeRequest sizeRequest;
-        Entelechy::buildDebugPanel(dt, fps, clearColor, sunLight ? &lightParams : nullptr, currentW, currentH,
-                                   sizeRequest);
+        Entelechy::buildDebugPanel(dt, fps, clearColor, sunLight ? &lightParams : nullptr,
+                                   skySettings ? &skyParams : nullptr, currentW, currentH, sizeRequest);
 
         if (sunLight) {
             sunLight->direction = {lightParams.direction[0], lightParams.direction[1], lightParams.direction[2]};
@@ -212,9 +235,24 @@ int main() {
             sunLight->intensity = lightParams.intensity;
             sunLight->ambient = lightParams.ambient;
         }
+        if (skySettings) {
+            skySettings->horizon_color = {skyParams.horizonColor[0], skyParams.horizonColor[1], skyParams.horizonColor[2]};
+            skySettings->zenith_color = {skyParams.zenithColor[0], skyParams.zenithColor[1], skyParams.zenithColor[2]};
+            skySettings->enabled = skyParams.enabled;
+        }
         {
             const auto& rstats = frameRunner.stats();
-            Entelechy::buildRenderStatsPanel(rstats.draw_calls, rstats.visible, rstats.culled, rstats.total_renderables);
+            Entelechy::RenderStatsParams statsParams;
+            statsParams.fps = fps;
+            statsParams.drawCalls = rstats.draw_calls;
+            statsParams.visible = rstats.visible;
+            statsParams.culled = rstats.culled;
+            statsParams.total = rstats.total_renderables;
+            statsParams.psoCacheSize = rstats.pso_cache_size;
+            statsParams.trackedMemoryBytes = rstats.tracked_memory_bytes;
+            statsParams.gpuTotalBytes = rstats.gpu_total_bytes;
+            statsParams.gpuAvailableBytes = rstats.gpu_available_bytes;
+            Entelechy::buildRenderStatsPanel(statsParams);
         }
 
         if (sizeRequest.requested) {

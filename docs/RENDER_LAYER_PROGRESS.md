@@ -118,6 +118,7 @@
 - `PipelineStateDesc` + `std::hash` 支持 → `public/rhi/rhi_pipeline.h`
 - `PSOManager`：全局 HashMap 缓存 + 统计信息 → 同上
 - 同步 `getOrCreate()` → 同上
+- PSO 缓存接线（阶段 5c，2026-08-06）：`GLRHIDevice::createPipelineState` 经 `PSOManager::find`/`insert` 走缓存——此前 `Material::init` 直调设备创建、PSOManager 是死代码；相同 shader pair + 状态现在共享一个 GL program，Sponza 28 材质 + fallback + 天空实测收敛为 3 个 PSO（单面 / 双面 / 天空），缓存大小经 `FrameStats` 入 Render Stats 面板
 
 **缺失项**：
 
@@ -341,6 +342,7 @@
 - OpenGL 后端：`glUniform*` + 缓存 `(program, name) → location` map → `gl_rhi_device.h` (line 148-167, 212-223)
 - `Material::setTexture` 绑定纹理单元
 - baseColor 贴图绑定链路（阶段 4b，2026-08-06）：`PrepareAssetsSystem::prepareMaterial` 把 `MaterialAsset::base_color_texture` prepare 成 RHI 纹理随材质下发（未就绪走 1x1 白纹理/粉色 fallback + 热替换），shader 采样 `uBaseColorTex`；normal/MR 贴图 Handle 已加载落位（阶段 4c），阶段 5b（2026-08-06）起经同一机制 prepare 下发并由 shader 采样（见 5.14 的 5b 条目）
+- 调试统计面板数据链（阶段 5c，2026-08-06，D7）：`FrameStats` 扩展 `pso_cache_size`/`tracked_memory_bytes`/`gpu_total_bytes`/`gpu_available_bytes`，`RenderFrameRunner::runFrame` 每帧自 `IRHIDevice::queryMemoryInfo()`/`getTrackedMemoryUsage()` 与 Execute 的 PSO 缓存填充；`buildRenderStatsPanel` 改收 `RenderStatsParams` POD（FPS/draw calls/visible/culled/total/PSO cache/显存，ImGuiLib 保持零引擎依赖）。实跑校对：GPU Tracked 6.22 GiB，与 5b mip 链修复后的预期量级（约 6.2 GiB）吻合；`queryMemoryInfo()` 在无 NVX/ATI 扩展的机器上返回 0，面板显示 n/a
 
 **缺失项**：
 
@@ -376,6 +378,7 @@
 - 方向光 + lit PBR（阶段 5a，2026-08-06）：主 World 新增 `DirectionalLight` 组件（direction/color/intensity/ambient）+ `ExtractLightSystem` → Render World `ExtractedLight`（取第一个，同相机模式）；`ExtractedView` 补 `view_pos`；fs 重写为 lit PBR——albedo（baseColor 贴图×uColor，pow 2.2 转线性）→ Lambert diffuse + GGX Cook-Torrance specular（D=GGX/TR、F=Schlick、G=Smith）+ 常量环境项 → pow(1/2.2) 输出，保留 `uAlphaCutoff` discard 与 doubleSided `gl_FrontFacing` 翻法线；游戏侧 `GamePlugin::setup()` spawn 一盏暖色日光，ImGui Debug 面板经 `DirectionalLightParams` POD 镜像运行时调节（ImGuiLib 保持零引擎依赖）。Debug 构建通过、测试 220 全绿（207 基线 + 8 Mat3 + 5 ExtractLight）、lint 239 文件零违规；实跑 35s 零 ERROR/WARN、启动期后零 pending/fallback 日志、`draw_calls == visible`、fps 56–61 无回归（`logs/game_run_5a.log`）；目视验收待用户确认
 - 场景加载入口迁引擎 + normal/MR 落位（阶段 4c，2026-08-06）：scene_loader 自游戏侧迁入引擎新模块 `asset/scene/`（SceneLib，D5）——`SceneLoader` 构造注入 VFS/AssetServer/loader/存储（引擎不持有游戏侧全局），自持 `MaterialAssetLoader` 与场景材质清单；游戏侧 `GamePlugin::setup()` 场景加载剩一行调用，`RenderAssets` 的 Sponza 专属成员（`material_loader`/`scene_materials`）移除；`MaterialTextureBackfillSystem` 随迁为 `SceneLoader&` 薄封装。normal/MR 贴图与 baseColor 同一机制 `loadAsync` 落位 + Handle 回填（D4，Prepare/shader 不动）。实跑 30s：405 实体 + 73 贴图（25 baseColor + 24 normal + 24 MR）全落地零失败，零 pending/ERROR/WARN，帧统计无回归（`logs/game_run_4c.log`），与 4b 行为一致
 - 法线贴图 + MR 贴图采样（阶段 5b，2026-08-06）：`prepareMaterial` 扩展——normal/MR 贴图复用 baseColor 的 pending 守卫/白纹理 fallback/热替换机制 prepare 下发；vs 消费顶点 TANGENT（loc 3 = vec4(tangent.xyz, tangentW)），N 走 `uNormalMatrix`、T 走 `mat3(uModel)` 后 Gram-Schmidt 正交化输出，fs 以 `B = cross(N,T) * tangentW` 重建 TBN（D5）、采样 tangent-space 法线贴图（tex*2-1）扰动 N，MR 贴图 G=roughness/B=metallic 与 factor 相乘；无贴图材质经 `uHasNormalTex`/`uHasMRTex` 手写分支走 factor-only。5a 的 MR 占位（metallic 0.0/roughness 0.9）移除。Debug 构建通过、测试 220 全绿、lint 239 文件零违规；实跑 73 贴图全部 prepare 上传（RGBA8 无 mipmap 合计约 4672 MiB GPU 纹理显存，留作 5c 显存面板校对基准）、28 材质 ready、零 ERROR/WARN、60 fps 无回归、`draw_calls == visible`（`logs/game_run_5b.log`）；截图验收砖缝/石块凹凸方向正确无反转、木门金属件与石材高光响应差异可见（`logs/shot_5b_default.png`）。同日复查截图发现全场高频颗粒噪点，根因为 `prepareTexture` 以 `mipLevels=1` 上传（GL 退化 `GL_LINEAR`，4K 贴图缩小采样 aliasing），已修复为按 `max(w,h)` 生成完整 mip 链（`glGenerateMipmap` + trilinear），噪点消除、60 fps 无回归（`logs/shot_5b_mip.png`）；纹理显存因此约 +33%（4672 MiB 基准作废，5c 面板预期约 6.2 GiB 量级）；目视验收待用户确认
+- 天空渐变 pass + 天空 ECS 链（阶段 5c，2026-08-06，D6）：主 World 新增 `SkySettings`（zenith/horizon 颜色 + enabled）+ `ExtractSkySystem` → Render World `ExtractedSky`（取第一个，同相机/光照模式）；`RenderExecuteSystem` 自持天空 Material + 全屏三角形 VBO（3 顶点 NDC），clear 后、opaque 前绘制——vs 以 `uInvViewProj` 重建远平面世界位置、NDC z=1 钉在远平面（depthFunc LessEqual、depth write off），fs 按视线方向 y 分量在地平线色/天顶色间插值，输出走与 lit PBR 相同的 pow(1/2.2) 近似 gamma；游戏侧 `GamePlugin::setup()` spawn 默认日光渐变，ImGui Debug 面板经 `SkyParams` POD 镜像运行时调节（含 enabled 开关）；主 World 无 `SkySettings` 则跳过天空 pass、保留纯色 clear。天空 pass 是 view 级绘制，不计入 `draw_calls`（保持 draw_calls == visible 语义）。Debug 构建通过、测试 223 全绿（220 基线 + 3 ExtractSkySystem）、lint 244 文件零违规；实跑零 ERROR/WARN、73 贴图全落地、60–61 fps 无回归（`logs/game_run_5c.log`）；截图确认天空渐变为蓝色、统计面板数字合理（`logs/shot_5c_sky3.png`，GPU Tracked 6.22 GiB 与 5b 预期吻合、PSO Cache=3），天空观感用户已目视确认
 
 **缺失项**：
 
@@ -475,7 +478,7 @@
 5.1  RHI 抽象层与命令模型           ████████░░  80%  接口完善，但后端仅为 OpenGL 立即模式
 5.2  多线程命令录制与并行渲染 ⭐      ██████░░░░  60%  CPU 并行生成完成，GPU 命令并行录制未实现
 5.3  GPU 资源生命周期管理 ⭐          ████████░░  80%  核心机制齐全，缺少预算强制和 ECS 化
-5.3b PSO 缓存与异步编译 ⭐            ████░░░░░░  40%  仅同步缓存
+5.3b PSO 缓存与异步编译 ⭐            ████░░░░░░  40%  同步缓存已接线（5c，28 材质收敛为 3 PSO），无异步编译
 5.4  ECS 架构下的渲染世界设计 ⭐      ████████░░  80%  双 World + Extract + 帧驱动层完成，缺少 Prepare 阶段
 5.5  可见性判断与空间加速结构 ⭐      ███░░░░░░░  30%  仅基础视锥剔除，无 BVH/HZB/GPU-Driven
 5.6  渲染队列与 DrawCall 组织 ⭐      ████████░░  80%  SortKey/Binned/Sorted/Queue 完整，Instancing 预留
@@ -485,7 +488,7 @@
 5.10 资源热重载系统                   ░░░░░░░░░░   0%  完全未开始
 5.11 材质系统架构                     ███░░░░░░░  25%  仅 Phase 1 单层简化，无 TAI 三层
 5.12 着色器变体与编译缓存 ⭐          ██░░░░░░░░  20%  仅内存级同步 ShaderCache
-5.13 材质参数绑定与 GPU 上传          ██░░░░░░░░  20%  仅立即 uniform 调用，无 BindGroup/PushConstants
+5.13 材质参数绑定与 GPU 上传          ██░░░░░░░░  20%  仅立即 uniform 调用 + 统计面板数据链（5c），无 BindGroup/PushConstants
 5.14 材质系统的 ECS 表达              ███████░░░  70%  Extract/Prepare/Queue/Render 全通（2c），PreparedMaterial 简化版
 5.15 2D 渲染基础与批次合批            ░░░░░░░░░░   0%  完全未开始
 5.16 字体渲染系统                     ░░░░░░░░░░   0%  完全未开始

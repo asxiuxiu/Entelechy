@@ -12,8 +12,8 @@ Dear ImGui 生命周期封装、面板构建、Docking 布局。
 | `imgui_init.h` | 初始化桩（实际逻辑在 ImGuiManager） |
 | `imgui_manager.cpp` | ImGui 上下文创建、GLFW+OpenGL3 后端初始化、DPI 缩放适配 |
 | `imgui_manager.h` | `ImGuiManager` 类声明 |
-| `imgui_panels.cpp` | Debug 面板（FPS/Clear Color/方向光控件/分辨率）、Log 面板、DockSpace 构建 |
-| `imgui_panels.h` | 面板构建函数声明、`WindowSizeRequest`、`DirectionalLightParams`（POD 镜像主 World 方向光，保持 ImGuiLib 零引擎依赖） |
+| `imgui_panels.cpp` | Debug 面板（FPS/Clear Color/方向光控件/天空渐变控件/分辨率）、Render Stats 面板（FPS/draw calls/剔除/PSO 缓存/显存，5c）、Log 面板、DockSpace 构建 |
+| `imgui_panels.h` | 面板构建函数声明、`WindowSizeRequest`、`DirectionalLightParams`/`SkyParams`/`RenderStatsParams`（POD 镜像引擎状态，保持 ImGuiLib 零引擎依赖） |
 
 ## 重要入口
 - 改**ImGui 初始化/后端的配置** → 动 `imgui_manager.cpp`

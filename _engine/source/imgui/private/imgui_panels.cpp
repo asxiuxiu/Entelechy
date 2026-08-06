@@ -54,12 +54,12 @@ void buildDockSpace()
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 }
 
-void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4], DirectionalLightParams *light, int windowWidth,
-                     int windowHeight, WindowSizeRequest &outRequest)
+void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4], DirectionalLightParams *light, SkyParams *sky,
+                     int windowWidth, int windowHeight, WindowSizeRequest &outRequest)
 {
     // First-use defaults: top-left corner, large enough for all controls.
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(420, 320), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(420, 380), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Debug");
 
@@ -84,6 +84,15 @@ void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4], DirectionalLightParams 
         ImGui::ColorEdit3("Light Color", light->color);
         ImGui::DragFloat("Intensity", &light->intensity, 0.05f, 0.0f, 20.0f);
         ImGui::DragFloat("Ambient", &light->ambient, 0.005f, 0.0f, 1.0f);
+    }
+
+    if (sky)
+    {
+        ImGui::Separator();
+        ImGui::Text("Sky (Phase 5c):");
+        ImGui::Checkbox("Enabled", &sky->enabled);
+        ImGui::ColorEdit3("Horizon Color", sky->horizonColor);
+        ImGui::ColorEdit3("Zenith Color", sky->zenithColor);
     }
 
     ImGui::Separator();
@@ -137,19 +146,53 @@ void buildDebugPanel(f32 dt, f32 fps, f32 clearColor[4], DirectionalLightParams 
     ImGui::End();
 }
 
-void buildRenderStatsPanel(u32 drawCalls, u32 visible, u32 culled, u32 total)
+namespace
 {
-    // First-use defaults: right of the Debug panel, compact single readout.
+
+// Format a byte count as MiB/GiB for the stats panel.
+void formatMemorySize(u64 bytes, char *out, usize outSize)
+{
+    const f64 mib = static_cast<f64>(bytes) / (1024.0 * 1024.0);
+    if (mib >= 1024.0)
+        std::snprintf(out, outSize, "%.2f GiB", mib / 1024.0);
+    else
+        std::snprintf(out, outSize, "%.1f MiB", mib);
+}
+
+} // anonymous namespace
+
+void buildRenderStatsPanel(const RenderStatsParams &stats)
+{
+    // First-use defaults: right of the Debug panel, compact readout.
     ImGui::SetNextWindowPos(ImVec2(460, 20), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(260, 130), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 240), ImGuiCond_FirstUseEver);
 
     ImGui::Begin("Render Stats");
 
-    ImGui::Text("Draw Calls: %u", drawCalls);
+    ImGui::Text("FPS: %.1f", stats.fps);
     ImGui::Separator();
-    ImGui::Text("Renderables: %u", total);
-    ImGui::Text("Visible:     %u", visible);
-    ImGui::Text("Culled:      %u", culled);
+    ImGui::Text("Draw Calls: %u", stats.drawCalls);
+    ImGui::Text("Renderables: %u", stats.total);
+    ImGui::Text("Visible:     %u", stats.visible);
+    ImGui::Text("Culled:      %u", stats.culled);
+    ImGui::Separator();
+    ImGui::Text("PSO Cache:   %u", stats.psoCacheSize);
+    ImGui::Separator();
+
+    char buf[32];
+    formatMemorySize(stats.trackedMemoryBytes, buf, sizeof(buf));
+    ImGui::Text("GPU Tracked: %s", buf);
+    if (stats.gpuTotalBytes > 0)
+    {
+        formatMemorySize(stats.gpuTotalBytes, buf, sizeof(buf));
+        ImGui::Text("GPU Total:   %s", buf);
+        formatMemorySize(stats.gpuAvailableBytes, buf, sizeof(buf));
+        ImGui::Text("GPU Avail:   %s", buf);
+    }
+    else
+    {
+        ImGui::Text("GPU Total:   n/a (no vendor ext)");
+    }
 
     ImGui::End();
 }

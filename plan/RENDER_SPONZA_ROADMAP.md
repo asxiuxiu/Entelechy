@@ -11,7 +11,7 @@
 
 ## 现状一句话总结
 
-四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-4 完成（2026-08-06），NewSponza 全量 405 primitive 全贴图（28 材质 baseColor 上屏，normal/MR 已加载待阶段 5 采样）经 Extract → Cull → Queue → Execute 完整链路渲染，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。下一步是阶段 5（光照/法线正确性，normal/MR 采样接入）。
+四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-5 完成（2026-08-06），NewSponza 全量 405 primitive 经 Extract → Cull → Queue → Execute 完整链路渲染——方向光 lit PBR（GGX）、法线/MR 贴图采样、天空渐变、调试统计面板（FPS/draw calls/剔除/PSO 缓存/显存）全部落地，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。下一步是阶段 6+（架构补全：RenderGraph / 延迟命令缓冲 / TAI 材质 / BindGroup）。
 
 ## 断裂修复与阶段的对应关系
 
@@ -31,7 +31,7 @@
 阶段 2  资源进管线 ✅        拆为 2a/2b/2c（见 plan/RENDER_PHASE2_PLAN.md），2026-08-05 完成：Handle 集成 + MeshAsset/TextureAsset/stb_image loader + PrepareAssetsSystem（fallback 热替换）；详细验收记录见子计划
 阶段 3  看见 Sponza 骨架 ✅  拆为 3a/3b/3c（见 plan/RENDER_PHASE3_PLAN.md），2026-08-05 完成：.emesh 格式+Loader → cgltf cook 工具（405 primitive 零告警）→ spawn+白模渲染（405 实体异步加载无 fallback 残留，剔除生效，~60fps）；详细验收记录见子计划
 阶段 4  还原材质与场景 ✅  拆为 4a/4b/4c（见 plan/RENDER_PHASE4_PLAN.md），2026-08-06 完成：cooker 材质导出（28 个 .emat）+ MaterialAssetLoader → baseColor 贴图上屏（V 翻转/alpha/doubleSided 落地）→ scene_loader 迁引擎 asset/scene + normal/MR 贴图加载落位（只加载不采样，D4）；详细验收记录见子计划
-阶段 5  让它像样           拆为 5a/5b/5c（见 plan/RENDER_PHASE5_PLAN.md）：方向光+lit PBR shader → 法线/MR 贴图采样 → 天空渐变+调试统计面板
+阶段 5  让它像样 ✅        拆为 5a/5b/5c（见 plan/RENDER_PHASE5_PLAN.md），2026-08-06 完成：方向光+lit PBR shader → 法线/MR 贴图采样（含 mipmap 修复）→ 天空渐变+调试统计面板（PSO 缓存顺势接线）；详细验收记录见子计划
 阶段 6+ 架构补全           RenderGraph / 延迟命令缓冲 / TAI 材质 / BindGroup（按文档优先级推进）
 ```
 
@@ -113,9 +113,9 @@
 
 ---
 
-## 阶段 5 —— 让它像样
+## 阶段 5 —— 让它像样 ✅ 已完成（2026-08-06）
 
-> **已拆分子计划**（2026-08-06）：见 [RENDER_PHASE5_PLAN.md](RENDER_PHASE5_PLAN.md)，拆为 5a（方向光+lit PBR shader）/ 5b（法线贴图+MR 采样）/ 5c（天空渐变+调试统计面板）。
+> **已拆分子计划**（2026-08-06）：见 [RENDER_PHASE5_PLAN.md](RENDER_PHASE5_PLAN.md)，拆为 5a（方向光+lit PBR shader）/ 5b（法线贴图+MR 采样）/ 5c（天空渐变+调试统计面板）。三个子步均已落地：5a/5b 目视验收见子计划落地记录，5c 天空观感用户已目视确认。
 
 **可见成果**：有方向光（阳光）照射的 Sponza，明暗正确、有法线贴图效果；天空色/简易天空盒；ImGui 面板显示 FPS、draw call 数、剔除前后实体数、GPU 内存。
 

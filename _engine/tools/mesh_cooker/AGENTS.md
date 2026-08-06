@@ -4,7 +4,7 @@
 
 ## 一句话职责
 
-离线 glTF cook 工具：用 cgltf 解析 glTF 2.0 场景，输出引擎 `.emesh` 二进制网格与 `scene.json` 场景清单（渲染管线阶段 3b）。
+离线 glTF cook 工具：用 cgltf 解析 glTF 2.0 场景，输出引擎 `.emesh` 二进制网格、`.emat` 材质 JSON（渲染管线阶段 4a）与 `scene.json` 场景清单（渲染管线阶段 3b）。
 
 ## 关键文件
 | 文件 | 职责 |
@@ -19,7 +19,7 @@
 python scripts/build/build.py --debug
 ./build/bin/Debug/MeshCooker.exe [input.gltf] [output_dir]
 # 默认输入 _content/sponza/NewSponza_Main_glTF_003.gltf
-# 默认输出 _content/sponza/cooked/（meshes/*.emesh + scene.json）
+# 默认输出 _content/sponza/cooked/（meshes/*.emesh + materials/*.emat + scene.json）
 ```
 
 > ⚠️ 不要双击 exe 运行：默认输入/输出均按 cwd 相对解析，双击会在 `build/bin/Debug/` 下误建 `_content/` 空目录并因找不到输入 glTF 而失败。如需在其他 cwd 运行，显式传 `[input.gltf] [output_dir]` 两个参数。
@@ -32,7 +32,7 @@ python scripts/build/build.py --debug
 - **accessor 解码**用 `cgltf_accessor_read_float/read_index`（自动处理 byteStride/归一化）；sparse accessor 告警跳过；缺 NORMAL/TEXCOORD_0/TANGENT 填默认值并告警；无索引 primitive 生成顺序索引。
 - **去重**：`.emesh` 按 `(meshIndex, primIndex)` 定名，每唯一 primitive 只写一次；`scene.json` 按 node 引用计数（实体数 ≥ .emesh 数）。
 - **世界变换**用 `cgltf_node_transform_world()`，输出列主序 16 float，与引擎 `Mat4::m[16]` 布局一致，场景清单原样输出；每实体附带该 primitive 的局部空间 AABB（`aabb_min`/`aabb_max`，与 `.emesh` 头内一致，游戏侧变换到世界空间做视锥剔除，阶段 3c）。
-- **材质字段仅占位**（glTF material name），阶段 4 才做材质/纹理 cook。
+- **材质 cook（阶段 4a）**：每 glTF 材质导出一个 `materials/<name>.emat` 手写 JSON（贴图内容路径 + pbrMetallicRoughness factor + alphaMode/alphaCutoff/doubleSided，schema 单一事实来源为 `main.cpp` 的 `cookMaterials()` 注释与 [Asset 模块](../../source/asset/AGENTS.md) 的 MaterialAssetLoader）；贴图 URI 相对 `.gltf` 目录解析、百分号解码后转成相对 `_content/` 的内容路径（如 `sponza/textures/x.png`）；材质名清洗为 `[A-Za-z0-9_-]` 文件干名；`scene.json` 实体 `material` 字段写 `.emat` 清单相对路径，无材质 primitive 写空串并告警；结尾打印 mask/blend/doubleSided/缺 baseColor 统计。
 - **cooked 产物不入 git**：可由 cooker 重新生成且体积大；`.gitignore` 现有 `_content/*` 规则已覆盖，无需例外。
 
 ## 依赖关系

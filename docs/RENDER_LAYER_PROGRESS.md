@@ -294,6 +294,7 @@
 - `Material` 类：Vertex/Fragment shader pair、CPU uniform block（std140 对齐）、按名参数 layout、PSO desc、`bind()` 上传 → `render/public/material/material.h/.cpp`
 - `MaterialParamType` 枚举 + `MaterialParamDesc` → `render/public/material/material_types.h`
 - `SimpleCubeRenderer` 示例：indexed cube + MVP shader 背靠 Material + GLRHIDevice → `render/public/material/example/simple_cube_renderer.h`
+- `MaterialAsset`（asset 模块 CPU 侧，非 TAI 三层语义）：glTF pbrMetallicRoughness 字段（baseColorFactor[Vec3，弃 A]/metallic/roughness factor、normal/MR 贴图 Handle、`AlphaMode`/alpha_cutoff/double_sided）+ 贴图内容路径字符串（loader 只解析路径，Handle 由 spawn 侧 loadAsync 回填）；`.emat` 由 mesh_cooker 每材质导出一个，`MaterialAssetLoader` 用 core JsonCursor 解析（2026-08-06 阶段 4a）→ `asset/public/type/material_asset.h`、`asset/private/loader/material_asset_loader.cpp`
 
 **缺失项**：
 
@@ -368,6 +369,7 @@
 - `ExtractRenderablesSystem`：拷贝 mesh/material refs → `RenderMesh`/`RenderMaterial`
 - 组件注册：`REFLECT_COMPONENT` + `registerRenderComponents()` → `private/components/component_registration.cpp`
 - `RenderExecuteSystem`：消费 `ViewBinnedPhases`/`ViewSortedPhases` 发出 GPU draw call（经 Prepare 查询 Prepared 资源 + fallback；unlit 材质 uMVP/uModel/uColor/uShadeMode/uBaseColorTex，`MaterialAsset::shade_mode` 切换 albedo／白模法线着色，2026-08-05 阶段 3c）→ `execute/RenderExecuteSystem.h/.cpp`
+- `.emat` 材质 cook 与解析：mesh_cooker 导出 28 个 `.emat`（贴图内容路径 + pbr factor + alphaMode/doubleSided），`scene.json` 实体 `material` 字段改为 `.emat` 清单相对路径；`MaterialAssetLoader` 只解析不触发贴图加载（D1），贴图 Handle 回填属阶段 4b。Sponza 实数：0 mask / 1 blend / 2 doubleSided / 3 缺 baseColor 贴图（2026-08-06 阶段 4a）
 
 **缺失项**：
 

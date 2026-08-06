@@ -12,7 +12,7 @@
 | `asset_types.h` | `AssetLoadState` 枚举、资源类型 ID 定义 |
 | `mesh_asset.h` | `MeshAsset`（交错顶点流 position/normal/uv/tangent + 索引 + AABB，`computeBounds()`） |
 | `mesh_format.h` | `.emesh` cooked mesh 二进制格式（魔数 `EMSH` + 版本 + 顶点/索引数 + AABB + 原始顶点/索引数组）与写出辅助 `writeMeshFile()`（cook 工具与测试共用） |
-| `material_asset.h` | `MaterialAsset` 占位类型（`Handle<MaterialAsset>` 模板参数；字段待后续阶段填充） |
+| `material_asset.h` | `MaterialAsset`（base_color×贴图的 unlit 材质 + glTF pbrMetallicRoughness 字段：metallic/roughness factor、normal/MR 贴图 Handle、`AlphaMode`/alpha_cutoff/double_sided；`*_texture_path` 存内容路径供 spawn 侧 loadAsync 回填 Handle） |
 | `texture_asset.h` | `TextureAsset`（RGBA8 像素 + 尺寸，stb_image 解码约定：左上原点） |
 | `mesh_primitives.h` | 程序化网格构建器：`buildCubeMesh()`（24 顶点六面立方体）/ `buildGroundMesh()`（XZ 平面 + UV 平铺），Prepare fallback 与游戏 demo 共用 |
 | `asset_handle.h` | `Handle<T>` 模板句柄（index + generation），8 字节 POD |
@@ -21,6 +21,7 @@
 | `asset_loader.h` | `IAssetLoader<T>` 加载器接口，每种资源类型实现一个 |
 | `texture_asset_loader.h/.cpp` | `TextureAssetLoader`：stb_image 解码 PNG/JPEG 等 → `TextureAsset`（RGBA8） |
 | `mesh_asset_loader.h/.cpp` | `MeshAssetLoader`：`.emesh` 二进制反序列化 → `MeshAsset`（校验魔数/版本/长度，信任文件内 AABB；失败返回空 mesh 并记日志） |
+| `material_asset_loader.h/.cpp` | `MaterialAssetLoader`：`.emat` JSON 目的解析 → `MaterialAsset`（缺字段走默认值；垃圾/截断/错误类型/未知键拒绝并记日志；只解析贴图路径字符串，不触发贴图加载——Handle 由 spawn 侧 loadAsync 回填） |
 | `asset_server.h/.cpp` | `AssetServer`：单后台线程加载调度、互斥锁事件队列、同步/异步加载 |
 
 ## 重要入口
@@ -48,6 +49,6 @@
 > 统一维护于 [TODO.md](../../../../TODO.md)。本模块相关条目包括：Asset/AssetServerThreading、Asset/HandleTableDefaultConstruct、Asset/PathDeduplication、Asset/HotReload、Asset/ReferenceCounting。
 
 ## 测试
-- 模块测试位于 `tests/test_asset.cpp`（Handle/HandleTable/Assets/AssetServer）、`tests/test_asset_types.cpp`（MeshAsset AABB/顶点步长、程序化网格构建器、TextureAssetLoader PNG 解码与失败路径）与 `tests/test_mesh_asset_loader.cpp`（.emesh 往返读写、垃圾/截断/错误魔数/错误版本拒绝路径）
+- 模块测试位于 `tests/test_asset.cpp`（Handle/HandleTable/Assets/AssetServer）、`tests/test_asset_types.cpp`（MeshAsset AABB/顶点步长、程序化网格构建器、TextureAssetLoader PNG 解码与失败路径）、`tests/test_mesh_asset_loader.cpp`（.emesh 往返读写、垃圾/截断/错误魔数/错误版本拒绝路径）与 `tests/test_material_asset_loader.cpp`（.emat 完整字段往返、缺字段/空对象默认值、alpha_mode 映射、垃圾/截断/错误类型/未知 alpha/未知键/无效 FileData 拒绝路径）
 - 测试库名为 `AssetTests`（OBJECT 库），由 [TestRunner](../test_runner/AGENTS.md) 自动收集链接
 - 覆盖：Handle 有效性、HandleTable ABA 防护、free list、引用计数、Assets insert/remove、AssetServer sync/async/reload

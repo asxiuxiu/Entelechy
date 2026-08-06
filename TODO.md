@@ -24,6 +24,7 @@
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/资源管理.md` 问题 7。
 - [ ] Asset / 资源管理 | 同一路径多次 `loadAsync()` 会创建多个 Handle，造成内存重复和引用计数分散，需 `AssetServer` 维护 `HashMap<Path, ErasedHandle> m_pathToHandle`，加载前先查缓存，已加载直接返回已有 Handle 并 `incrementRef()`。
 - [ ] Asset / 资源管理 | `AssetLoadState` 七态枚举（`asset/public/type/asset_types.h`）已定义但全工程无使用方。`TextureAssetLoader`（2b）解码失败仅返回空 `TextureAsset` + 错误日志，调用方无法区分「未加载 / 加载中 / 失败」，阶段 2c 的 fallback 与 dedup 只能靠 `Assets<T>::get()==nullptr` 判定。需在 Prepare/状态机接入阶段把加载状态（含 Failed）落到存储侧。
+- [ ] Asset / 资源管理 | `MaterialAsset`（`asset/public/type/material_asset.h`）贴图路径字符串（`base_color_texture_path` 等三个 `String`）与 `Handle<TextureAsset>` 字段双存：loader 按 D1 只解析路径、Handle 由 spawn 侧 loadAsync 回填（4b），双存为过渡形态；材质加载链路稳定后应收敛为单一表示（如 Handle 统一经路径缓存解析，或路径字段随 4c 场景加载迁出资产体）。
 - [ ] Asset / 资源管理 | `STB_IMAGE_IMPLEMENTATION` 目前定义在 AssetLib 私有 TU（`asset/private/loader/texture_asset_loader.cpp`）。未来其他模块（编辑器缩略图、字体图集等）若直接使用 stb_image 会重复定义实现符号，届时应抽独立 stb 包装模块或将实现集中到唯一的 stb TU。
 - [ ] Asset / 资源管理 | `HandleTableSlot<T>` 使用 `DynamicArray`，resize 时默认构造元素，要求 T 必须可默认构造，需重构为手动内存管理（`alignas(T) char buffer[sizeof(T)]` + placement new），类似 `std::optional` 或 `Column<T>` 的底层实现。
 - [ ] Asset / 资源管理 | AI Agent 需要自描述地了解「当前加载了哪些资源、各占多少内存、引用关系如何」，需通过反射系统注册资源类型 Schema，`AssetServer` 暴露 `query_asset(handle)` / `dump_ref_graph()` 等 MCP 工具。

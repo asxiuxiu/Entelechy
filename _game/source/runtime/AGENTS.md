@@ -11,10 +11,9 @@
 |------|------|
 | `game_runtime.h` | 运行时初始化函数声明 `initRuntime()` |
 | `game_runtime.cpp` | 运行时初始化实现；目前为桩 |
-| `game_plugin.h/.cpp` | `GamePlugin`：游戏层 Plugin，注册演示系统（Movement/FlyCamera/MaterialTextureBackfill/TransformPropagation/EventCleanup）并生成演示场景（飞行相机 + 经 `scene_loader` 加载的 cooked Sponza 场景；阶段 3c 起替换原立方体阵列/地面/柱子） |
-| `scene_loader.h/.cpp` | `spawnCookedScene()`：读 mesh_cooker 的 `scene.json`（VFS + core `JsonCursor` 固定 schema 解析，无 JSON 库）→ 每实体 `loadAsync` `.emesh`、按 `.emat` 路径去重 `loadAsync` 材质（HashMap 去重，唯一 Handle 记入 `RenderAssets::scene_materials`）并 spawn（烘焙 `GlobalTransform` + `MeshAssetRef` + 各自 `MaterialAssetRef` + `WorldAABB`，局部盒经 `AABB::transformed` 转世界盒）；`MaterialTextureBackfillSystem`（阶段 4b）每帧扫 scene_materials，对「贴图 path 非空且 Handle 无效」的已到达材质发 `loadAsync` 回填 baseColor Handle（normal/MR 不加载，D4） |
+| `game_plugin.h/.cpp` | `GamePlugin`：游戏层 Plugin，注册演示系统（Movement/FlyCamera/MaterialTextureBackfill/TransformPropagation/EventCleanup）并生成演示场景（飞行相机 + cooked Sponza 场景；阶段 4c 起场景加载只剩一行 `renderAssets().scene_loader.spawnCookedScene(world, path)` 调用，解析/装配归引擎 Scene 模块） |
 | `fly_camera_system.h/.cpp` | `FlyCameraSystem` + `FlyCameraTag`：自由飞行相机（WASD + Q/E 升降 + Shift 加速 + 右键拖拽视角），经 `InputQueue` 单例维护 held-key 状态；初始 yaw/pitch 硬编码与 `GamePlugin::setup()` 的相机出生位姿匹配（当前：Sponza 中庭西端朝 +X） |
-| `render_assets.h` | 演示资产基础设施 `RenderAssets`：VFS（三挂载点兼容项目根 / VS 调试器 / 双击 exe 三种 cwd）+ `AssetServer` + `TextureAssetLoader`/`MeshAssetLoader`/`MaterialAssetLoader`（`.emesh` 阶段 3a / `.emat` 阶段 4b 异步加载入口）+ 三类 `Assets<T>` 存储 + 缓存 Handle + `scene_materials`（场景唯一材质 Handle 清单，供回填系统扫描）；`initRenderAssets()` 幂等构建程序化网格/材质并发起棋盘格贴图异步加载（3c 的共享白模 `mat_white` 已随 4b `shade_mode` 退役移除）；main 将存储绑定到 Prepare 阶段（`bindAssets`），每帧 `processEvents()` 消费完成事件 |
+| `render_assets.h` | 演示资产基础设施 `RenderAssets`：VFS（三挂载点兼容项目根 / VS 调试器 / 双击 exe 三种 cwd）+ `AssetServer` + `TextureAssetLoader`/`MeshAssetLoader`（`.emesh` 阶段 3a 异步加载入口）+ 三类 `Assets<T>` 存储 + 缓存 Handle + `scene_loader`（阶段 4c：引擎 `SceneLoader` 实例，注入本结构的 VFS/AssetServer/loader/存储，自持 `MaterialAssetLoader` 与场景材质清单；Sponza 专属的 `material_loader`/`scene_materials` 已随迁引擎移除）；`initRenderAssets()` 幂等构建程序化网格/材质并发起棋盘格贴图异步加载（3c 的共享白模 `mat_white` 已随 4b `shade_mode` 退役移除）；main 将存储绑定到 Prepare 阶段（`bindAssets`），每帧 `processEvents()` 消费完成事件 |
 
 ## 重要入口
 - 改**游戏层初始化/关闭逻辑** → 动 `game_runtime.cpp`

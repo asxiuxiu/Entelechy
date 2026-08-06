@@ -11,7 +11,7 @@
 
 ## 现状一句话总结
 
-四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-3 完成（2026-08-05），NewSponza 全量 405 primitive 以白模（法线着色）经 Extract → Cull → Queue → Execute 完整链路渲染，异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。下一步是阶段 4（材质/纹理还原，全贴图 Sponza）。
+四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-4 完成（2026-08-06），NewSponza 全量 405 primitive 全贴图（28 材质 baseColor 上屏，normal/MR 已加载待阶段 5 采样）经 Extract → Cull → Queue → Execute 完整链路渲染，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。下一步是阶段 5（光照/法线正确性，normal/MR 采样接入）。
 
 ## 断裂修复与阶段的对应关系
 
@@ -30,7 +30,7 @@
 阶段 1  管线自己转起来 ✅     ✅    ECS 实体经完整管线画出多个立方体，自由相机漫游（2026-08-04 完成）
 阶段 2  资源进管线 ✅        拆为 2a/2b/2c（见 plan/RENDER_PHASE2_PLAN.md），2026-08-05 完成：Handle 集成 + MeshAsset/TextureAsset/stb_image loader + PrepareAssetsSystem（fallback 热替换）；详细验收记录见子计划
 阶段 3  看见 Sponza 骨架 ✅  拆为 3a/3b/3c（见 plan/RENDER_PHASE3_PLAN.md），2026-08-05 完成：.emesh 格式+Loader → cgltf cook 工具（405 primitive 零告警）→ spawn+白模渲染（405 实体异步加载无 fallback 残留，剔除生效，~60fps）；详细验收记录见子计划
-阶段 4  还原材质与场景     拆为 4a/4b/4c（见 plan/RENDER_PHASE4_PLAN.md，2026-08-06 拆分）：cooker 材质导出+.emat Loader → baseColor 贴图上屏（V 翻转/alpha/doubleSided 风险集中在此步）→ scene_loader 迁引擎+法线/MR 落位；glTF 场景图/材质还原，全贴图 Sponza
+阶段 4  还原材质与场景 ✅  拆为 4a/4b/4c（见 plan/RENDER_PHASE4_PLAN.md），2026-08-06 完成：cooker 材质导出（28 个 .emat）+ MaterialAssetLoader → baseColor 贴图上屏（V 翻转/alpha/doubleSided 落地）→ scene_loader 迁引擎 asset/scene + normal/MR 贴图加载落位（只加载不采样，D4）；详细验收记录见子计划
 阶段 5  让它像样           光照、深度/法线正确性、天空、调试统计面板
 阶段 6+ 架构补全           RenderGraph / 延迟命令缓冲 / TAI 材质 / BindGroup（按文档优先级推进）
 ```
@@ -96,7 +96,7 @@
 
 ---
 
-## 阶段 4 —— 还原材质与场景
+## 阶段 4 —— 还原材质与场景 ✅ 已完成（2026-08-06，拆为 4a/4b/4c，验收记录见 [RENDER_PHASE4_PLAN.md](RENDER_PHASE4_PLAN.md)）
 
 **可见成果**：**全贴图的 NewSponza**——砖墙、拱门、地砖、旗帜各就各位，布局与 glTF 场景图一致（node 层级 TRS 即场景，无需外部场景文件）。
 

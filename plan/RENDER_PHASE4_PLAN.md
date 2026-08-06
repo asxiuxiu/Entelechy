@@ -66,7 +66,10 @@
 
 ---
 
-## 4c —— scene_loader 迁引擎 + 法线/MR 落位 + 收尾
+## 4c —— scene_loader 迁引擎 + 法线/MR 落位 + 收尾 ✅ 已完成（2026-08-06）
+
+> **落地情况**：scene_loader 迁引擎（D5）：落点为新模块 `_engine/source/asset/scene/`（SceneLib，`scene/scene_loader.h/.cpp`，注册进 `launch/cmake_projects.json`；`scene.json`/`.emat` 均为引擎 cooker 自有格式，格式归引擎、解析归引擎）。形态由自由函数改为 `SceneLoader` 类：VFS / AssetServer / mesh+texture loader / 三类 `Assets<T>` 全部构造注入（引擎不持有游戏侧全局），仅 `MaterialAssetLoader` 与场景唯一材质清单（`m_scene_materials`）自持——`render_assets.h` 的 Sponza 专属 `material_loader`、`scene_materials` 随之移除，demo 资产（cube/棋盘格/纯色材质）保留原处；`RenderAssets` 改为持有一个注入好的 `SceneLoader` 成员。`MaterialTextureBackfillSystem` 随迁引擎，改为持有 `SceneLoader&` 的薄 System 封装（每帧驱动 `backfillMaterialTextures()`，不碰 ECS 组件；轮询机制保持不变，事件驱动债务留 TODO.md）。`GamePlugin::setup()` 场景加载剩一行：`renderAssets().scene_loader.spawnCookedScene(world, "sponza/cooked/scene.json")`；RuntimeLib 加 SceneLib PUBLIC_DEPS。法线/MR 落位（D4）：回填循环由 baseColor 一处扩为 baseColor/normal/MR 三处同一机制（path 非空 + Handle 无效 → `loadAsync` + 回填 Handle + INFO 日志）；Prepare 与 shader 未动，normal/MR 只进 `Assets<TextureAsset>` 与 Handle，无消费端。文档同步：新建 `_engine/source/asset/scene/AGENTS.md`，`_game/source/runtime/AGENTS.md` 与 `_engine/source/asset/AGENTS.md` 同步入口变更，`docs/RENDER_LAYER_PROGRESS.md` 5.9/5.11/5.13/5.14、`plan/RENDER_SPONZA_ROADMAP.md` 阶段 4、`TODO.md`（backfill 条目路径更新、迁引擎条目关闭、新增 normal/MR 已加载未采样条目）均已更新。无新增单测（装配/搬迁类改动，3c/4b 先例）；cooker 未重跑（scene.json/.emat 格式未变）。
+> **验收**：Debug 构建零编译/链接错误（SceneLib 正常入库）；EntelechyTests 207 全绿（基线 207）；lint 全仓 232 文件零违规。游戏实跑 30s（`logs/game_run_4c.log` + `logs/engine_20260806_111024_121.log`，timeout 终止）：405 实体 spawn、28 unique materials；回填发出 73 个贴图 loadAsync = 25 baseColor + 24 normal + 24 MR（25 = 28 − 3 factor-only，与 4a 统计吻合；normal/MR 各 24 为有对应贴图的材质数），全部无失败；全程零 ERROR/WARN，pending/fallback 日志仅出现在启动期（最后一条在全日志 983 行的第 454 行）；28 次秒级 `Frame stats` 全部 `draw_calls == visible`、`total=405`、culled 120↔405 随视角变化、fps 56–61——与 4b 验收行为一致，迁移未引入行为变化。
 
 **目标**：场景加载入口归引擎；normal/MR 贴图加载落位（为阶段 5 铺路）；文档/债务全同步。
 

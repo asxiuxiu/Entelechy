@@ -23,6 +23,7 @@
 | `mesh_asset_loader.h/.cpp` | `MeshAssetLoader`：`.emesh` 二进制反序列化 → `MeshAsset`（校验魔数/版本/长度，信任文件内 AABB；失败返回空 mesh 并记日志） |
 | `material_asset_loader.h/.cpp` | `MaterialAssetLoader`：`.emat` JSON 目的解析 → `MaterialAsset`（缺字段走默认值；垃圾/截断/错误类型/未知键拒绝并记日志；只解析贴图路径字符串，不触发贴图加载——Handle 由 spawn 侧 loadAsync 回填） |
 | `asset_server.h/.cpp` | `AssetServer`：单后台线程加载调度、互斥锁事件队列、同步/异步加载 |
+| `scene/` | 子模块 SceneLib（独立 CMake 模块，依赖 AssetLib + EcsLib + RenderSystemLib）：cooked 场景加载入口（`scene.json`/`.emat` 解析、实体 spawn、材质贴图 Handle 回填），渲染管线阶段 4c 自游戏侧迁入——见 [Scene 模块](scene/AGENTS.md) |
 
 ## 重要入口
 - 新增资源类型 → 定义数据类型 + 实现 `IAssetLoader<T>`

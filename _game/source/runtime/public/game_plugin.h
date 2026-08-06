@@ -10,7 +10,8 @@
 #include "ecs/component/transform_component.h"
 #include "ecs/type/types.h"
 #include "runtime/fly_camera_system.h"
-#include "runtime/scene_loader.h"
+#include "runtime/render_assets.h"
+#include "scene/scene_loader.h"
 
 namespace game
 {
@@ -20,8 +21,8 @@ namespace game
 // ------------------------------------------------------------------
 // Registers demo systems (movement, fly camera, transform propagation,
 // event cleanup) and spawns the demo scene: a free-fly camera plus the
-// cooked Sponza scene (scene_loader.h) referencing the asset handles in
-// render_assets.h.
+// cooked Sponza scene loaded through the engine SceneLoader (Phase 4c,
+// see render_assets.h for the injected storages/loaders).
 // ------------------------------------------------------------------
 class GamePlugin : public Entelechy::IPlugin
 {
@@ -46,7 +47,7 @@ public:
 private:
     Entelechy::MovementSystem m_movement;
     FlyCameraSystem m_fly_camera;
-    MaterialTextureBackfillSystem m_material_backfill;
+    Entelechy::MaterialTextureBackfillSystem m_material_backfill{renderAssets().scene_loader};
     Entelechy::TransformPropagationSystem m_transform_system;
     Entelechy::EventCleanupSystem m_event_cleanup;
 };

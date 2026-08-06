@@ -8,6 +8,7 @@ entelechy_module(
         RenderSystemLib
         WindowLib
         AssetLib
+        SceneLib
         LogLib
     INIT_FUNCTION initRuntime
     NAMESPACE game

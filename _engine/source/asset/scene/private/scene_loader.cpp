@@ -1,21 +1,11 @@
 // ------------------------------------------------------------------
-// scene_loader — cooked scene.json manifest loading (Phase 3c/4b)
+// scene_loader — cooked scene.json manifest loading (Phase 4c)
 // ------------------------------------------------------------------
-// Parses the fixed-format manifest emitted by mesh_cooker:
-//
-//   {"entities":[{"mesh":"meshes/x.emesh","transform":[16 floats],
-//                 "aabb_min":[x,y,z],"aabb_max":[x,y,z],
-//                 "material":"materials/x.emat"}]}
-//
-// Every manifest entity becomes one ECS entity with a baked
-// GlobalTransform (no local Transform — the propagation system only
-// touches entities that have one), an async-loaded MeshAssetRef, its
-// own async-loaded MaterialAssetRef (deduplicated by .emat path,
-// Phase 4b) and a world-space WorldAABB for culling.
-// Parsing uses the shared core JsonCursor (fixed schema, no JSON library).
+// Engine home of the mesh_cooker scene manifest consumer (moved from
+// the game side in Phase 4c, D5). See the header for the manifest
+// schema and the injection contract.
 // ------------------------------------------------------------------
-#include "runtime/scene_loader.h"
-#include "runtime/render_assets.h"
+#include "scene/scene_loader.h"
 #include "ecs/world/world.h"
 #include "ecs/component/transform_component.h"
 #include "render_system/components/MeshAssetRef.h"
@@ -27,23 +17,34 @@
 #include "core/string/string.h"
 #include "log/core/log_macros.h"
 
-namespace game
+namespace Entelechy
 {
 
 namespace
 {
 
-using namespace Entelechy;
-
 constexpr LogCategory kLogScene("Scene");
 
 } // namespace
 
-SceneSpawnResult spawnCookedScene(World &world, RenderAssets &assets, const char *scenePath)
+SceneLoader::SceneLoader(VFS &vfs, AssetServer &assetServer, MeshAssetLoader &meshLoader,
+                         TextureAssetLoader &textureLoader, Assets<MeshAsset> &meshAssets,
+                         Assets<MaterialAsset> &materialAssets, Assets<TextureAsset> &textureAssets)
+    : m_vfs(&vfs)
+    , m_asset_server(&assetServer)
+    , m_mesh_loader(&meshLoader)
+    , m_texture_loader(&textureLoader)
+    , m_mesh_assets(&meshAssets)
+    , m_material_assets(&materialAssets)
+    , m_texture_assets(&textureAssets)
+{
+}
+
+SceneSpawnResult SceneLoader::spawnCookedScene(World &world, const char *scenePath)
 {
     SceneSpawnResult result;
 
-    const FileData file = assets.vfs.readFile(Path{scenePath});
+    const FileData file = m_vfs->readFile(Path{scenePath});
     if (!file.valid || file.bytes.size() == 0)
     {
         LOG_ERROR(kLogScene, "SceneLoader: failed to read '%s' (cooker output missing?)", scenePath);
@@ -121,7 +122,7 @@ SceneSpawnResult spawnCookedScene(World &world, RenderAssets &assets, const char
         String meshPath = dir;
         meshPath += meshRel;
         const Handle<MeshAsset> mesh =
-            assets.asset_server.loadAsync(Path{meshPath}, assets.mesh_loader, assets.mesh_assets);
+            m_asset_server->loadAsync(Path{meshPath}, *m_mesh_loader, *m_mesh_assets);
 
         // Resolve the entity's material, deduplicated by .emat path.
         Handle<MaterialAsset> material;
@@ -139,17 +140,17 @@ SceneSpawnResult spawnCookedScene(World &world, RenderAssets &assets, const char
                     // Material-less primitive (the cooker already warned on
                     // export): share one default material. Never triggered
                     // for NewSponza (all 405 entities reference a .emat).
-                    material = assets.material_assets.insert(MaterialAsset{});
+                    material = m_material_assets->insert(MaterialAsset{});
                     LOG_WARN(kLogScene, "SceneLoader: entity %u has no material, using default",
                              result.entity_count);
                 }
                 else
                 {
-                    material = assets.asset_server.loadAsync(Path{materialPath}, assets.material_loader,
-                                                             assets.material_assets);
+                    material = m_asset_server->loadAsync(Path{materialPath}, m_material_loader,
+                                                         *m_material_assets);
                 }
                 materialMap.insert(materialPath, material);
-                assets.scene_materials.pushBack(material);
+                m_scene_materials.pushBack(material);
             }
         }
 
@@ -185,27 +186,42 @@ SceneSpawnResult spawnCookedScene(World &world, RenderAssets &assets, const char
     return result;
 }
 
+void SceneLoader::backfillMaterialTextures()
+{
+    for (usize i = 0; i < m_scene_materials.size(); ++i)
+    {
+        MaterialAsset *material = m_material_assets->get(m_scene_materials[i]);
+        if (material == nullptr)
+            continue; // .emat still streaming in
+
+        // One async load per texture path whose Handle is not yet
+        // back-filled. Normal/MR are loaded for the lighting phase (D4):
+        // the data lands in Assets<TextureAsset> and the Handle in the
+        // material, but Prepare never binds them (no shader consumer).
+        const u32 materialIndex = m_scene_materials[i].index;
+        auto backfill = [this, materialIndex](String &texturePath, Handle<TextureAsset> &textureHandle,
+                                              const char *label)
+        {
+            if (texturePath.length() > 0 && !textureHandle.valid())
+            {
+                textureHandle =
+                    m_asset_server->loadAsync(Path{texturePath}, *m_texture_loader, *m_texture_assets);
+                LOG_INFO(kLogScene, "SceneLoader: material %u %s texture '%s' load issued", materialIndex,
+                         label, texturePath.c_str());
+            }
+        };
+        backfill(material->base_color_texture_path, material->base_color_texture, "baseColor");
+        backfill(material->normal_texture_path, material->normal_texture, "normal");
+        backfill(material->mr_texture_path, material->mr_texture, "MR");
+    }
+}
+
 void MaterialTextureBackfillSystem::tick(World &world, FrameArena &arena, f32 dt)
 {
     (void)world;
     (void)arena;
     (void)dt;
-
-    RenderAssets &assets = renderAssets();
-    for (usize i = 0; i < assets.scene_materials.size(); ++i)
-    {
-        MaterialAsset *material = assets.material_assets.get(assets.scene_materials[i]);
-        if (material == nullptr)
-            continue; // .emat still streaming in
-        if (material->base_color_texture_path.length() > 0 && !material->base_color_texture.valid())
-        {
-            material->base_color_texture = assets.asset_server.loadAsync(Path{material->base_color_texture_path},
-                                                                         assets.texture_loader,
-                                                                         assets.texture_assets);
-            LOG_INFO(kLogScene, "SceneLoader: material %u baseColor texture '%s' load issued",
-                     assets.scene_materials[i].index, material->base_color_texture_path.c_str());
-        }
-    }
+    m_scene_loader->backfillMaterialTextures();
 }
 
-} // namespace game
+} // namespace Entelechy

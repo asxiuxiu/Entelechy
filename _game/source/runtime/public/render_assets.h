@@ -1,7 +1,6 @@
 #pragma once
 #include "asset/handle/asset_handle.h"
 #include "asset/loader/asset_server.h"
-#include "asset/loader/material_asset_loader.h"
 #include "asset/loader/mesh_asset_loader.h"
 #include "asset/loader/texture_asset_loader.h"
 #include "asset/type/assets.h"
@@ -12,6 +11,7 @@
 #include "core/allocator/allocator.h"
 #include "core/container/dynamic_array.h"
 #include "log/core/log_macros.h"
+#include "scene/scene_loader.h"
 #include "vfs/mount_point.h"
 #include "vfs/vfs.h"
 #include <memory>
@@ -36,16 +36,18 @@ struct RenderAssets
     Entelechy::AssetServer asset_server{&vfs};
     Entelechy::TextureAssetLoader texture_loader;
     Entelechy::MeshAssetLoader mesh_loader;
-    Entelechy::MaterialAssetLoader material_loader;
 
     Entelechy::Assets<Entelechy::MeshAsset> mesh_assets;
     Entelechy::Assets<Entelechy::MaterialAsset> material_assets;
     Entelechy::Assets<Entelechy::TextureAsset> texture_assets;
 
-    // Unique material handles requested by spawnCookedScene (Phase 4b).
-    // MaterialTextureBackfillSystem scans this list each frame and issues
-    // the baseColor texture loads once the .emat data has landed.
-    Entelechy::DynamicArray<Entelechy::Handle<Entelechy::MaterialAsset>> scene_materials;
+    // Cooked-scene loading (Phase 4c): the engine-side SceneLoader parses
+    // scene.json/.emat (both engine cooker formats, D5) and owns the
+    // MaterialAssetLoader plus the unique-material list used by the
+    // texture backfill. Everything it needs is injected from this
+    // struct — the engine holds no game-side globals.
+    Entelechy::SceneLoader scene_loader{vfs, asset_server, mesh_loader, texture_loader,
+                                        mesh_assets, material_assets, texture_assets};
 
     Entelechy::Handle<Entelechy::MeshAsset> cube_mesh;
     Entelechy::Handle<Entelechy::MeshAsset> ground_mesh;

@@ -1,6 +1,5 @@
 #include "runtime/game_plugin.h"
 #include "runtime/render_assets.h"
-#include "runtime/scene_loader.h"
 #include "ecs/world/world.h"
 #include "ecs/query/query.h"
 #include "ecs/type/type_registry.h"
@@ -28,8 +27,9 @@ void GamePlugin::build(Entelechy::App &app)
                                     .phase = static_cast<u8>(DefaultPhase::Update),
                                     .writes = {TypeRegistry::instance().getTypeID<Transform>()}});
 
-    // MaterialTextureBackfillSystem (Phase 4b): issues baseColor texture
-    // loads for async-arrived scene materials. Touches no ECS components.
+    // MaterialTextureBackfillSystem (Phase 4b/4c): issues texture loads
+    // for async-arrived scene materials via the engine SceneLoader.
+    // Touches no ECS components.
     app.scheduler().registerSystem(
         {.name = StringInternPool::instance().intern("MaterialTextureBackfillSystem"),
          .system = &m_material_backfill,
@@ -66,10 +66,12 @@ void GamePlugin::setup(Entelechy::App &app)
     world.addComponent<Camera>(camera, Camera{1.0472f, 0.1f, 200.0f, false, 10.0f});
     world.addComponent<FlyCameraTag>(camera, FlyCameraTag{});
 
-    // -- Cooked Sponza scene (Phase 3c) -------------------------------------
+    // -- Cooked Sponza scene (Phase 3c/4c) --------------------------------
     // Spawns one entity per scene.json entry (405 for NewSponza); meshes
     // stream in asynchronously and draw as pink fallback cubes until ready.
-    spawnCookedScene(world, renderAssets(), "sponza/cooked/scene.json");
+    // The engine SceneLoader owns manifest parsing and material assembly;
+    // the game side only passes the scene path.
+    renderAssets().scene_loader.spawnCookedScene(world, "sponza/cooked/scene.json");
 }
 
 } // namespace game

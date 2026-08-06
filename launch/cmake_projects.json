@@ -73,6 +73,11 @@
             "enabled": true
         },
         {
+            "name": "scene",
+            "path": "source/asset/scene",
+            "enabled": true
+        },
+        {
             "name": "thread_pool",
             "path": "source/thread_pool",
             "enabled": true

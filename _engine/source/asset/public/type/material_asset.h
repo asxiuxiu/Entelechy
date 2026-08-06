@@ -28,10 +28,9 @@ enum class AlphaMode : u8
 // base color texture. An invalid `base_color_texture` handle means
 // untextured (the Prepare stage binds a 1x1 white fallback texture so
 // the shader always samples).
-// Phase 3c: `shade_mode` selects the fragment shading path —
-// 0 = albedo (base color x texture), 1 = white-model normal shading
-// (N.L with a fixed key light, base color as albedo). Values in
-// between are treated as a boolean threshold on 0.5.
+// Phase 3c's temporary `shade_mode` scalar switch (white-model normal
+// shading) was retired in Phase 4b: textured materials always take the
+// albedo path and the shared white-model material is gone.
 // Phase 4a: glTF pbrMetallicRoughness fields cooked into .emat.
 // `base_color` doubles as baseColorFactor — glTF's factor is RGBA but
 // the engine keeps Vec3 and drops A (opacity comes from the texture;
@@ -51,7 +50,6 @@ struct MaterialAsset
 {
     Vec3 base_color{1.0f, 1.0f, 1.0f};
     Handle<TextureAsset> base_color_texture;
-    f32 shade_mode = 0.0f;
 
     f32 metallic_factor = 1.0f;
     f32 roughness_factor = 1.0f;

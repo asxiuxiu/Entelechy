@@ -25,6 +25,7 @@
 - [ ] Asset / 资源管理 | 同一路径多次 `loadAsync()` 会创建多个 Handle，造成内存重复和引用计数分散，需 `AssetServer` 维护 `HashMap<Path, ErasedHandle> m_pathToHandle`，加载前先查缓存，已加载直接返回已有 Handle 并 `incrementRef()`。
 - [ ] Asset / 资源管理 | `AssetLoadState` 七态枚举（`asset/public/type/asset_types.h`）已定义但全工程无使用方。`TextureAssetLoader`（2b）解码失败仅返回空 `TextureAsset` + 错误日志，调用方无法区分「未加载 / 加载中 / 失败」，阶段 2c 的 fallback 与 dedup 只能靠 `Assets<T>::get()==nullptr` 判定。需在 Prepare/状态机接入阶段把加载状态（含 Failed）落到存储侧。
 - [ ] Asset / 资源管理 | `MaterialAsset`（`asset/public/type/material_asset.h`）贴图路径字符串（`base_color_texture_path` 等三个 `String`）与 `Handle<TextureAsset>` 字段双存：loader 按 D1 只解析路径、Handle 由 spawn 侧 loadAsync 回填（4b），双存为过渡形态；材质加载链路稳定后应收敛为单一表示（如 Handle 统一经路径缓存解析，或路径字段随 4c 场景加载迁出资产体）。
+- [ ] Asset / 资源管理 | `MaterialTextureBackfillSystem`（`_game/source/runtime/private/scene_loader.cpp`）每帧轮询 `RenderAssets::scene_materials`、对「path 非空且 Handle 无效」的材质补发贴图 `loadAsync`，是 4b 的过渡机制（`Assets<T>` 不支持遍历，只能另存 Handle 清单）；4c 场景加载迁引擎时应改为加载完成事件驱动或一次性同步解析。
 - [ ] Asset / 资源管理 | `STB_IMAGE_IMPLEMENTATION` 目前定义在 AssetLib 私有 TU（`asset/private/loader/texture_asset_loader.cpp`）。未来其他模块（编辑器缩略图、字体图集等）若直接使用 stb_image 会重复定义实现符号，届时应抽独立 stb 包装模块或将实现集中到唯一的 stb TU。
 - [ ] Asset / 资源管理 | `HandleTableSlot<T>` 使用 `DynamicArray`，resize 时默认构造元素，要求 T 必须可默认构造，需重构为手动内存管理（`alignas(T) char buffer[sizeof(T)]` + placement new），类似 `std::optional` 或 `Column<T>` 的底层实现。
 - [ ] Asset / 资源管理 | AI Agent 需要自描述地了解「当前加载了哪些资源、各占多少内存、引用关系如何」，需通过反射系统注册资源类型 Schema，`AssetServer` 暴露 `query_asset(handle)` / `dump_ref_graph()` 等 MCP 工具。
@@ -90,7 +91,8 @@
 - [ ] Material / Shader | 当前材质只能通过 C++ 代码定义，美术无法直观调整，需运行时解析节点图定义 → 生成 GLSL/HLSL 源码 → 通过 `ShaderCache` 编译，编辑器通过 MCP/反射接口让 AI 也能操作节点参数。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 1 分支 C。
 - [ ] Material / Shader | `MaterialAssetRef`（`render/components/MaterialAssetRef.h`）缺少 `render_phase` 信息，`ExtractRenderablesSystem`（`render/extract/ExtractRenderablesSystem.cpp:20`）无法推断 phase，全部默认 `Opaque3D`，透明材质被错误分箱到 `BinnedRenderPhase`，需在材质系统（`Material` / `MaterialAsset`）增加 `RenderPhase` 声明，`ExtractRenderablesSystem` 从材质元数据读取 phase。
-- [ ] Material / Shader | `asset/public/type/material_asset.h` 的 `shade_mode`（f32 标量开关：0=albedo／1=法线着色）是阶段 3c 白模验收的临时机制，`uShadeMode`/`uModel` uniform 硬编码于 `render_system/private/prepare/PrepareAssetsSystem.cpp` 内联 GLSL；阶段 4 材质还原时应由 ShaderTemplate keyword/变体机制取代并移除该字段。
+- [ ] Material / Shader | `PrepareAssetsSystem.cpp` 的 `prepareMaterial` 把 `AlphaMode::Blend` 当 opaque 处理（目前仅 dirt_decal 一个材质），正确混合需要透明排序 + 独立 translucent pass，随光照阶段（阶段 5+）再议。
+- [ ] Material / Shader | `PrepareAssetsSystem.cpp` 内联 GLSL 的 `uAlphaCutoff` discard 分支（`AlphaMode::Mask`）未经实测——Sponza 无 mask 材质可触发；首次引入 mask 材质时必须实跑验证裁剪正确性。
 
 ## AI / Agent 基建
 > 2026-04-13 讨论纪要：AI 不应是独立的第三个 exe，而是「协议 + 桥梁」。先记录为技术债务，后续渐进补齐。

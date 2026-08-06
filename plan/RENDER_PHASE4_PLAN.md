@@ -48,7 +48,10 @@
 
 ---
 
-## 4b —— baseColor 贴图上屏（核心视觉验收）
+## 4b —— baseColor 贴图上屏（核心视觉验收）✅ 已完成（2026-08-06）
+
+> **落地情况**：场景侧材质装配（游戏侧，结构未动，迁移属 4c）：`scene_loader` 解析实体 `material` 的 `.emat` 清单相对路径 → 按路径经 `HashMap<String, Handle>` 去重 `loadAsync`（`RenderAssets` 新增 `MaterialAssetLoader material_loader` 成员，同 mesh/texture loader 模式）→ 实体挂各自 `MaterialAssetRef` 替换共享 `mat_white`；唯一材质 Handle 记入 `RenderAssets::scene_materials`（`Assets<T>` 不支持遍历/可变迭代，另存清单是最简可行方案）。贴图 Handle 回填：新增 `MaterialTextureBackfillSystem`（scene_loader.h/.cpp，GamePlugin 注册 Update 阶段，不碰 ECS 组件）每帧扫 scene_materials，对「`base_color_texture_path` 非空且 Handle 无效」的材质发 `loadAsync` 回填；Prepare 侧新增对称守卫「path 非空 + Handle 无效 → 保持 pending 不 prepare」——否则材质先到、Handle 未回填时会先按白纹理 prepare 且永不重建（`m_materials` 命中即返回），存在顺序竞态卡白。normal/MR 贴图不加载不回填（D4）。V 翻转（D2）：cooker UV 解码处 `v = 1.0f - v` 写入 `.emesh`（注释说明 glTF UV 左上原点 vs OpenGL 底左），纹理 loader 不动，产物全量重跑。管线变体（D3，按 4a 统计收窄）：`double_sided` → `CullMode::None` 手写分支（lamp_glass_01、glass 命中）；`mask` → fs `uAlphaCutoff` discard 分支（MaterialParam 下发，opaque/blend 传 0 关闭；Sponza 无 mask 材质，代码注释标明未验证）；blend 当 opaque（dirt_decal，记 TODO.md）。shade_mode 退役：3c 已移除 demo spawn、无保留方，彻底拆除——`MaterialAsset::shade_mode` 字段、`mat_white`、内联 GLSL 的 `uShadeMode`/`uModel` 白模分支（vs 法线变换 + fs N·L）、`RenderExecuteSystem` 的 `setMat4("uModel")`；fallback 粉色材质保留；TODO.md 原 shade_mode 条目关闭。无材质实体由 scene_loader 用共享默认材质兜底并告警（Sponza 未触发）。
+> **验收**：Debug 构建通过；EntelechyTests 207 全绿（基线 207，无新增——改动为装配/渲染路径，与 3c 先例一致不配单测）；lint 全仓零违规。cooker 重跑：405 primitives 全 cook（0 跳过）、warnings 0、28 `.emat` 重生成、统计不变（0 mask / 1 blend / 2 doubleSided / 3 缺 baseColor）。游戏实跑 ~216s（`logs/game_run_4b.log`，窗口收到 Close 事件干净退出）：405 实体 spawn、28 unique materials；回填发出 25 个 baseColor 贴图 loadAsync（28 − 3 factor-only，与 4a 统计吻合）；405 mesh + 25 贴图 + 28 材质全部 prepare 落地（含 2 个 `double_sided=1` 材质）；全部资产就绪后零 pending/fallback 日志（最后一条 pending 在启动期第 457 行，全日志 3357 行）、全程零 ERROR/WARN；216 次秒级 `Frame stats` 全部 `draw_calls == visible`、`total=405`、culled 随视角 120↔405 变化、fps 53–61 无回归。**视觉验收（贴图是否颠倒、glass 双面是否生效、整体观感对照 `_content/sponza/Render_Main_*.png`）待用户目视确认**——引擎仍无截图机制，沿用 3c 方式；相机初始位姿保持朝场景主体未动。
 
 **目标**：窗口中 Sponza 全贴图显示——砖墙、拱门、地砖、旗帜可辨认，与 `_content/sponza/Render_Main_*.png` 官方渲染图布局观感一致；无 fallback 残留。
 

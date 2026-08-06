@@ -28,6 +28,13 @@ void GamePlugin::build(Entelechy::App &app)
                                     .phase = static_cast<u8>(DefaultPhase::Update),
                                     .writes = {TypeRegistry::instance().getTypeID<Transform>()}});
 
+    // MaterialTextureBackfillSystem (Phase 4b): issues baseColor texture
+    // loads for async-arrived scene materials. Touches no ECS components.
+    app.scheduler().registerSystem(
+        {.name = StringInternPool::instance().intern("MaterialTextureBackfillSystem"),
+         .system = &m_material_backfill,
+         .phase = static_cast<u8>(DefaultPhase::Update)});
+
     // TransformPropagationSystem
     app.scheduler().registerSystem(
         {.name = StringInternPool::instance().intern("TransformPropagationSystem"),

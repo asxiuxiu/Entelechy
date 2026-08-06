@@ -259,7 +259,7 @@
 - `TextureAssetLoader`：首个生产 loader，stb_image（Conan `stb/cci.20230920`）解码 → `TextureAsset`（RGBA8、左上原点）；失败返回空资产并记错误日志（2026-08-05，阶段 2b）→ `asset/public/loader/texture_asset_loader.h`、`asset/private/loader/texture_asset_loader.cpp`
 - `MeshAssetLoader` + `.emesh` 二进制格式（魔数 "EMSH" + 版本 + 顶点/索引计数 + AABB + 原始顶点/索引 blob，小端无压缩；`writeMeshFile()` writer 供 cook 工具与测试共用）（2026-08-05，阶段 3a）→ `asset/public/type/mesh_format.h`、`asset/public/loader/mesh_asset_loader.h`、`asset/private/loader/mesh_asset_loader.cpp`
 - `MeshCooker`（glTF → `.emesh` 离线 cook 工具，cgltf/Conan 解析，accessor 解码交错化为 `MeshVertex`，node 树烘焙世界变换输出 `scene.json`；Sponza 实跑：405 primitive 全量 cook 零告警，cooked 产物不入 git）（2026-08-05，阶段 3b）→ `_engine/tools/mesh_cooker/`
-- `SceneLoader`（游戏侧）：VFS 读 `scene.json`（core `JsonCursor` 固定 schema 解析，无 JSON 库）→ 每实体 `loadAsync` `.emesh` + spawn（烘焙 `GlobalTransform` + `MeshAssetRef` + 共享白模 `MaterialAssetRef` + `WorldAABB`）；Sponza 实跑 405 实体全量异步加载落地、无 fallback 残留（2026-08-05，阶段 3c）→ `_game/source/runtime/public/scene_loader.h`、`private/scene_loader.cpp`
+- `SceneLoader`（游戏侧）：VFS 读 `scene.json`（core `JsonCursor` 固定 schema 解析，无 JSON 库）→ 每实体 `loadAsync` `.emesh` + 按 `.emat` 路径去重 `loadAsync` 材质 + spawn（烘焙 `GlobalTransform` + `MeshAssetRef` + 各自 `MaterialAssetRef` + `WorldAABB`）；`MaterialTextureBackfillSystem` 每帧回填 baseColor 贴图 Handle（4b）。Sponza 实跑 405 实体 + 28 材质 + 25 贴图全量异步加载落地、无 fallback 残留（2026-08-05 阶段 3c 白模 / 2026-08-06 阶段 4b 贴图）→ `_game/source/runtime/public/scene_loader.h`、`private/scene_loader.cpp`
 - VFS 存在（`vfs/public/vfs.h`、`mount_point.h`）——前置依赖满足
 - ThreadPool 存在（`thread_pool/public/thread_pool.h`）——前置依赖满足
 
@@ -294,7 +294,7 @@
 - `Material` 类：Vertex/Fragment shader pair、CPU uniform block（std140 对齐）、按名参数 layout、PSO desc、`bind()` 上传 → `render/public/material/material.h/.cpp`
 - `MaterialParamType` 枚举 + `MaterialParamDesc` → `render/public/material/material_types.h`
 - `SimpleCubeRenderer` 示例：indexed cube + MVP shader 背靠 Material + GLRHIDevice → `render/public/material/example/simple_cube_renderer.h`
-- `MaterialAsset`（asset 模块 CPU 侧，非 TAI 三层语义）：glTF pbrMetallicRoughness 字段（baseColorFactor[Vec3，弃 A]/metallic/roughness factor、normal/MR 贴图 Handle、`AlphaMode`/alpha_cutoff/double_sided）+ 贴图内容路径字符串（loader 只解析路径，Handle 由 spawn 侧 loadAsync 回填）；`.emat` 由 mesh_cooker 每材质导出一个，`MaterialAssetLoader` 用 core JsonCursor 解析（2026-08-06 阶段 4a）→ `asset/public/type/material_asset.h`、`asset/private/loader/material_asset_loader.cpp`
+- `MaterialAsset`（asset 模块 CPU 侧，非 TAI 三层语义）：glTF pbrMetallicRoughness 字段（baseColorFactor[Vec3，弃 A]/metallic/roughness factor、normal/MR 贴图 Handle、`AlphaMode`/alpha_cutoff/double_sided）+ 贴图内容路径字符串（loader 只解析路径，Handle 由 spawn 侧 loadAsync 回填）；`.emat` 由 mesh_cooker 每材质导出一个，`MaterialAssetLoader` 用 core JsonCursor 解析（2026-08-06 阶段 4a）→ `asset/public/type/material_asset.h`、`asset/private/loader/material_asset_loader.cpp`。阶段 4b：3c 临时 `shade_mode` 白模开关已退役（字段、shader `uShadeMode`/`uModel` 分支、共享 `mat_white` 全部拆除），baseColor 贴图 Handle 经游戏侧 `MaterialTextureBackfillSystem` 轮询回填落位（2026-08-06）
 
 **缺失项**：
 
@@ -368,8 +368,9 @@
 - `PrepareAssetsSystem`：扫描 Render World 的 `RenderMesh`/`RenderMaterial` Handle，经游戏侧 `Assets<T>` 解析并缓存 GPU 资源（`PreparedMesh`/`PreparedMaterial`/纹理 RHIRef）；未加载实体回退到单位立方体 + 品红材质，异步加载落地后自动替换；材质贴图未就绪则整体 pending（2026-08-05，阶段 2c）→ `prepare/PrepareAssetsSystem.h/.cpp`
 - `ExtractRenderablesSystem`：拷贝 mesh/material refs → `RenderMesh`/`RenderMaterial`
 - 组件注册：`REFLECT_COMPONENT` + `registerRenderComponents()` → `private/components/component_registration.cpp`
-- `RenderExecuteSystem`：消费 `ViewBinnedPhases`/`ViewSortedPhases` 发出 GPU draw call（经 Prepare 查询 Prepared 资源 + fallback；unlit 材质 uMVP/uModel/uColor/uShadeMode/uBaseColorTex，`MaterialAsset::shade_mode` 切换 albedo／白模法线着色，2026-08-05 阶段 3c）→ `execute/RenderExecuteSystem.h/.cpp`
-- `.emat` 材质 cook 与解析：mesh_cooker 导出 28 个 `.emat`（贴图内容路径 + pbr factor + alphaMode/doubleSided），`scene.json` 实体 `material` 字段改为 `.emat` 清单相对路径；`MaterialAssetLoader` 只解析不触发贴图加载（D1），贴图 Handle 回填属阶段 4b。Sponza 实数：0 mask / 1 blend / 2 doubleSided / 3 缺 baseColor 贴图（2026-08-06 阶段 4a）
+- `RenderExecuteSystem`：消费 `ViewBinnedPhases`/`ViewSortedPhases` 发出 GPU draw call（经 Prepare 查询 Prepared 资源 + fallback；unlit 材质 uMVP/uColor/uAlphaCutoff/uBaseColorTex——3c 的 uShadeMode/uModel 白模分支已随 4b `shade_mode` 退役拆除，2026-08-06）→ `execute/RenderExecuteSystem.h/.cpp`
+- `.emat` 材质 cook 与解析：mesh_cooker 导出 28 个 `.emat`（贴图内容路径 + pbr factor + alphaMode/doubleSided），`scene.json` 实体 `material` 字段改为 `.emat` 清单相对路径；`MaterialAssetLoader` 只解析不触发贴图加载（D1）。Sponza 实数：0 mask / 1 blend / 2 doubleSided / 3 缺 baseColor 贴图（2026-08-06 阶段 4a）
+- baseColor 贴图上屏（阶段 4b，2026-08-06）：scene_loader 按 `.emat` 路径去重 `loadAsync`、实体挂各自 `MaterialAssetRef`；`MaterialTextureBackfillSystem` 每帧回填 baseColor 贴图 Handle；Prepare 新增「path 非空 + Handle 无效 → pending」守卫与管线变体（`double_sided` → `CullMode::None`，`mask` → fs discard，blend 暂按 opaque 记 TODO）；cooker UV 写盘时 V 翻转（D2）。实跑：405 mesh + 25 贴图 + 28 材质全落地，零 pending 零 ERROR/WARN，`draw_calls == visible`、~60fps 无回归（`logs/game_run_4b.log`）；视觉验收待用户目视确认
 
 **缺失项**：
 

@@ -90,7 +90,6 @@ void RenderExecuteSystem::drawItem(World &renderWorld, const ExtractedView &view
     }
 
     prepared->material.setMat4("uMVP"_sid, view.proj_matrix * view.view_matrix * transform->world_matrix);
-    prepared->material.setMat4("uModel"_sid, transform->world_matrix);
     prepared->material.bind(cmdList);
 
     cmdList->bindVertexBuffer(gpuMesh->vbo.get(), 0, 0);

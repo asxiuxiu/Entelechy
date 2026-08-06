@@ -10,6 +10,7 @@
 #include "ecs/component/transform_component.h"
 #include "ecs/type/types.h"
 #include "runtime/fly_camera_system.h"
+#include "runtime/scene_loader.h"
 
 namespace game
 {
@@ -45,6 +46,7 @@ public:
 private:
     Entelechy::MovementSystem m_movement;
     FlyCameraSystem m_fly_camera;
+    MaterialTextureBackfillSystem m_material_backfill;
     Entelechy::TransformPropagationSystem m_transform_system;
     Entelechy::EventCleanupSystem m_event_cleanup;
 };

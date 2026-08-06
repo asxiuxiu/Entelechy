@@ -30,6 +30,7 @@ python scripts/build/build.py --debug
 - **格式单一事实来源**：链接 [Asset 模块](../../source/asset/AGENTS.md)，直接复用 `MeshVertex`/`MeshAsset`/`writeMeshFile()`，不另写序列化代码。
 - **cgltf 经 Conan 引入**（`cgltf/1.13`），与 stb 同构（根 `conanfile.py` + `find_package`）。
 - **accessor 解码**用 `cgltf_accessor_read_float/read_index`（自动处理 byteStride/归一化）；sparse accessor 告警跳过；缺 NORMAL/TEXCOORD_0/TANGENT 填默认值并告警；无索引 primitive 生成顺序索引。
+- **UV V 翻转（阶段 4b，D2）**：写 `.emesh` 时 `v = 1.0f - v`——glTF UV 原点左上 vs OpenGL 底左；翻转属几何侧约定（`.emesh` 是 glTF 派生格式），纹理 loader 不动（`stbi_set_flip_vertically` 全局开关会污染 demo 棋盘格等既有用途）。变更后必须重跑 cook。
 - **去重**：`.emesh` 按 `(meshIndex, primIndex)` 定名，每唯一 primitive 只写一次；`scene.json` 按 node 引用计数（实体数 ≥ .emesh 数）。
 - **世界变换**用 `cgltf_node_transform_world()`，输出列主序 16 float，与引擎 `Mat4::m[16]` 布局一致，场景清单原样输出；每实体附带该 primitive 的局部空间 AABB（`aabb_min`/`aabb_max`，与 `.emesh` 头内一致，游戏侧变换到世界空间做视锥剔除，阶段 3c）。
 - **材质 cook（阶段 4a）**：每 glTF 材质导出一个 `materials/<name>.emat` 手写 JSON（贴图内容路径 + pbrMetallicRoughness factor + alphaMode/alphaCutoff/doubleSided，schema 单一事实来源为 `main.cpp` 的 `cookMaterials()` 注释与 [Asset 模块](../../source/asset/AGENTS.md) 的 MaterialAssetLoader）；贴图 URI 相对 `.gltf` 目录解析、百分号解码后转成相对 `_content/` 的内容路径（如 `sponza/textures/x.png`）；材质名清洗为 `[A-Za-z0-9_-]` 文件干名；`scene.json` 实体 `material` 字段写 `.emat` 清单相对路径，无材质 primitive 写空串并告警；结尾打印 mask/blend/doubleSided/缺 baseColor 统计。

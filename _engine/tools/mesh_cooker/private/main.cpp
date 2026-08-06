@@ -150,7 +150,11 @@ bool cookPrimitive(const cgltf_primitive *prim, const std::filesystem::path &out
             v.normal = Vec3{0.0f, 0.0f, 1.0f};
 
         if (uvAcc != nullptr && cgltf_accessor_read_float(uvAcc, i, buf, 2))
-            v.uv = Vec2{buf[0], buf[1]};
+            // D2 (Phase 4b): flip V — glTF UV origin is top-left while
+            // OpenGL textures are addressed bottom-left. Flipping here (in
+            // the cooked geometry) keeps the texture loader convention
+            // (stb top-row-first, no global stbi flip) untouched.
+            v.uv = Vec2{buf[0], 1.0f - buf[1]};
 
         if (tangentAcc != nullptr && cgltf_accessor_read_float(tangentAcc, i, buf, 4))
         {

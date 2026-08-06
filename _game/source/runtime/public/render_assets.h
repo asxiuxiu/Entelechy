@@ -1,6 +1,7 @@
 #pragma once
 #include "asset/handle/asset_handle.h"
 #include "asset/loader/asset_server.h"
+#include "asset/loader/material_asset_loader.h"
 #include "asset/loader/mesh_asset_loader.h"
 #include "asset/loader/texture_asset_loader.h"
 #include "asset/type/assets.h"
@@ -9,6 +10,7 @@
 #include "asset/type/mesh_primitives.h"
 #include "asset/type/texture_asset.h"
 #include "core/allocator/allocator.h"
+#include "core/container/dynamic_array.h"
 #include "log/core/log_macros.h"
 #include "vfs/mount_point.h"
 #include "vfs/vfs.h"
@@ -34,10 +36,16 @@ struct RenderAssets
     Entelechy::AssetServer asset_server{&vfs};
     Entelechy::TextureAssetLoader texture_loader;
     Entelechy::MeshAssetLoader mesh_loader;
+    Entelechy::MaterialAssetLoader material_loader;
 
     Entelechy::Assets<Entelechy::MeshAsset> mesh_assets;
     Entelechy::Assets<Entelechy::MaterialAsset> material_assets;
     Entelechy::Assets<Entelechy::TextureAsset> texture_assets;
+
+    // Unique material handles requested by spawnCookedScene (Phase 4b).
+    // MaterialTextureBackfillSystem scans this list each frame and issues
+    // the baseColor texture loads once the .emat data has landed.
+    Entelechy::DynamicArray<Entelechy::Handle<Entelechy::MaterialAsset>> scene_materials;
 
     Entelechy::Handle<Entelechy::MeshAsset> cube_mesh;
     Entelechy::Handle<Entelechy::MeshAsset> ground_mesh;
@@ -46,7 +54,6 @@ struct RenderAssets
     Entelechy::Handle<Entelechy::MaterialAsset> mat_blue;
     Entelechy::Handle<Entelechy::MaterialAsset> mat_yellow;
     Entelechy::Handle<Entelechy::MaterialAsset> mat_checker;
-    Entelechy::Handle<Entelechy::MaterialAsset> mat_white;
     Entelechy::Handle<Entelechy::TextureAsset> checker_texture;
 };
 
@@ -108,10 +115,6 @@ inline void initRenderAssets()
         assets.asset_server.loadAsync(Path{"demo/checker.png"}, assets.texture_loader, assets.texture_assets);
     assets.mat_checker = assets.material_assets.insert(MaterialAsset{{1.0f, 1.0f, 1.0f}, assets.checker_texture});
     LOG_INFO(LogCategories::kEngine, "RenderAssets: requested async load of demo/checker.png");
-
-    // Shared white-model material for the cooked Sponza scene (Phase 3c):
-    // grey albedo, no texture, normal shading path.
-    assets.mat_white = assets.material_assets.insert(MaterialAsset{{0.75f, 0.75f, 0.75f}, {}, 1.0f});
 }
 
 } // namespace game

@@ -109,12 +109,19 @@ std::function<void()> WorkStealingQueue::steal()
 
 ThreadPool::ThreadPool(usize numThreads) : m_num_threads(numThreads)
 {
+    // Two-phase construction: allocate and register ALL workers before
+    // starting any thread. Worker threads iterate m_workers when stealing —
+    // starting threads while pushBack may still reallocate the array is a
+    // use-after-free race on the old buffer.
     for (usize i = 0; i < numThreads; ++i)
     {
         void *mem = DefaultAllocator::alloc(sizeof(Worker), alignof(Worker));
         Worker *w = new (mem) Worker();
-        w->thread = std::thread([this, w]() { runWorkerLoop(w); });
         m_workers.pushBack(w);
+    }
+    for (usize i = 0; i < numThreads; ++i)
+    {
+        m_workers[i]->thread = std::thread([this, w = m_workers[i]]() { runWorkerLoop(w); });
     }
 }
 
@@ -151,14 +158,19 @@ void ThreadPool::submit(std::function<void()> task)
         m_pending_tasks.fetch_sub(1, std::memory_order_release);
     };
 
-    static std::atomic<usize> s_next{0};
-    usize idx = s_next.fetch_add(1, std::memory_order_relaxed) % m_workers.size();
-
-    if (!m_workers[idx]->queue.push(std::move(wrapped)))
-    {
-        std::lock_guard<std::mutex> lock(m_overflow_mutex);
-        m_overflow_tasks.push(std::move(wrapped));
-    }
+    // External submissions go to the mutex-guarded global queue.
+    //
+    // WorkStealingQueue::push is documented as owner-thread-only: the worker
+    // owning that queue concurrently runs pop(), and push-vs-pop both do
+    // unsynchronized load/store on m_bottom — a foreign push can regress
+    // m_bottom, silently dropping freshly pushed tasks and racing
+    // std::function writes (observed 2026-08-08 as intermittent lost tasks +
+    // bad_function_call crashes in the ThreadPool tests). Correct foreign
+    // submission into a Chase-Lev deque needs an MPSC-safe push; until a
+    // caller actually needs it (worker-local task spawning), all external
+    // tasks flow through the global queue.
+    std::lock_guard<std::mutex> lock(m_overflow_mutex);
+    m_overflow_tasks.push(std::move(wrapped));
 }
 
 void ThreadPool::waitForAll()

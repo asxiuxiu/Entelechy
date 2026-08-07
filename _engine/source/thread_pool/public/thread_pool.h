@@ -9,8 +9,10 @@
 namespace Entelechy
 {
 
-// Simple FIFO overflow queue based on DynamicArray.
+// Simple FIFO global submission queue based on DynamicArray.
 // Replaces std::deque to avoid bypassing the engine allocator system.
+// All external submit() calls land here (guarded by m_overflow_mutex);
+// workers drain it after checking their local/steal queues.
 class OverflowQueue
 {
 public:
@@ -63,7 +65,10 @@ private:
 // Fixed-capacity Chase-Lev Work-Stealing Deque.
 // No dynamic resizing — this avoids the use-after-free race condition
 // that occurs when grow() runs concurrently with steal().
-// When full, tasks fall back to the ThreadPool's global overflow queue.
+// NOTE: push() and pop() are owner-thread-only. External submit() currently
+// goes straight to the pool's global queue, so these local queues stay
+// empty until worker-local task spawning is introduced (at which point
+// submit() needs an MPSC-safe foreign push or TLS owner routing).
 class WorkStealingQueue
 {
 public:
@@ -128,7 +133,7 @@ private:
     std::atomic<usize> m_pending_tasks{0};
     usize m_num_threads = 0;
 
-    // Thread-safe overflow for when a local queue is full.
+    // Global submission queue (all external submit() calls; see submit()).
     std::mutex m_overflow_mutex;
     OverflowQueue m_overflow_tasks;
 };

@@ -295,4 +295,18 @@ void GlfwWindow::makeContextCurrent()
     }
 }
 
+bool GlfwWindow::isKeyDown(int keyCode) const
+{
+    if (!m_window)
+        return false;
+    return glfwGetKey(m_window, keyCode) == GLFW_PRESS;
+}
+
+bool GlfwWindow::hasFocus() const
+{
+    if (!m_window)
+        return false;
+    return glfwGetWindowAttrib(m_window, GLFW_FOCUSED) == GLFW_TRUE;
+}
+
 } // namespace Entelechy

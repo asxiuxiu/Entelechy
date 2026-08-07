@@ -129,7 +129,10 @@ int main(int argc, char** argv) {
     // Use App's emplacement so the plugin is allocated and freed by the same
     // allocator (DefaultAllocator / mimalloc). Mixing std::make_unique (global
     // new) with DefaultAllocator::free causes a crash on shutdown.
-    app.emplacePlugin<game::GamePlugin>();
+    auto& gamePlugin = app.emplacePlugin<game::GamePlugin>();
+    // FlyCameraSystem polls held-key state from the window (robust against
+    // lost key events); inject it before the first update.
+    gamePlugin.flyCamera().setWindow(window.get());
     // Mint the asset handles before setup() spawns the cooked scene.
     game::initRenderAssets();
     app.build();

@@ -45,6 +45,12 @@ public:
     void build(Entelechy::App &app) override;
     void setup(Entelechy::App &app) override;
 
+    // Access for main-loop wiring (window injection for input polling).
+    FlyCameraSystem &flyCamera()
+    {
+        return m_fly_camera;
+    }
+
 private:
     Entelechy::MovementSystem m_movement;
     FlyCameraSystem m_fly_camera;

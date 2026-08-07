@@ -13,7 +13,7 @@
 | `input_event.h` | `RawInputEvent` 统一输入事件结构（键盘/鼠标/窗口事件） |
 | `input_queue.cpp` | 事件队列实现 |
 | `input_queue.h` | 单例事件队列声明 |
-| `window.h` | `IWindow` 抽象接口 |
+| `window.h` | `IWindow` 抽象接口（含 `isKeyDown()`/`hasFocus()` 轮询查询，2026-08-08 起；held-key 状态应轮询而非从事件累积，防止丢事件导致状态错位） |
 | `window_init.cpp` | GLFW 库初始化/关闭实现 |
 | `window_init.h` | GLFW 库初始化/关闭声明 |
 

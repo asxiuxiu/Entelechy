@@ -28,6 +28,8 @@ public:
     }
     void swapBuffers() override;
     void makeContextCurrent() override;
+    bool isKeyDown(int keyCode) const override;
+    bool hasFocus() const override;
 
     // Center the window on the primary monitor.
     void centerOnScreen();

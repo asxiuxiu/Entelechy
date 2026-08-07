@@ -2,7 +2,16 @@
 #include "log/core/log_macros.h"
 #include "core/allocator/allocator.h"
 #include <cstring>
-#include <memory>
+#include <fstream>
+#include <string>
+#include <vector>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
 
 namespace Entelechy
 {
@@ -174,6 +183,155 @@ bool Material::init(IRHIDevice *device, ShaderCache *shaderCache, const char *ve
             // Intern the name so GLCommandList::getUniformLocation can resolve
             // it back to a string for glGetUniformLocation. A bare _sid literal
             // is hash-only and can never be resolved.
+            StringId key = StringInternPool::instance().intern(params[i].name);
+            if (key.value() == 0)
+                continue;
+            ParamSlot slot;
+            slot.type = params[i].type;
+
+            if (params[i].type == MaterialParamType::Texture)
+            {
+                slot.offset = 0;
+                slot.textureSlot = nextTextureSlot++;
+            }
+            else
+            {
+                u32 align = getParamAlign(params[i].type);
+                u32 size = getParamSize(params[i].type);
+                uniformOffset = alignOffset(uniformOffset, align);
+                slot.offset = uniformOffset;
+                slot.textureSlot = 0;
+                uniformOffset += size;
+            }
+
+            m_params.insert(key, slot);
+        }
+
+        if (uniformOffset > 0)
+        {
+            m_uniform_data_size = alignOffset(uniformOffset, 16);
+            m_uniform_data = static_cast<u8 *>(DefaultAllocator::alloc(m_uniform_data_size, alignof(u8)));
+            std::memset(m_uniform_data, 0, m_uniform_data_size);
+        }
+    }
+
+    m_valid = true;
+    return true;
+}
+
+bool Material::initFromBytecode(IRHIDevice *device,
+                                const char *vertexBytecodePath, const char *fragmentBytecodePath,
+                                ShaderBytecodeFormat format,
+                                const MaterialParamDesc *params, u32 paramCount,
+                                const PipelineStateDesc &pipelineDesc)
+{
+    shutdown();
+
+    if (!device || !vertexBytecodePath || !fragmentBytecodePath)
+    {
+        LOG_ERROR(LogCategories::kEngine, "Material::initFromBytecode: invalid arguments");
+        return false;
+    }
+
+    // Helper to read a file into a byte buffer.
+    // Tries the path as-is first, then relative to the executable directory
+    // so shaders can be found regardless of the process working directory.
+    auto readFile = [](const char *path) -> std::vector<u8> {
+        auto tryRead = [](const char *p) -> std::vector<u8> {
+            std::ifstream f(p, std::ios::binary | std::ios::ate);
+            if (!f.is_open())
+                return {};
+            auto size = f.tellg();
+            if (size <= 0)
+                return {};
+            f.seekg(0, std::ios::beg);
+            std::vector<u8> buf(static_cast<size_t>(size));
+            f.read(reinterpret_cast<char *>(buf.data()), size);
+            return buf;
+        };
+
+        // Try path as-is (works when CWD == exe dir)
+        auto data = tryRead(path);
+        if (!data.empty())
+            return data;
+
+        // Try relative to executable directory
+#ifdef _WIN32
+        char exePath[MAX_PATH] = {};
+        GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+        // Strip filename to get directory
+        char *lastSep = strrchr(exePath, '\\');
+        if (!lastSep) lastSep = strrchr(exePath, '/');
+        if (lastSep)
+        {
+            *(lastSep + 1) = '\0';
+            std::string fullPath = std::string(exePath) + path;
+            return tryRead(fullPath.c_str());
+        }
+#endif
+        return {};
+    };
+
+    auto vsData = readFile(vertexBytecodePath);
+    auto fsData = readFile(fragmentBytecodePath);
+
+    if (vsData.empty())
+    {
+        LOG_ERROR(LogCategories::kEngine, "Material::initFromBytecode: cannot read vertex shader: %s",
+                  vertexBytecodePath);
+        return false;
+    }
+    if (fsData.empty())
+    {
+        LOG_ERROR(LogCategories::kEngine, "Material::initFromBytecode: cannot read fragment shader: %s",
+                  fragmentBytecodePath);
+        return false;
+    }
+
+    ShaderBytecode vsBytecode{};
+    vsBytecode.stage = ShaderStage::Vertex;
+    vsBytecode.format = format;
+    vsBytecode.data = vsData.data();
+    vsBytecode.size = vsData.size();
+    vsBytecode.entryPoint = "main";
+
+    ShaderBytecode fsBytecode{};
+    fsBytecode.stage = ShaderStage::Fragment;
+    fsBytecode.format = format;
+    fsBytecode.data = fsData.data();
+    fsBytecode.size = fsData.size();
+    fsBytecode.entryPoint = "main";
+
+    m_vertex_shader = device->createShader(vsBytecode);
+    m_fragment_shader = device->createShader(fsBytecode);
+
+    if (!m_vertex_shader || !m_fragment_shader)
+    {
+        LOG_ERROR(LogCategories::kEngine, "Material::initFromBytecode: shader creation failed");
+        shutdown();
+        return false;
+    }
+
+    // Create pipeline state
+    m_pipeline_desc = pipelineDesc;
+    m_pipeline_desc.vertexShader = m_vertex_shader.get();
+    m_pipeline_desc.fragmentShader = m_fragment_shader.get();
+    m_pipeline_state = device->createPipelineState(m_pipeline_desc);
+    if (!m_pipeline_state)
+    {
+        LOG_ERROR(LogCategories::kEngine, "Material::initFromBytecode: pipeline state creation failed");
+        shutdown();
+        return false;
+    }
+
+    // Build parameter layout (same logic as init())
+    if (params && paramCount > 0)
+    {
+        u32 uniformOffset = 0;
+        u32 nextTextureSlot = 0;
+
+        for (u32 i = 0; i < paramCount; ++i)
+        {
             StringId key = StringInternPool::instance().intern(params[i].name);
             if (key.value() == 0)
                 continue;

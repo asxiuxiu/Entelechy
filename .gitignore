@@ -58,3 +58,13 @@ __pycache__/
 .cache/
 imgui.ini
 imgui.ini
+
+# Third-party prebuilt binaries (DXC ~108MB, too large for git)
+# Download via: see cmake/FindDXC.cmake or AGENTS.md
+third_party/dxc/bin/
+third_party/dxc/lib/
+third_party/dxc/*.zip
+
+# Temporary log files
+root_log*.txt
+game_log.txt

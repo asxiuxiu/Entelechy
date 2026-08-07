@@ -4,6 +4,7 @@
 #include "render/rhi/rhi_types.h"
 #include "render/rhi/rhi_resources.h"
 #include "render/rhi/rhi_pipeline.h"
+#include <vector>
 
 namespace Entelechy
 {
@@ -59,6 +60,17 @@ public:
 
     // Handle window resize (recreate swapchain if needed).
     virtual void resizeSurface(u32 width, u32 height) = 0;
+
+    // Debug/diagnostics: read the current back buffer as RGBA8 pixels with
+    // top-left origin. Must be called after rendering, before endFrame()
+    // presents. Backends without readback support return false.
+    virtual bool readbackBackbuffer(std::vector<u8> &outPixelsRGBA8, u32 &outWidth, u32 &outHeight)
+    {
+        (void)outPixelsRGBA8;
+        (void)outWidth;
+        (void)outHeight;
+        return false;
+    }
 
     // -- Resource creation ------------------------------------------------
     virtual RHIBufferRef createBuffer(const BufferDesc &desc, const void *initialData) = 0;

@@ -132,10 +132,14 @@ bool SimpleCubeRenderer::init(IRHIDevice *device)
 
     m_shader_cache = std::make_unique<ShaderCache>();
 
-    // Parameter layout: matches shader uniforms
+    // Parameter layout: matches flattened HLSL cbuffer output
+    // Vertex: type_PerDraw[0..3] = uMVP rows; Pixel: type_PerMaterial[0] = {uColor.xyz, pad}
     MaterialParamDesc params[] = {
-        {"uMVP", MaterialParamType::Mat4},
-        {"uColor", MaterialParamType::Vec3},
+        {"type_PerDraw[0]", MaterialParamType::Vec4},
+        {"type_PerDraw[1]", MaterialParamType::Vec4},
+        {"type_PerDraw[2]", MaterialParamType::Vec4},
+        {"type_PerDraw[3]", MaterialParamType::Vec4},
+        {"type_PerMaterial[0]", MaterialParamType::Vec4},
     };
 
     PipelineStateDesc pipelineDesc{};
@@ -144,8 +148,8 @@ bool SimpleCubeRenderer::init(IRHIDevice *device)
     pipelineDesc.depthStencilState.depthTest = true;
     pipelineDesc.depthStencilState.depthWrite = true;
 
-    if (!m_material.init(m_device, m_shader_cache.get(), s_vertexShader, s_fragmentShader, params, 2,
-                         pipelineDesc))
+    if (!m_material.initFromBytecode(m_device, "shaders/simple_cube_vertex.glsl", "shaders/simple_cube_pixel.glsl",
+                                     ShaderBytecodeFormat::GLSL, params, 5, pipelineDesc))
     {
         LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to init material");
         return false;
@@ -183,8 +187,11 @@ void SimpleCubeRenderer::drawCube(const Mat4 &mvp, const Vec3 &color)
 
     auto *cmdList = m_device->createCommandList();
 
-    m_material.setMat4("uMVP"_sid, mvp);
-    m_material.setVec3("uColor"_sid, color);
+    m_material.setVec4("type_PerDraw[0]"_sid, Vec4{mvp.m[0], mvp.m[1], mvp.m[2], mvp.m[3]});
+    m_material.setVec4("type_PerDraw[1]"_sid, Vec4{mvp.m[4], mvp.m[5], mvp.m[6], mvp.m[7]});
+    m_material.setVec4("type_PerDraw[2]"_sid, Vec4{mvp.m[8], mvp.m[9], mvp.m[10], mvp.m[11]});
+    m_material.setVec4("type_PerDraw[3]"_sid, Vec4{mvp.m[12], mvp.m[13], mvp.m[14], mvp.m[15]});
+    m_material.setVec4("type_PerMaterial[0]"_sid, Vec4{color.x, color.y, color.z, 1.0f});
     m_material.bind(cmdList);
 
     cmdList->bindVertexBuffer(m_vertex_buffer.get(), 0, 0);

@@ -55,6 +55,10 @@ python scripts/build/build.py --release
 
 各模块目录下的 `AGENTS.md` 提供该模块的入口点和本地规范。
 
+## 渲染截图验收
+
+渲染改动可截图自查（2026-08-07 起）：运行 `build/bin/Debug/Entelechy.exe` 时按 `F9` 手动截图，或用环境变量自动化——`ENTELECHY_SCREENSHOT_FRAME=<n>`（第 n 帧截图，Sponza 全量贴图常驻约需 90 秒 ≈ 4800 帧）、`ENTELECHY_SCREENSHOT_PATH=<png 路径>`、`ENTELECHY_EXIT_AFTER_SCREENSHOT=1`（截图后退出）。读回的是窗口后台缓冲（含 ImGui 叠加层）。
+
 ## Agent 工作规则
 
 - **文档同步**：目录结构、模块增删等变更，必须同步更新对应 `AGENTS.md`（含本文件及模块级文档）。新增模块需新建 `AGENTS.md`。

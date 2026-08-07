@@ -316,10 +316,11 @@
 
 **知识库设计**：变体爆炸控制（2^N 组合灾难）、动态分支 vs 静态变体 vs 特化常量（各自适用场景）、按需异步编译 + fallback（pink/简化）、多级缓存（内存 → DDC/磁盘）、进程外编译预留（UE SCW 模式）、Material 关键字维度限制为 4-5 个。
 
-**代码现状** 🟡 部分完成（仅内存级同步缓存）
+**代码现状** 🟡 部分完成（离线编译工具链 + 内存级同步缓存）
 
 已实现：
 - `ShaderCache`：按 `(stage, sourceHash)` 去重（FNV-1a 哈希）、同步 `getOrCreateShader()`、仅内存缓存 → `render/private/material/shader_cache.h/.cpp`
+- **离线着色器编译工具链**（6c，2026-08-07）：`_engine/tools/shader_compiler/` — HLSL SM 6.0 源码经 DXC 编译为 DXIL + SPIR-V，再经 SPIRV-Cross 交叉编译为 GLSL 330（UBO 展平为 plain uniform）。构建时自动运行（CMake post-build），产物输出到 `build/bin/{Config}/shaders/`。运行时通过 `Material::initFromBytecode()` 从磁盘加载预编译字节码。DXC 预编译包位于 `third_party/dxc/`（v1.9.2607），SPIRV-Cross 经 Conan 引入（`spirv-cross/1.4.350.0`）。同日修复：combined sampler 自动命名（`_<SPIR-V ID>`）按首次采样顺序分配而非 t0/t1/t2 声明顺序，曾导致 normal/MR 贴图绑反；现编译器在 `build_combined_image_samplers` 后把合并采样器重命名回原始 HLSL 贴图名（`uBaseColorTex`/`uNormalTex`/`uMRTex`），运行时按原名绑定；sky PS cbuffer 改名 `PerFramePS` 消除 VS/PS 展平 uniform 同名冲突。同日追加修复（截图机制辅助定位）：GLSL 输出目标从 330 升至 410 —— 330 下 FS 输入无法带显式 `layout(location)`，stage 接口按变量名链接，而 SPIRV-Cross 生成的 `out_var_*`/`in_var_*` 名恒不匹配，导致所有 FS 输入读零（贴图/法线/天空全失效）；410 后接口全带显式 location，截图验证恢复。
 
 **缺失项**：
 

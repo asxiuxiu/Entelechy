@@ -1,0 +1,31 @@
+{
+    "shaders": [
+        {
+            "name": "pbr_lit",
+            "entry_points": [
+                { "stage": "vertex", "file": "pbr_lit_vs.hlsl", "entry": "main", "target": "vs_6_0" },
+                { "stage": "pixel",  "file": "pbr_lit_ps.hlsl", "entry": "main", "target": "ps_6_0" }
+            ],
+            "defines": [],
+            "include_dirs": ["."]
+        },
+        {
+            "name": "sky",
+            "entry_points": [
+                { "stage": "vertex", "file": "sky_vs.hlsl", "entry": "main", "target": "vs_6_0" },
+                { "stage": "pixel",  "file": "sky_ps.hlsl", "entry": "main", "target": "ps_6_0" }
+            ],
+            "defines": [],
+            "include_dirs": ["."]
+        },
+        {
+            "name": "simple_cube",
+            "entry_points": [
+                { "stage": "vertex", "file": "simple_cube_vs.hlsl", "entry": "main", "target": "vs_6_0" },
+                { "stage": "pixel",  "file": "simple_cube_ps.hlsl", "entry": "main", "target": "ps_6_0" }
+            ],
+            "defines": [],
+            "include_dirs": ["."]
+        }
+    ]
+}

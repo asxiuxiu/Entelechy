@@ -46,6 +46,14 @@ public:
     bool init(IRHIDevice *device, ShaderCache *shaderCache, const char *vertexSource, const char *fragmentSource,
               const MaterialParamDesc *params, u32 paramCount, const PipelineStateDesc &pipelineDesc);
 
+    // Initialize from precompiled bytecode files (DXIL/SPIR-V/GLSL).
+    // Reads vertex and fragment bytecode from disk and creates shaders directly.
+    bool initFromBytecode(IRHIDevice *device,
+                          const char *vertexBytecodePath, const char *fragmentBytecodePath,
+                          ShaderBytecodeFormat format,
+                          const MaterialParamDesc *params, u32 paramCount,
+                          const PipelineStateDesc &pipelineDesc);
+
     void shutdown();
 
     // -- Parameter setters (CPU side, uploaded on bind) --------------------

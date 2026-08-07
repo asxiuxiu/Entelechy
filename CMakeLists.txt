@@ -69,6 +69,7 @@ find_package(glad REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(imgui REQUIRED)
 find_package(mimalloc REQUIRED)
+find_package(spirv-cross REQUIRED)
 
 # ---- Parent solution folders for Visual Studio ----
 # CMake only emits Solution Folders that are referenced by at least one target.
@@ -178,3 +179,21 @@ foreach(TARGET_NAME ${ALL_MODULES})
 endforeach()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LINK_MODULES})
+
+# ---- Shader compilation build step ----
+# Compile HLSL shaders to DXIL/SPIR-V/GLSL using the ShaderCompiler tool.
+# This runs as a post-build step on the main executable so that compiled shaders
+# are always up-to-date when running the engine.
+set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/_engine/shaders")
+
+file(GLOB SHADER_SOURCES "${SHADER_SOURCE_DIR}/*.hlsl")
+
+add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders"
+    COMMAND $<TARGET_FILE:ShaderCompiler>
+        --config "${SHADER_SOURCE_DIR}/shaders.json"
+        --output "$<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders"
+    DEPENDS ShaderCompiler ${SHADER_SOURCES} "${SHADER_SOURCE_DIR}/shaders.json"
+    COMMENT "Compiling HLSL shaders..."
+)

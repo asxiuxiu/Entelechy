@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 find_package(glad REQUIRED)
+find_package(stb REQUIRED)
 
 entelechy_module(
     NAME RenderCoreLib
@@ -11,5 +12,6 @@ entelechy_module(
         CoreLib
     PRIVATE_DEPS
         ThreadPoolLib
+        stb::stb
 )
 

@@ -195,6 +195,7 @@ public:
     void setClearColor(f32 r, f32 g, f32 b, f32 a) override;
     void clear(ClearFlags flags) override;
     void resizeSurface(u32 width, u32 height) override;
+    bool readbackBackbuffer(std::vector<u8> &outPixelsRGBA8, u32 &outWidth, u32 &outHeight) override;
 
     // -- Resource creation (IRHIDevice) ------------------------------------
     RHIBufferRef createBuffer(const BufferDesc &desc, const void *initialData) override;

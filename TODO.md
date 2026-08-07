@@ -80,7 +80,11 @@
 
 ## Material / Shader
 > 2026-05-25：当前实现为同步编译 + CPU uniform 块 + `glUniform*` 即时上传 + 无模板分层。以下为与工业级方案的差额，后续逐步补齐。
+> 2026-08-07（6c）：离线着色器编译工具链已落地（HLSL→DXC→DXIL/SPIR-V→SPIRV-Cross→GLSL），运行时从预编译字节码加载。但 SPIRV-Cross 展平后 uniform 名为数组索引形式（type_PerFrame[N]），材质参数表需手动匹配，在 6e UBO/CBV 统一绑定层中彻底解决。combined sampler 命名问题已修复（2026-08-07）：shader_compiler 在 `build_combined_image_samplers` 后把合并采样器重命名回原始 HLSL 贴图名（uBaseColorTex 等），C++ 按原名绑定。同日另修复两个 6c 引入的渲染回归：(1) SPIRV-Cross GLSL 330 输出不带 stage 接口 location，VS 输出 `out_var_*` 与 FS 输入 `in_var_*` 按名链接永远失配，所有 FS 输入读零（贴图/法线/天空全失效）——已将 GLSL 目标版本升至 410 以产出显式 `layout(location)`；(2) sky VS/PS 的 cbuffer 同名 `PerFrame`，展平后同名不同长互相覆盖——PS 侧改名 `PerFramePS`。
 
+- [ ] Material / Shader | 6c SPIRV-Cross 降级 GLSL 的 uniform 命名不保留原始 HLSL 成员名（展平为 type_PerFrame[N] 数组），材质参数表硬编码匹配脆弱。**必须在 6e 中解决**：(1) shader_compiler 输出 cbuffer 反射元数据 JSON（name→offset/size/type）；(2) UBO 绑定替代 glUniform*，cbuffer 保持为真正 UBO 而非展平 plain uniform；(3) BindGroup 声明式绑定纹理+采样器。~~combined sampler 自动命名（_221 等）~~已修复（2026-08-07，编译器重命名回原始贴图名；此前按 ID 硬编码导致 normal/MR 贴图绑反）。详见 `plan/RENDER_SPONZA_ROADMAP.md` 6e 第 5 条。
+- [ ] Material / Shader | `Material::initFromBytecode()`（6c 新增）绕过了 `ShaderCache`，每个材质各自 createShader + link 一份相同内容的 GL program（Sponza 28 材质 → PSO Cache 30，6c 前共享 1 份）。显存与 link 时间浪费，应在 6e 绑定层重构或 ShaderCache 支持字节码哈希去重时解决。
+- [ ] Render / 加载性能 | Sponza 全量贴图常驻约需 90 秒（约 3 秒/材质的节奏热替换粉色 fallback），期间画面大面积粉色。纹理解码/上传管线未并行化，影响迭代体验；可考虑并行 decode、预 cook 成 DDS/KTX2 或降低加载分辨率。
 - [ ] Material / Shader | 当前 `Material` 直接硬编码 VS/FS，无变体管理，美术资产与 GPU 状态未解耦，需引入模板-实例三层：`ShaderTemplate` → `MaterialAsset` → `MaterialInstance`，`ShaderTemplate` 定义 `Category/Keyword` 变体规则，`MaterialAsset` 存储参数/PassHint/RenderState，`MaterialInstance` 运行时维护 `TechniqueCache[permutation_id]`。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/材质与着色器系统.md` 问题 1 分支 B。
 - [ ] Material / Shader | `Material::init()` 同步编译，加载新材质时阻塞渲染线程，需引入 `TechniqueState` 状态机（Invalid → Pending → Valid），缓存未命中时返回预编译 Fallback（如粉色棋盘格），后台线程编译完成后自动切换。
@@ -242,7 +246,8 @@
 - [ ] Runtime / 游戏运行时 | `_game/source/runtime/public/render_assets.h` 的 `renderAssets()` 使用函数内 static 全局存储持有 VFS + `AssetServer` + 三类 `Assets<T>` 与缓存 Handle（2c 后规模进一步增大），根因是 ECS 无 Resource 概念（见 ECS 条目）。待 ECS Resource 基础设施就绪后，资产存储应注册为 World 级全局数据，此静态层整体移除。
 - [x] Runtime / 游戏运行时 | `_game/source/runtime/private/scene_loader.cpp` 的 `ManifestCursor` 是工程内第三个手写 JSON 片段解析器（`ecs/private/prefab/scene_serializer.cpp` 的 static `JsonCursor`、`bridge` 的字符串查找之后），仅支持 `scene.json` 固定 schema；清单格式若继续演化（嵌套/可选字段），应抽一个公共极简 JSON 解析器到 core 供复用。
   - 完成：2026-08-05，提取 `core/public/json/json_cursor.h`（`JsonCursor`，两份私有实现的并集），`scene_serializer.cpp` 与 `scene_loader.cpp` 均已迁移；新增 `core/tests/test_json_cursor.cpp` 9 个用例。`bridge` 的字符串查找解析仍是独立问题（见 Bridge 条目）。
-- [ ] Runtime / 游戏运行时 | 引擎无帧读回/截图机制，渲染验收只能靠日志佐证（阶段 3c 的 Sponza 几何完整性即未截图确认）；需在 RHI/窗口层补 readback + 截图键（或离屏 capture 工具）。
+- [x] Runtime / 游戏运行时 | 引擎无帧读回/截图机制，渲染验收只能靠日志佐证（阶段 3c 的 Sponza 几何完整性即未截图确认）；需在 RHI/窗口层补 readback + 截图键（或离屏 capture 工具）。
+  - 完成：2026-08-07，`IRHIDevice::readbackBackbuffer()`（GL 实现：glReadPixels 后台缓冲 + 垂直翻转，须在 present 前调用）+ `render/screenshot/saveScreenshotPng()`（stb_image_write）。触发方式：F9 热键写 `logs/screenshots/screenshot_<ts>.png`；或环境变量 `ENTELECHY_SCREENSHOT_FRAME=<n>`（第 n 帧自动截图）、`ENTELECHY_SCREENSHOT_PATH`、`ENTELECHY_EXIT_AFTER_SCREENSHOT=1`（截图后退出），便于自动化验收。
 - [x] Runtime / 游戏运行时 | `_game/source/runtime/private/scene_loader.cpp` 的 `spawnCookedScene` 是引擎工具 `mesh_cooker` 产物（引擎自有格式）的唯一消费者，格式归引擎、解析归游戏层不对称，第二个游戏需原样重写；阶段 4 补材质引用时随场景加载入口一并迁入引擎（`asset/` 或独立 scene 模块），游戏侧只传场景路径（2026-08-05 分层审视结论）。
   - 完成：2026-08-06（阶段 4c，D5），迁入引擎新模块 `_engine/source/asset/scene/`（SceneLib）：`SceneLoader` 构造注入 VFS/`AssetServer`/loader/`Assets<T>`（引擎不持有游戏侧全局），自持 `MaterialAssetLoader` 与场景材质清单；游戏侧 `GamePlugin::setup()` 场景加载剩一行 `renderAssets().scene_loader.spawnCookedScene(world, "sponza/cooked/scene.json")`，`RenderAssets` 的 `material_loader`/`scene_materials` 移除。
 - [ ] Runtime / 游戏运行时 | `_game/source/runtime/public/render_assets.h` 中 VFS 双挂载（含 cwd 兼容）、`AssetServer` + 标准 loader 注册、三类 `Assets<T>` 存储与每帧 `processEvents()`（`launch/templates/main.cpp.in`）是任何游戏都要原样搭建的资产子系统装配；与 RENDER_LAYER_PROGRESS 5.8/5.9 资产系统升级重叠，届时由引擎提供资产子系统引导（挂载约定、loader 注册、事件泵），游戏层只声明内容目录与资产（2026-08-05 分层审视结论）。

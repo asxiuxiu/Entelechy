@@ -14,6 +14,7 @@ class EntelechyConan(ConanFile):
         self.requires("mimalloc/2.1.7")
         self.requires("stb/cci.20230920")
         self.requires("cgltf/1.13")
+        self.requires("spirv-cross/1.4.350.0")
         # Future dependencies:
         # self.requires("spdlog/1.14.1")
         # self.requires("glm/1.0.1")

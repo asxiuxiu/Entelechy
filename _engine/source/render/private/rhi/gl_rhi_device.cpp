@@ -7,7 +7,9 @@
 #include "core/allocator/allocator.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <cstring>
 #include <memory>
+#include <vector>
 
 namespace Entelechy
 {
@@ -888,6 +890,44 @@ void GLRHIDevice::clear(ClearFlags flags)
 void GLRHIDevice::resizeSurface(u32 width, u32 height)
 {
     glViewport(0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height));
+}
+
+bool GLRHIDevice::readbackBackbuffer(std::vector<u8> &outPixelsRGBA8, u32 &outWidth, u32 &outHeight)
+{
+    // Read the default framebuffer's back buffer. Must run on the render
+    // thread with the GL context current, after all draws, before present.
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glReadBuffer(GL_BACK);
+
+    GLint vp[4] = {0, 0, 0, 0};
+    glGetIntegerv(GL_VIEWPORT, vp);
+    if (vp[2] <= 0 || vp[3] <= 0)
+        return false;
+
+    const u32 width = static_cast<u32>(vp[2]);
+    const u32 height = static_cast<u32>(vp[3]);
+    outPixelsRGBA8.resize(static_cast<size_t>(width) * height * 4);
+
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height), GL_RGBA, GL_UNSIGNED_BYTE,
+                 outPixelsRGBA8.data());
+
+    // GL returns rows bottom-up; flip to top-left origin in place.
+    const size_t rowBytes = static_cast<size_t>(width) * 4;
+    std::vector<u8> row(rowBytes);
+    u8 *data = outPixelsRGBA8.data();
+    for (u32 y = 0; y < height / 2; ++y)
+    {
+        u8 *top = data + y * rowBytes;
+        u8 *bottom = data + (height - 1 - y) * rowBytes;
+        std::memcpy(row.data(), top, rowBytes);
+        std::memcpy(top, bottom, rowBytes);
+        std::memcpy(bottom, row.data(), rowBytes);
+    }
+
+    outWidth = width;
+    outHeight = height;
+    return true;
 }
 
 RHIFenceValue GLRHIDevice::signalFrame()

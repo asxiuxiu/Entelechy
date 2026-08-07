@@ -1,13 +1,17 @@
 #include <cstdio>
 #include <chrono>
+#include <ctime>
 #include <memory>
 #include <algorithm>
+#include <string>
+#include <vector>
 #include "window/glfw_window.h"
 #include "window/input/input_queue.h"
 #include "window/input/input_event.h"
 #include "log/core/log_macros.h"
 #include "render/rhi/rhi_device_factory.h"
 #include "render/rhi/gl_rhi_device.h"
+#include "render/screenshot/screenshot.h"
 #include "render_system/frame/render_frame_runner.h"
 #include "render_system/components/directional_light.h"
 #include "render_system/components/sky_settings.h"
@@ -132,6 +136,20 @@ int main() {
     float clearColor[4] = {0.15f, 0.17f, 0.13f, 1.0f};
     bool autoRunSystems = true;
 
+    // Screenshot / frame-readback debug support (env-driven for automation):
+    //   ENTELECHY_SCREENSHOT_FRAME=<n>   capture after the n-th rendered frame
+    //   ENTELECHY_SCREENSHOT_PATH=<file> output path (default logs/screenshots/screenshot.png)
+    //   ENTELECHY_EXIT_AFTER_SCREENSHOT=1 quit right after the capture
+    // F9 captures manually to logs/screenshots/screenshot_<timestamp>.png.
+    long long screenshotFrame = -1;
+    if (const char *env = std::getenv("ENTELECHY_SCREENSHOT_FRAME"))
+        screenshotFrame = std::atoll(env);
+    const char *screenshotPathEnv = std::getenv("ENTELECHY_SCREENSHOT_PATH");
+    const bool exitAfterScreenshot = std::getenv("ENTELECHY_EXIT_AFTER_SCREENSHOT") != nullptr;
+    std::string screenshotPath = screenshotPathEnv ? screenshotPathEnv : "logs/screenshots/screenshot.png";
+    bool screenshotRequested = false;
+    unsigned long long totalFrames = 0;
+
     while (!window->shouldClose() && app.isRunning()) {
         auto now = Clock::now();
         float dt = std::chrono::duration<float>(now - lastTime).count();
@@ -151,6 +169,15 @@ int main() {
                     LOG_DEBUG(Entelechy::LogCategories::kInput, "KeyPress key=%d", e.keyCode);
                     if (e.keyCode == GLFW_KEY_ESCAPE) {
                         window->requestClose();
+                    }
+                    if (e.keyCode == GLFW_KEY_F9) {
+                        char nameBuf[128];
+                        std::time_t t = std::time(nullptr);
+                        std::tm tmBuf{};
+                        localtime_s(&tmBuf, &t);
+                        std::strftime(nameBuf, sizeof(nameBuf), "logs/screenshots/screenshot_%Y%m%d_%H%M%S.png", &tmBuf);
+                        screenshotPath = nameBuf;
+                        screenshotRequested = true;
                     }
                     if (e.keyCode == GLFW_KEY_SPACE) {
                         Entelechy::Entity evt = world.spawn();
@@ -292,6 +319,22 @@ int main() {
         imgui->renderDrawData();
         imgui->updatePlatformWindows();
 
+        // ===== Screenshot capture (back buffer, before present) =====
+        if (screenshotRequested || (screenshotFrame >= 0 && totalFrames == static_cast<unsigned long long>(screenshotFrame))) {
+            std::vector<unsigned char> pixels;
+            unsigned w = 0, h = 0;
+            if (device->readbackBackbuffer(pixels, w, h))
+                Entelechy::saveScreenshotPng(screenshotPath.c_str(), pixels.data(), w, h);
+            else
+                LOG_WARN(Entelechy::LogCategories::kEngine, "Screenshot: backbuffer readback not supported");
+            screenshotRequested = false;
+            if (screenshotFrame >= 0 && totalFrames == static_cast<unsigned long long>(screenshotFrame)) {
+                screenshotFrame = -1; // capture once
+                if (exitAfterScreenshot)
+                    window->requestClose();
+            }
+        }
+
         // End frame: present + signal fence
         device->endFrame();
 
@@ -304,6 +347,7 @@ int main() {
         // ===== FPS counter =====
         fpsTimer += dt;
         frameCount++;
+        totalFrames++;
         if (fpsTimer >= 1.0f) {
             fps = static_cast<float>(frameCount);
             fpsTimer = 0.0f;

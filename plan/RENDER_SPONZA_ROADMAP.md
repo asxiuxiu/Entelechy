@@ -11,7 +11,7 @@
 
 ## 现状一句话总结
 
-四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-5 完成（2026-08-06），NewSponza 全量 405 primitive 经 Extract → Cull → Queue → Execute 完整链路渲染——方向光 lit PBR（GGX）、法线/MR 贴图采样、天空渐变、调试统计面板（FPS/draw calls/剔除/PSO 缓存/显存）全部落地，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。阶段 6a RHI 接口审计 + 6b 延迟命令缓冲已完成（2026-08-07），GL 后端已从立即执行切换为录制+回放模式。下一步是 6c（着色器编译工具链）/ 6e（UBO/CBV 绑定）。
+四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-5 完成（2026-08-06），NewSponza 全量 405 primitive 经 Extract → Cull → Queue → Execute 完整链路渲染——方向光 lit PBR（GGX）、法线/MR 贴图采样、天空渐变、调试统计面板（FPS/draw calls/剔除/PSO 缓存/显存）全部落地，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。阶段 6a RHI 接口审计 + 6b 延迟命令缓冲已完成（2026-08-07），GL 后端已从立即执行切换为录制+回放模式。阶段 6c 着色器编译工具链已完成（2026-08-07）：HLSL-first + DXC + SPIRV-Cross 管线落地，3 组 shader 移植为 HLSL SM 6.0，离线编译产出 DXIL/SPIR-V/GLSL 三格式，运行时从预编译字节码加载。下一步是 6e（UBO/CBV 绑定）。
 
 ## 断裂修复与阶段的对应关系
 
@@ -177,7 +177,7 @@
 
 ---
 
-### 6c. 跨平台着色器编译工具链 ⭐
+### 6c. 跨平台着色器编译工具链 ⭐ ✅ 已完成（2026-08-07）
 
 **目标**: 建立统一的着色器编译管线，从单一 GLSL/HLSL 源码产出 GLSL（GL 后端）、SPIR-V（Vulkan）、DXIL（D3D12）三种目标格式。这是 D3D12 后端落地的硬性前置——没有字节码就无法创建 D3D12 PSO。
 
@@ -192,6 +192,8 @@
 **验证**: 工具链可从 HLSL 源码产出 DXIL + SPIR-V + GLSL 三份产物；GL 后端经 SPIRV-Cross 降级路径渲染 Sponza 画面与改造前一致；DXIL 产物可通过 `dxc -disasm` 反汇编验证。
 
 **对应章节**: 5.12（着色器变体与编译缓存）、5.1（RHI——shader 接口）
+
+> **落地记录（2026-08-07）**：五项子任务全部完成。(1) 编译器选型确认 DXC v1.9.2607（GitHub Releases 预编译包，含 SPIR-V CodeGen），Conan 无 DXC 配方故采用手动预编译 + `cmake/FindDXC.cmake`；SPIRV-Cross 经 Conan 引入 `spirv-cross/1.4.350.0`（静态链接 C API）。(2) 着色器语言选定 HLSL-first SM 6.0；3 组内嵌 GLSL（PBR lit ~130 行、sky gradient ~25 行、simple cube ~15 行）移植为 6 个独立 `.hlsl` 文件于 `_engine/shaders/`，uniforms 重组为 cbuffer（PerFrame/PerMaterial/PerDraw），纹理改用 Texture2D+SamplerState 分离绑定。(3) `_engine/tools/shader_compiler/` 实现为 EXECUTABLE 模块：`DxcCompiler` 封装 IDxcCompiler3（HLSL→DXIL + HLSL→SPIR-V），`SpirvCrossCompiler` 封装 spvc C API（SPIR-V→GLSL 330，UBO 展平 + combined sampler 构建），CLI main 解析 `shaders.json` 批量编译。构建时 CMake post-build 自动运行，产物输出至 `build/bin/{Config}/shaders/`。(4) `Material::initFromBytecode()` 新增重载接受字节码文件路径 + ShaderBytecodeFormat，内部读文件→构造 ShaderBytecode→调用 createShader()；3 个调用方（PrepareAssetsSystem/RenderExecuteSystem/SimpleCubeRenderer）从内嵌字符串切换为 bytecode 加载，uniform 参数表适配 SPIRV-Cross 展平后的 vec4 数组命名（type_PerFrame[N]/type_PerDraw[N]/type_PerMaterial[N]）。(5) 6 个 entry point 全部编译成功（6 DXIL + 6 SPIR-V + 6 GLSL），DXIL 经 `dxc -dumpbin` 验证有效。Debug 构建通过，234 测试全绿。**已知限制**：SPIRV-Cross 展平后 uniform 名为数组索引形式（非原始 HLSL 成员名），材质参数表需手动匹配，将在 6e UBO/CBV 统一绑定层中彻底解决。~~combined sampler 名为 SPIRV-Cross 自动生成（_221/_223/_225），需在材质初始化时硬编码对应~~（2026-08-07 修复：该自动 ID 按首次采样顺序分配而非声明顺序，曾导致 normal/MR 贴图绑反；现 `SpirvCrossCompiler` 在 `build_combined_image_samplers` 后将合并采样器重命名回原始 HLSL 贴图名，C++ 按 `uBaseColorTex`/`uNormalTex`/`uMRTex` 绑定；sky PS cbuffer 同步改名 `PerFramePS`，消除 VS/PS 展平 uniform 同名冲突）。**6c 渲染回归追加修复（2026-08-07，截图机制定位）**：SPIRV-Cross GLSL 330 输出不带 stage 接口 `layout(location)`，VS 输出 `out_var_*` 与 FS 输入 `in_var_*` 按名链接恒失配，所有 FS 输入读零（贴图/法线/天空渐变全部失效、画面只剩角点 texel 平色）——GLSL 目标版本升至 410 后产出显式 location，截图验证全贴图恢复。详细变更记录见 `docs/RENDER_LAYER_PROGRESS.md` 5.12 节。
 
 ---
 
@@ -218,7 +220,7 @@
 
 ### 6e. UBO/CBV 统一绑定层 ⭐
 
-**目标**: 替换当前 per-draw `glUniform*` 立即上传模式，建立跨后端的 Constant Buffer / Uniform Buffer Object 绑定抽象。这既是 GL 后端的性能修复（10+ 材质时 `glUniform*` 瓶颈），也是 D3D12 Root Signature / Vulkan Descriptor Set 的统一表达。
+**目标**: 替换当前 per-draw `glUniform*` 立即上传模式，建立跨后端的 Constant Buffer / Uniform Buffer Object 绑定抽象。这既是 GL 后端的性能修复（10+ 材质时 `glUniform*` 瓶颈），也是 D3D12 Root Signature / Vulkan Descriptor Set 的统一表达。**同时消除 6c SPIRV-Cross 降级路径遗留的 uniform 命名脆弱性问题。**
 
 **依赖**: 可与 6d 并行推进（GL 侧先行），但需在 6d 完成前合入以统一绑定路径。
 
@@ -228,8 +230,12 @@
 2. **`BindGroupLayout` / `BindGroup`**：声明式绑定描述——layout 定义 binding 槽位（type + stage visibility + count），BindGroup 实例绑定具体资源（buffer view + texture view + sampler）。GL 后端翻译为 `glBindBufferBase` + `glBindTextureUnit`；D3D12 翻译为 descriptor table set；VK 翻译为 `vkUpdateDescriptorSets`。
 3. **`Material::bind()` 重写**：不再逐参数 `setUniform*`，改为填充 `ConstantBufferRing` 块 + 绑定 `BindGroup`。CPU uniform blob 保留作为 staging 区，bind 时一次性 memcpy 到 ring buffer。
 4. **按更新频率分层落地**：View/Light CBV per-frame 写一次、Material BindGroup per-material 复用、Object CBV per-draw 动态偏移。SortKey 中 material_id 分箱已有，直接复用。
+5. **⭐ 消除 6c SPIRV-Cross 命名债务**：当前 6c 降级 GLSL 的 uniform 名为 SPIRV-Cross 展平后的数组索引形式（`type_PerFrame[N]`），combined sampler 名为自动生成（`_221`/`_223`/`_225`），材质参数表硬编码匹配极其脆弱。本阶段必须通过以下机制彻底解决：
+   - **反射元数据驱动**：shader_compiler 输出每个 entry point 的 cbuffer 成员布局 JSON（name → offset/size/type），运行时 `BindGroupLayout` 从反射数据构建，不再依赖字符串匹配。
+   - **UBO 绑定替代 glUniform***：cbuffer 保持为真正的 UBO（而非 SPIRV-Cross 展平的 plain uniform），`glBindBufferBase` 按 binding 点绑定，uniform 名称问题自然消失。
+   - **Sampler 绑定规范化**：通过 `BindGroup` 声明式绑定纹理+采样器，不再依赖 SPIRV-Cross 自动生成的 combined sampler 名。
 
-**验证**: GL 后端 Sponza 画面无回归；draw call 耗时下降（ImGui 面板 FPS 不降或提升）；D3D12 后端使用同一绑定路径。新增 BindGroup 创建/绑定单元测试。
+**验证**: GL 后端 Sponza 画面无回归；draw call 耗时下降（ImGui 面板 FPS 不降或提升）；D3D12 后端使用同一绑定路径；材质参数表不再包含任何 SPIRV-Cross 生成的内部名称。新增 BindGroup 创建/绑定单元测试。
 
 **对应章节**: 5.13（材质参数绑定与 GPU 上传）、5.14（PreparedMaterial → bind_group + pipeline_key）
 

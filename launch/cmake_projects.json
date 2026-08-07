@@ -96,6 +96,11 @@
             "name": "mesh_cooker",
             "path": "tools/mesh_cooker",
             "enabled": true
+        },
+        {
+            "name": "shader_compiler",
+            "path": "tools/shader_compiler",
+            "enabled": true
         }
     ]
 }

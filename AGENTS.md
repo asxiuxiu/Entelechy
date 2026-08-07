@@ -4,11 +4,13 @@
 
 ## 构建入口
 
-首次构建前先初始化项目本地 Python 环境（创建 `.venv`、安装指定版本 Conan / CMake、初始化项目级 Conan home）：
+首次构建前先初始化项目本地 Python 环境（创建 `.venv`、安装指定版本 Conan / CMake、初始化项目级 Conan home、下载 DXC 预编译二进制到 `third_party/dxc/`）：
 
 ```bash
 python scripts/tools/setup_env.py
 ```
+
+DXC 的 `bin/`、`lib/` 不进 git，缺失时由 `scripts/tools/ensure_dxc.py` 自动下载（`setup_env.py` 和 `build.py` 均已集成）；版本锁定在 `configs/environment.json` 的 `dxc` 节，GitHub 直连慢时可在 `environment.local.json` 配置 `dxc.url_prefixes` 镜像前缀。
 
 Windows 上若 Visual Studio 安装在非默认路径，需先复制模板并填写本机路径：
 

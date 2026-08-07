@@ -16,6 +16,7 @@ from pathlib import Path
 # Allow importing project environment config and skills helper from sibling directories.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from env_config import get_project_root, load_env_config
+from ensure_dxc import ensure_dxc
 from setup_skills import setup_skills_link
 
 PROJECT_ROOT = get_project_root()
@@ -726,6 +727,10 @@ def main():
     prepare_cmake_file_api()
 
     # Step 2: Run CMake (Visual Studio generator keeps .sln for VS IDE)
+    # DXC prebuilt binaries (third_party/dxc/bin|lib) are gitignored; make sure
+    # they are present before FindDXC.cmake runs during configuration.
+    ensure_dxc(ENV_CONFIG)
+
     print("[Build] Step 2: Running CMake...")
     cmake_cmd = [get_cmake_cmd(), "-S", ".", "-B", "build"]
     if sys.platform == "win32":

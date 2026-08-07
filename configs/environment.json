@@ -14,6 +14,11 @@
         "version": "1.13.0",
         "install_in_venv": true
     },
+    "dxc": {
+        "version": "v1.9.2607",
+        "asset": "dxc_2026_07_29.zip",
+        "url_prefixes": []
+    },
     "msvc": {
         "search_paths": [
             "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional",

@@ -15,6 +15,7 @@ from pathlib import Path
 # Allow importing env_config from the same directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from env_config import get_project_root, load_env_config
+from ensure_dxc import ensure_dxc
 
 PROJECT_ROOT = get_project_root()
 VENV_DIR = PROJECT_ROOT / ".venv"
@@ -251,6 +252,7 @@ def main():
         initialize_conan(str(conan))
     write_env_hint(conan_home)
     write_activation_scripts(conan_home)
+    ensure_dxc(config)
     print_versions()
 
     print("[Setup] Done. You can now run build tasks.")

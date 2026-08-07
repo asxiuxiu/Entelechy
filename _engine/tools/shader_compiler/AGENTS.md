@@ -43,7 +43,7 @@ ShaderCompiler --config <path/to/shaders.json> --output <output_dir>
 ## Architecture Decisions
 
 - **HLSL-first**: Single source language targeting SM 6.0. DXC is the primary compiler.
-- **DXC integration**: Prebuilt binaries in `third_party/dxc/` discovered via `cmake/FindDXC.cmake`. No Conan recipe available.
+- **DXC integration**: Prebuilt binaries in `third_party/dxc/` discovered via `cmake/FindDXC.cmake`. No Conan recipe available. Only headers are committed; `bin/` and `lib/` are gitignored and auto-downloaded by `scripts/tools/ensure_dxc.py` (invoked from `setup_env.py` and `build.py`; version pinned in `configs/environment.json`).
 - **SPIRV-Cross via Conan**: Static link with C API (`spirv-cross/1.4.350.0`). Used offline only — no runtime dependency.
 - **No reflection metadata yet**: CBV/SRV binding reflection deferred to a future iteration when BindGroup system lands.
 - **Combined sampler renaming**: After `build_combined_image_samplers`, each GLSL combined sampler is renamed back to its original HLSL texture name (e.g. `uBaseColorTex`). The auto-generated `_<SPIR-V ID>` names follow first-use order, not register order — never bind by them from C++.

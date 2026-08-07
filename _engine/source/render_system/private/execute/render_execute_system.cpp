@@ -59,17 +59,17 @@ RenderExecuteSystem::~RenderExecuteSystem()
         shutdown();
 }
 
-bool RenderExecuteSystem::init()
+bool RenderExecuteSystem::init(IRHIDevice *device)
 {
     if (m_initialized)
         return true;
 
-    m_device = std::make_unique<GLRHIDevice>();
-    if (!m_device->initialize())
+    if (!device)
     {
-        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: failed to initialize GLRHIDevice");
+        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: null device");
         return false;
     }
+    m_device = device;
 
     m_shader_cache = std::make_unique<ShaderCache>();
 
@@ -95,17 +95,14 @@ void RenderExecuteSystem::shutdown()
     m_sky_vbo.reset();
     m_sky_ready = false;
     m_shader_cache.reset();
-    if (m_device)
-    {
-        m_device->shutdown();
-        m_device.reset();
-    }
+    // Device is borrowed — do not shut it down or delete it here.
+    m_device = nullptr;
     m_initialized = false;
 }
 
 IRHIDevice *RenderExecuteSystem::device()
 {
-    return m_device.get();
+    return m_device;
 }
 
 ShaderCache *RenderExecuteSystem::shaderCache()
@@ -115,7 +112,12 @@ ShaderCache *RenderExecuteSystem::shaderCache()
 
 usize RenderExecuteSystem::psoCacheSize() const
 {
-    return m_device ? m_device->getPSOManager().getCacheSize() : 0;
+    // PSO cache size is only available on the GL backend. Other backends
+    // will need their own query path once they exist.
+    if (!m_device || m_device->getBackendType() != RenderBackendType::OpenGL)
+        return 0;
+    auto *glDevice = static_cast<GLRHIDevice *>(m_device);
+    return glDevice->getPSOManager().getCacheSize();
 }
 
 bool RenderExecuteSystem::initSkyPass()
@@ -150,7 +152,7 @@ bool RenderExecuteSystem::initSkyPass()
     pipelineDesc.depthStencilState.depthWrite = false;
     pipelineDesc.depthStencilState.depthFunc = CompareFunc::LessEqual;
 
-    if (!m_sky_material.init(m_device.get(), m_shader_cache.get(), s_skyVertexShader, s_skyFragmentShader, params, 4,
+    if (!m_sky_material.init(m_device, m_shader_cache.get(), s_skyVertexShader, s_skyFragmentShader, params, 4,
                              pipelineDesc))
         return false;
 

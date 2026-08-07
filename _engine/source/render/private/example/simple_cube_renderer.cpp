@@ -118,17 +118,17 @@ bool SimpleCubeRenderer::createMesh()
     return true;
 }
 
-bool SimpleCubeRenderer::init()
+bool SimpleCubeRenderer::init(IRHIDevice *device)
 {
     if (m_initialized)
         return true;
 
-    m_device = std::make_unique<GLRHIDevice>();
-    if (!m_device->initialize())
+    if (!device)
     {
-        LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to initialize GLRHIDevice");
+        LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: null device");
         return false;
     }
+    m_device = device;
 
     m_shader_cache = std::make_unique<ShaderCache>();
 
@@ -144,7 +144,7 @@ bool SimpleCubeRenderer::init()
     pipelineDesc.depthStencilState.depthTest = true;
     pipelineDesc.depthStencilState.depthWrite = true;
 
-    if (!m_material.init(m_device.get(), m_shader_cache.get(), s_vertexShader, s_fragmentShader, params, 2,
+    if (!m_material.init(m_device, m_shader_cache.get(), s_vertexShader, s_fragmentShader, params, 2,
                          pipelineDesc))
     {
         LOG_ERROR(LogCategories::kEngine, "SimpleCubeRenderer: failed to init material");
@@ -171,11 +171,8 @@ void SimpleCubeRenderer::shutdown()
     m_index_buffer.reset();
     m_vertex_buffer.reset();
     m_shader_cache.reset();
-    if (m_device)
-    {
-        m_device->shutdown();
-        m_device.reset();
-    }
+    // Device is borrowed — do not shut it down or delete it here.
+    m_device = nullptr;
     m_initialized = false;
 }
 

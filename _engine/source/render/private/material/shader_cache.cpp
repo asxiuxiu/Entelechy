@@ -29,7 +29,14 @@ RHIShaderRef ShaderCache::getOrCreateShader(IRHIDevice *device, ShaderStage stag
         return *existing;
     }
 
-    auto shader = device->createShader(stage, source, length);
+    ShaderBytecode bytecode{};
+    bytecode.stage = stage;
+    bytecode.format = ShaderBytecodeFormat::GLSL;
+    bytecode.data = source;
+    bytecode.size = length;
+    bytecode.entryPoint = "main";
+
+    auto shader = device->createShader(bytecode);
     if (shader)
     {
         m_cache.insert(key, shader);

@@ -11,7 +11,7 @@
 namespace Entelechy
 {
 
-bool RenderFrameRunner::init(IWindow *window)
+bool RenderFrameRunner::init(IWindow *window, IRHIDevice *device)
 {
     if (m_initialized)
         return true;
@@ -22,7 +22,7 @@ bool RenderFrameRunner::init(IWindow *window)
     m_render_world.extractSchedule().registerSystem(&m_extract_sky);
     m_render_world.extractSchedule().registerSystem(&m_extract_renderables);
 
-    if (!m_execute.init())
+    if (!m_execute.init(device))
     {
         LOG_ERROR(LogCategories::kEngine, "RenderFrameRunner: failed to init RenderExecuteSystem");
         return false;

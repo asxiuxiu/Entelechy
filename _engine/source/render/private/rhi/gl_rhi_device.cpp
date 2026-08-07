@@ -1,7 +1,10 @@
 #include "render/rhi/gl_rhi_device.h"
+#include "window/window.h"
 #include "log/core/log_macros.h"
 #include "core/allocator/allocator.h"
 #include "core/string/string_intern_pool.h"
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <cstring>
 #include <memory>
 
@@ -580,10 +583,82 @@ void GLCommandList::clearRenderTarget(u32 /*attachmentIndex*/, const f32 color[4
 }
 
 // ==================================================================
+// GLFence
+// ==================================================================
+
+GLFence::GLFence(RHIFenceValue initialValue) : m_signaled_value(initialValue) {}
+
+GLFence::~GLFence()
+{
+    if (m_sync)
+    {
+        glDeleteSync(m_sync);
+        m_sync = nullptr;
+    }
+}
+
+void GLFence::signal(RHIFenceValue value)
+{
+    // Delete any previous sync object before creating a new one.
+    if (m_sync)
+    {
+        glDeleteSync(m_sync);
+    }
+    m_sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    m_signaled_value = value;
+}
+
+bool GLFence::wait(RHIFenceValue value, u64 timeoutNs)
+{
+    if (!m_sync || value > m_signaled_value)
+        return false;
+
+    // Convert nanoseconds to microseconds for glClientWaitSync.
+    // GL_TIMEOUT_IGNORED maps to UINT64_MAX.
+    GLuint64 timeoutUs = (timeoutNs == UINT64_MAX) ? GL_TIMEOUT_IGNORED : static_cast<GLuint64>(timeoutNs / 1000);
+    GLenum result = glClientWaitSync(m_sync, GL_SYNC_FLUSH_COMMANDS_BIT, timeoutUs);
+    return (result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED);
+}
+
+RHIFenceValue GLFence::getCompletedValue() const
+{
+    if (!m_sync)
+        return m_signaled_value;
+
+    GLenum result = glClientWaitSync(m_sync, 0, 0);
+    if (result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED)
+    {
+        return m_signaled_value;
+    }
+    // Not yet signaled — return the last known completed value (0 initially).
+    return 0;
+}
+
+bool GLFence::isSignaled(RHIFenceValue value) const
+{
+    if (value > m_signaled_value)
+        return false;
+    if (!m_sync)
+        return true;
+
+    GLenum result = glClientWaitSync(m_sync, 0, 0);
+    return (result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED);
+}
+
+void GLFence::onDestroy()
+{
+    if (m_sync)
+    {
+        glDeleteSync(m_sync);
+        m_sync = nullptr;
+    }
+}
+
+// ==================================================================
 // GLRHIDevice
 // ==================================================================
 
-GLRHIDevice::GLRHIDevice() = default;
+GLRHIDevice::GLRHIDevice(IWindow *window) : m_window(window) {}
 
 GLRHIDevice::~GLRHIDevice()
 {
@@ -770,9 +845,17 @@ RHITextureRef GLRHIDevice::createTexture(const TextureDesc &desc, const void *in
     }
 }
 
-RHIShaderRef GLRHIDevice::createShader(ShaderStage stage, const void *bytecode, size_t size)
+RHIShaderRef GLRHIDevice::createShader(const ShaderBytecode &bytecode)
 {
-    GLenum glStage = getGLShaderStage(stage);
+    if (bytecode.format != ShaderBytecodeFormat::GLSL)
+    {
+        LOG_ERROR(LogCategories::kEngine,
+                  "GLRHIDevice::createShader: unsupported format %u (only GLSL supported)",
+                  static_cast<u32>(bytecode.format));
+        return nullptr;
+    }
+
+    GLenum glStage = getGLShaderStage(bytecode.stage);
     GLuint shader = glCreateShader(glStage);
     if (!shader)
     {
@@ -780,8 +863,8 @@ RHIShaderRef GLRHIDevice::createShader(ShaderStage stage, const void *bytecode, 
         return nullptr;
     }
 
-    const GLchar *source = static_cast<const GLchar *>(bytecode);
-    GLint length = static_cast<GLint>(size);
+    const GLchar *source = static_cast<const GLchar *>(bytecode.data);
+    GLint length = static_cast<GLint>(bytecode.size);
     glShaderSource(shader, 1, &source, &length);
     glCompileShader(shader);
 
@@ -796,7 +879,7 @@ RHIShaderRef GLRHIDevice::createShader(ShaderStage stage, const void *bytecode, 
         return nullptr;
     }
 
-    auto *glShader = allocateResource<GLShader>(stage, shader);
+    auto *glShader = allocateResource<GLShader>(bytecode.stage, shader);
     glShader->setDevice(this);
     trackResourceCreated(glShader);
     return RHIShaderRef(glShader);
@@ -814,6 +897,14 @@ RHIPipelineStateRef GLRHIDevice::createPipelineState(const PipelineStateDesc &de
     if (pso)
         m_pso_manager.insert(desc, pso);
     return pso;
+}
+
+RHIFenceRef GLRHIDevice::createFence(RHIFenceValue initialValue)
+{
+    auto *fence = allocateResource<GLFence>(initialValue);
+    fence->setDevice(this);
+    trackResourceCreated(fence);
+    return RHIFenceRef(fence);
 }
 
 RHIPipelineStateRef GLRHIDevice::createPipelineStateUncached(const PipelineStateDesc &desc)
@@ -871,11 +962,106 @@ void GLRHIDevice::submit(IRHICommandList *cmdList)
     cmdList->end();
 }
 
-void GLRHIDevice::present()
+// -- Surface lifecycle -----------------------------------------------------
+
+bool GLRHIDevice::initSurface(const SurfaceDesc &desc)
 {
-    // SwapBuffers is handled by OpenGLBackend / Window layer.
-    // Signal the end of the frame so deferred deletes have a fence to wait on.
+    if (m_initialized)
+        return true;
+
+    // The window must have been set via constructor or externally before
+    // calling initSurface. If a nativeWindow handle is provided but no
+    // IWindow was set, we cannot proceed (GL context creation requires
+    // the IWindow abstraction).
+    if (!m_window)
+    {
+        LOG_ERROR(LogCategories::kEngine, "GLRHIDevice::initSurface: no IWindow associated");
+        return false;
+    }
+
+    m_window->makeContextCurrent();
+
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        LOG_ERROR(LogCategories::kEngine, "GLAD init failed");
+        return false;
+    }
+
+    LOG_INFO(LogCategories::kEngine, "OpenGL %s | GPU: %s", glGetString(GL_VERSION),
+             glGetString(GL_RENDERER));
+
+    m_settings.vsync = desc.vsync;
+    glfwSwapInterval(m_settings.vsync ? 1 : 0);
+
+    if (desc.width > 0 && desc.height > 0)
+    {
+        glViewport(0, 0, static_cast<GLsizei>(desc.width), static_cast<GLsizei>(desc.height));
+    }
+    else
+    {
+        int w, h;
+        m_window->getSize(w, h);
+        glViewport(0, 0, w, h);
+    }
+
+    m_initialized = true;
+    LOG_INFO(LogCategories::kEngine, "GLRHIDevice surface initialized");
+    return true;
+}
+
+void GLRHIDevice::shutdownSurface()
+{
+    // Surface teardown is lightweight for OpenGL — the context is owned
+    // by the window. Full resource cleanup happens in shutdown().
+    m_window = nullptr;
+}
+
+void GLRHIDevice::beginFrame()
+{
+    if (!m_window)
+        return;
+    int width, height;
+    m_window->getSize(width, height);
+    glViewport(0, 0, width, height);
+}
+
+void GLRHIDevice::endFrame()
+{
+    if (m_window)
+    {
+        m_window->swapBuffers();
+    }
     signalFrame();
+}
+
+void GLRHIDevice::setClearColor(f32 r, f32 g, f32 b, f32 a)
+{
+    m_settings.clearColor[0] = r;
+    m_settings.clearColor[1] = g;
+    m_settings.clearColor[2] = b;
+    m_settings.clearColor[3] = a;
+}
+
+void GLRHIDevice::clear(ClearFlags flags)
+{
+    GLbitfield mask = 0;
+    if (hasFlag(flags, ClearFlags::Color))
+    {
+        glClearColor(m_settings.clearColor[0], m_settings.clearColor[1],
+                     m_settings.clearColor[2], m_settings.clearColor[3]);
+        mask |= GL_COLOR_BUFFER_BIT;
+    }
+    if (hasFlag(flags, ClearFlags::Depth))
+        mask |= GL_DEPTH_BUFFER_BIT;
+    if (hasFlag(flags, ClearFlags::Stencil))
+        mask |= GL_STENCIL_BUFFER_BIT;
+    if (mask)
+        glClear(mask);
+}
+
+void GLRHIDevice::resizeSurface(u32 width, u32 height)
+{
+    glViewport(0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height));
 }
 
 RHIFenceValue GLRHIDevice::signalFrame()
@@ -1127,6 +1313,18 @@ void GLCommandList::bindTexture(u32 slot, RHITexture *texture)
     auto *glTex = static_cast<GLTexture *>(texture);
     glActiveTexture(GL_TEXTURE0 + slot);
     glBindTexture(glTex->getTarget(), glTex->getTexture());
+}
+
+void GLCommandList::bindConstantBuffer(u32 /*binding*/, RHIBuffer * /*buffer*/, u32 /*offset*/, u32 /*size*/)
+{
+    // No-op on OpenGL for now. When the UBO/CBV unified binding layer lands,
+    // this will translate to glBindBufferBase(GL_UNIFORM_BUFFER, binding, ...).
+}
+
+void GLCommandList::setPushConstants(u32 /*offset*/, const void * /*data*/, u32 /*size*/)
+{
+    // No-op on OpenGL. Push constants map to root constants (D3D12) or
+    // vkCmdPushConstants (Vulkan). GL uses glUniform* instead.
 }
 
 // ------------------------------------------------------------------

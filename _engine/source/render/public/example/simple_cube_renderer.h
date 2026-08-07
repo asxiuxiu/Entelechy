@@ -18,7 +18,7 @@ class GLRHIDevice;
 // Minimal cube renderer for visual validation.
 // Indexed cube mesh + MVP shader, now backed by Material + RHI.
 //
-// Uses an internal GLRHIDevice to exercise the RHI layer.
+// Accepts an externally-owned IRHIDevice to exercise the RHI layer.
 // Future: cube mesh and material will be managed by ECS + render pipeline.
 // ------------------------------------------------------------------
 class SimpleCubeRenderer
@@ -27,7 +27,8 @@ public:
     SimpleCubeRenderer();
     ~SimpleCubeRenderer();
 
-    bool init();
+    // Initialize with an externally-owned device. Device must outlive this object.
+    bool init(IRHIDevice *device);
     void shutdown();
 
     // Draw one cube. color is RGB, mvp is model-view-projection matrix.
@@ -43,8 +44,8 @@ public:
 private:
     bool createMesh();
 
-    std::unique_ptr<GLRHIDevice> m_device;
     std::unique_ptr<ShaderCache> m_shader_cache;
+    IRHIDevice *m_device = nullptr; // Borrowed, not owned
     Material m_material;
 
     RHIBufferRef m_vertex_buffer;

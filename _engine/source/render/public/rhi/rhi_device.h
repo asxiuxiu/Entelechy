@@ -10,39 +10,79 @@ namespace Entelechy
 
 // Forward declarations
 class IRHICommandList;
+class IWindow;
 
 // ------------------------------------------------------------------
-// IRHIDevice: GPU resource factory and queue manager
+// Render settings (clear color, vsync) — carried by the device
+// ------------------------------------------------------------------
+struct RenderSettings
+{
+    f32 clearColor[4] = {0.15f, 0.17f, 0.13f, 1.0f};
+    bool vsync = true;
+};
+
+// ------------------------------------------------------------------
+// IRHIDevice: Unified GPU device interface
 //
-// Design aligns with UE's FDynamicRHI as the "maximum common
-// denominator" across backends. Each backend implements resource
-// creation in its own native API.
+// Combines resource factory, command submission, surface/window
+// management, and frame synchronization into a single interface.
+// Design follows UE's FDynamicRHI / SDL_GPUDevice pattern where
+// the device owns both the GPU context and the presentation surface.
 //
-// OpenGL backend implements this with immediate execution. The interface
-// shape is future-proof for D3D12/Vulkan.
+// Each backend (OpenGL, D3D12, Vulkan) implements this interface.
 // ------------------------------------------------------------------
 class IRHIDevice
 {
 public:
     virtual ~IRHIDevice() = default;
 
+    // -- Surface lifecycle -------------------------------------------------
+    // Initialize the rendering surface (window/context/swapchain).
+    // Must be called before any other method.
+    virtual bool initSurface(const SurfaceDesc &desc) = 0;
+
+    // Tear down the surface. Safe to call multiple times.
+    virtual void shutdownSurface() = 0;
+
+    // Prepare for a new frame (e.g. acquire swapchain image, reset viewport).
+    virtual void beginFrame() = 0;
+
+    // End the current frame: present the rendered image and signal the
+    // frame fence. Replaces the old separate present() + signalFrame().
+    virtual void endFrame() = 0;
+
+    // Set the clear color used by subsequent clear() calls.
+    virtual void setClearColor(f32 r, f32 g, f32 b, f32 a) = 0;
+
+    // Clear the specified attachments of the current framebuffer.
+    virtual void clear(ClearFlags flags) = 0;
+
+    // Handle window resize (recreate swapchain if needed).
+    virtual void resizeSurface(u32 width, u32 height) = 0;
+
     // -- Resource creation ------------------------------------------------
     virtual RHIBufferRef createBuffer(const BufferDesc &desc, const void *initialData) = 0;
     virtual RHITextureRef createTexture(const TextureDesc &desc, const void *initialData) = 0;
-    virtual RHIShaderRef createShader(ShaderStage stage, const void *bytecode, size_t size) = 0;
+
+    // Create a shader from backend-specific bytecode.
+    // GL: GLSL source text (format = GLSL). D3D12: DXIL binary. Vulkan: SPIR-V.
+    virtual RHIShaderRef createShader(const ShaderBytecode &bytecode) = 0;
+
     virtual RHIPipelineStateRef createPipelineState(const PipelineStateDesc &desc) = 0;
+
+    // Create a standalone fence object for multi-queue synchronization.
+    virtual RHIFenceRef createFence(RHIFenceValue initialValue = 0) = 0;
 
     // -- Command context --------------------------------------------------
     virtual IRHICommandList *createCommandList() = 0;
 
-    // -- Submission and presentation --------------------------------------
+    // -- Submission -------------------------------------------------------
     virtual void submit(IRHICommandList *cmdList) = 0;
-    virtual void present() = 0;
 
     // -- Frame fencing -----------------------------------------------------
     // Insert a GPU fence after all previously submitted commands and return
-    // its monotonic value. Safe to call once per frame at the end of the
-    // frame (after present).
+    // its monotonic value. Called internally by endFrame(); exposed for
+    // advanced use cases (e.g. async compute).
     virtual RHIFenceValue signalFrame() = 0;
 
     // Return the highest frame value whose fence has been signaled by the GPU.
@@ -120,7 +160,9 @@ public:
     virtual void drawIndexed(u32 indexCount, u32 startIndex, i32 baseVertex) = 0;
     virtual void draw(u32 vertexCount, u32 startVertex) = 0;
 
-    // Resource barriers (simplified; no-op on GL backend)
+    // Resource barriers: transition resources between states for correct
+    // GPU access. No-op on OpenGL (driver manages state implicitly).
+    // Required for D3D12/Vulkan correctness.
     virtual void resourceBarrier(const BarrierDesc *barriers, u32 count) = 0;
 
     // Clear render target attachment (convenience)
@@ -138,6 +180,15 @@ public:
     virtual void setUniformMat3(StringId name, const f32 *value, bool transpose = false) = 0;
     virtual void setUniformMat4(StringId name, const f32 *value, bool transpose = false) = 0;
     virtual void bindTexture(u32 slot, RHITexture *texture) = 0;
+
+    // -- Constant buffer / push constant binding ---------------------------
+    // Bind a constant/uniform buffer at the given binding point.
+    // D3D12: CBV descriptor table. Vulkan: descriptor set. GL: glBindBufferBase.
+    virtual void bindConstantBuffer(u32 binding, RHIBuffer *buffer, u32 offset, u32 size) = 0;
+
+    // Upload push constants inline (small per-draw data).
+    // D3D12: root constants. Vulkan: vkCmdPushConstants. GL: no-op (uniforms used instead).
+    virtual void setPushConstants(u32 offset, const void *data, u32 size) = 0;
 
     // -- Debug markers -----------------------------------------------------
     // Map to platform debug groups (PIX events, RenderDoc labels, etc.)

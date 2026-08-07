@@ -6,7 +6,8 @@
 #include "window/input/input_queue.h"
 #include "window/input/input_event.h"
 #include "log/core/log_macros.h"
-#include "render/rhi/opengl_backend.h"
+#include "render/rhi/rhi_device_factory.h"
+#include "render/rhi/gl_rhi_device.h"
 #include "render_system/frame/render_frame_runner.h"
 #include "render_system/components/directional_light.h"
 #include "render_system/components/sky_settings.h"
@@ -56,10 +57,23 @@ int main() {
 
     LOG_INFO(Entelechy::LogCategories::kWindow, "Window created. Press ESC to close.");
 
-    // Initialize graphics backend
-    auto render = std::make_unique<Entelechy::OpenGLBackend>(window.get());
-    if (!render->init(nullptr)) {
-        LOG_ERROR(Entelechy::LogCategories::kEngine, "Failed to initialize graphics backend");
+    // Initialize graphics backend (unified device + surface)
+    auto device = Entelechy::createRHIDevice(Entelechy::RenderBackendType::OpenGL);
+    if (!device) {
+        LOG_ERROR(Entelechy::LogCategories::kEngine, "Failed to create RHI device");
+        return -1;
+    }
+    // The factory creates a default GLRHIDevice without a window. Re-create
+    // with the window pointer so initSurface() can set up the GL context.
+    device = std::unique_ptr<Entelechy::IRHIDevice>(new Entelechy::GLRHIDevice(window.get()));
+
+    Entelechy::SurfaceDesc surfaceDesc{};
+    surfaceDesc.nativeWindow = window->getGlfwWindow();
+    surfaceDesc.width = static_cast<unsigned>(winW);
+    surfaceDesc.height = static_cast<unsigned>(winH);
+    surfaceDesc.vsync = true;
+    if (!device->initSurface(surfaceDesc)) {
+        LOG_ERROR(Entelechy::LogCategories::kEngine, "Failed to initialize graphics surface");
         return -1;
     }
 
@@ -92,7 +106,7 @@ int main() {
 
     // Render frame runner (Extract -> Cull -> Queue -> Execute)
     Entelechy::RenderFrameRunner frameRunner;
-    if (!frameRunner.init(window.get())) {
+    if (!frameRunner.init(window.get(), device.get())) {
         LOG_ERROR(Entelechy::LogCategories::kEngine, "Failed to init render frame runner");
         return -1;
     }
@@ -267,9 +281,9 @@ int main() {
         imgui->render();
 
         // ===== Render frame =====
-        render->beginFrame();
-        render->setClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-        render->clear();
+        device->beginFrame();
+        device->setClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+        device->clear(Entelechy::ClearFlags::Color | Entelechy::ClearFlags::Depth);
 
         // ===== Render frame: Extract -> Cull -> Queue -> Execute =====
         frameRunner.runFrame(world, dt);
@@ -278,7 +292,8 @@ int main() {
         imgui->renderDrawData();
         imgui->updatePlatformWindows();
 
-        render->present();
+        // End frame: present + signal fence
+        device->endFrame();
 
         // ===== GPU resource lifecycle: signal frame fence and flush safe deletes =====
         frameRunner.endFrame();
@@ -303,10 +318,10 @@ int main() {
 
     app.teardown();
 
-    // Shutdown order: render frame runner, then ImGui (uses GL context), then render, then window
+    // Shutdown order: render frame runner, then ImGui (uses GL context), then device surface, then window
     frameRunner.shutdown();
     imgui->shutdown();
-    render->shutdown();
+    device->shutdownSurface();
     window->destroy();
 
     LOG_INFO(Entelechy::LogCategories::kEngine, "Window closed. Goodbye.");

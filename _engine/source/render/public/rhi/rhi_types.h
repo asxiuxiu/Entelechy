@@ -4,13 +4,18 @@
 namespace Entelechy
 {
 
+// Forward declaration — BarrierDesc references GPUResource but the full
+// definition lives in rhi_resources.h. We only need a pointer here.
+class GPUResource;
+
 // ------------------------------------------------------------------
 // Backend type enumeration
 // ------------------------------------------------------------------
 enum class RenderBackendType : u32
 {
     OpenGL,
-    // Future: D3D12, Vulkan, Metal, WebGPU
+    D3D12,
+    Vulkan,
 };
 
 // ------------------------------------------------------------------
@@ -269,19 +274,111 @@ struct RenderPassDesc
 };
 
 // ------------------------------------------------------------------
-// Resource barrier types (simplified)
+// Shader bytecode format (multi-backend)
 // ------------------------------------------------------------------
-enum class ResourceBarrierType : u32
+enum class ShaderBytecodeFormat : u32
 {
-    UndefinedToRenderTarget,
-    RenderTargetToPresent,
-    RenderTargetToShaderResource,
-    ShaderResourceToRenderTarget,
+    GLSL,  // OpenGL: source text
+    SPIRV, // Vulkan: SPIR-V binary
+    DXIL,  // D3D12: DXIL binary (SM 6.0+)
 };
 
+// ------------------------------------------------------------------
+// Shader bytecode descriptor
+// ------------------------------------------------------------------
+struct ShaderBytecode
+{
+    ShaderStage stage = ShaderStage::None;
+    ShaderBytecodeFormat format = ShaderBytecodeFormat::GLSL;
+    const void *data = nullptr;
+    size_t size = 0;
+    const char *entryPoint = "main";
+};
+
+// ------------------------------------------------------------------
+// Resource state flags (for barrier transitions)
+//
+// Bitmask covering all states needed across D3D12 / Vulkan / OpenGL.
+// OpenGL backend treats barriers as no-op (driver manages state).
+// ------------------------------------------------------------------
+enum class ResourceState : u32
+{
+    Common = 0,
+    VertexBuffer = 1 << 0,
+    IndexBuffer = 1 << 1,
+    ConstantBuffer = 1 << 2,
+    ShaderResource = 1 << 3,
+    UnorderedAccess = 1 << 4,
+    RenderTarget = 1 << 5,
+    DepthWrite = 1 << 6,
+    DepthRead = 1 << 7,
+    CopySource = 1 << 8,
+    CopyDest = 1 << 9,
+    Present = 1 << 10,
+};
+inline ResourceState operator|(ResourceState a, ResourceState b)
+{
+    return static_cast<ResourceState>(static_cast<u32>(a) | static_cast<u32>(b));
+}
+inline ResourceState operator&(ResourceState a, ResourceState b)
+{
+    return static_cast<ResourceState>(static_cast<u32>(a) & static_cast<u32>(b));
+}
+inline bool hasFlag(ResourceState flags, ResourceState flag)
+{
+    return (static_cast<u32>(flags) & static_cast<u32>(flag)) != 0;
+}
+
+// ------------------------------------------------------------------
+// Clear flags (bitmask)
+// ------------------------------------------------------------------
+enum class ClearFlags : u32
+{
+    None = 0,
+    Color = 1 << 0,
+    Depth = 1 << 1,
+    Stencil = 1 << 2,
+};
+inline ClearFlags operator|(ClearFlags a, ClearFlags b)
+{
+    return static_cast<ClearFlags>(static_cast<u32>(a) | static_cast<u32>(b));
+}
+inline ClearFlags operator&(ClearFlags a, ClearFlags b)
+{
+    return static_cast<ClearFlags>(static_cast<u32>(a) & static_cast<u32>(b));
+}
+inline bool hasFlag(ClearFlags flags, ClearFlags flag)
+{
+    return (static_cast<u32>(flags) & static_cast<u32>(flag)) != 0;
+}
+
+// ------------------------------------------------------------------
+// Surface descriptor (window/surface association for device init)
+// ------------------------------------------------------------------
+struct SurfaceDesc
+{
+    void *nativeWindow = nullptr; // GLFWwindow* for GL, HWND for D3D12
+    u32 width = 0;
+    u32 height = 0;
+    bool vsync = true;
+};
+
+// ------------------------------------------------------------------
+// Resource barrier descriptor (multi-backend)
+//
+// Describes a state transition for a specific GPU resource. Each
+// backend translates this to its native barrier API:
+//   - D3D12: D3D12_RESOURCE_BARRIER
+//   - Vulkan: VkImageMemoryBarrier / VkBufferMemoryBarrier
+//   - OpenGL: no-op (driver manages state implicitly)
+// ------------------------------------------------------------------
 struct BarrierDesc
 {
-    ResourceBarrierType type;
+    GPUResource *resource = nullptr;
+    ResourceState beforeState = ResourceState::Common;
+    ResourceState afterState = ResourceState::Common;
+    u32 mipLevel = ~0u;    // ~0u = all mip levels
+    u32 arrayLayer = ~0u;  // ~0u = all layers
 };
 
 // ------------------------------------------------------------------

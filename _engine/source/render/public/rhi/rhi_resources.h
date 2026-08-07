@@ -209,11 +209,38 @@ class RHIPipelineState : public GPUResource
 };
 
 // ------------------------------------------------------------------
+// Fence interface (multi-queue ready)
+//
+// Represents a monotonically increasing GPU timeline. Signal on one
+// queue, wait on another or on CPU. Maps to:
+//   - GL: GL_SYNC_GPU_COMMANDS_COMPLETE
+//   - D3D12: ID3D12Fence
+//   - Vulkan: VkSemaphore (timeline type)
+// ------------------------------------------------------------------
+class IRHIFence : public GPUResource
+{
+public:
+    // Signal the fence to the given value on the GPU.
+    virtual void signal(RHIFenceValue value) = 0;
+
+    // Block the CPU until the fence reaches the given value.
+    // Returns true if signaled, false on timeout.
+    virtual bool wait(RHIFenceValue value, u64 timeoutNs = UINT64_MAX) = 0;
+
+    // Non-blocking query of the highest completed value.
+    virtual RHIFenceValue getCompletedValue() const = 0;
+
+    // Non-blocking check whether a specific value has been reached.
+    virtual bool isSignaled(RHIFenceValue value) const = 0;
+};
+
+// ------------------------------------------------------------------
 // Type aliases
 // ------------------------------------------------------------------
 using RHIBufferRef = RHIRef<RHIBuffer>;
 using RHITextureRef = RHIRef<RHITexture>;
 using RHIShaderRef = RHIRef<RHIShader>;
 using RHIPipelineStateRef = RHIRef<RHIPipelineState>;
+using RHIFenceRef = RHIRef<IRHIFence>;
 
 } // namespace Entelechy

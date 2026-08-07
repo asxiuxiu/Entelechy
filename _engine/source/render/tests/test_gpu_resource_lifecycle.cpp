@@ -38,11 +38,15 @@ public:
     {
         return nullptr;
     }
-    RHIShaderRef createShader(ShaderStage /*stage*/, const void * /*bytecode*/, size_t /*size*/) override
+    RHIShaderRef createShader(const ShaderBytecode & /*bytecode*/) override
     {
         return nullptr;
     }
     RHIPipelineStateRef createPipelineState(const PipelineStateDesc & /*desc*/) override
+    {
+        return nullptr;
+    }
+    RHIFenceRef createFence(RHIFenceValue /*initialValue*/) override
     {
         return nullptr;
     }
@@ -51,7 +55,14 @@ public:
         return nullptr;
     }
     void submit(IRHICommandList * /*cmdList*/) override {}
-    void present() override {}
+
+    bool initSurface(const SurfaceDesc & /*desc*/) override { return true; }
+    void shutdownSurface() override {}
+    void beginFrame() override {}
+    void endFrame() override {}
+    void setClearColor(f32 /*r*/, f32 /*g*/, f32 /*b*/, f32 /*a*/) override {}
+    void clear(ClearFlags /*flags*/) override {}
+    void resizeSurface(u32 /*width*/, u32 /*height*/) override {}
 
     RHIFenceValue signalFrame() override
     {

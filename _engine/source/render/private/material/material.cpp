@@ -126,8 +126,22 @@ bool Material::init(IRHIDevice *device, ShaderCache *shaderCache, const char *ve
     }
     else
     {
-        m_vertex_shader = device->createShader(ShaderStage::Vertex, vertexSource, vsLen);
-        m_fragment_shader = device->createShader(ShaderStage::Fragment, fragmentSource, fsLen);
+        ShaderBytecode vsBytecode{};
+        vsBytecode.stage = ShaderStage::Vertex;
+        vsBytecode.format = ShaderBytecodeFormat::GLSL;
+        vsBytecode.data = vertexSource;
+        vsBytecode.size = vsLen;
+        vsBytecode.entryPoint = "main";
+
+        ShaderBytecode fsBytecode{};
+        fsBytecode.stage = ShaderStage::Fragment;
+        fsBytecode.format = ShaderBytecodeFormat::GLSL;
+        fsBytecode.data = fragmentSource;
+        fsBytecode.size = fsLen;
+        fsBytecode.entryPoint = "main";
+
+        m_vertex_shader = device->createShader(vsBytecode);
+        m_fragment_shader = device->createShader(fsBytecode);
     }
 
     if (!m_vertex_shader || !m_fragment_shader)

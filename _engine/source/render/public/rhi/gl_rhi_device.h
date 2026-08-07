@@ -9,6 +9,8 @@
 namespace Entelechy
 {
 
+class IWindow;
+
 // ==================================================================
 // OpenGL resource implementations
 // ==================================================================
@@ -143,6 +145,29 @@ private:
 };
 
 // ==================================================================
+// OpenGL Fence implementation
+// ==================================================================
+
+class GLFence : public IRHIFence
+{
+public:
+    explicit GLFence(RHIFenceValue initialValue = 0);
+    ~GLFence() override;
+
+    void signal(RHIFenceValue value) override;
+    bool wait(RHIFenceValue value, u64 timeoutNs = UINT64_MAX) override;
+    RHIFenceValue getCompletedValue() const override;
+    bool isSignaled(RHIFenceValue value) const override;
+
+protected:
+    void onDestroy() override;
+
+private:
+    mutable GLsync m_sync = nullptr;
+    RHIFenceValue m_signaled_value = 0;
+};
+
+// ==================================================================
 // Uniform location cache key
 // ==================================================================
 struct UniformLocKey
@@ -204,6 +229,11 @@ public:
     void setUniformMat4(StringId name, const f32 *value, bool transpose = false) override;
     void bindTexture(u32 slot, RHITexture *texture) override;
 
+    // Constant buffer / push constant binding (no-op on GL for now;
+    // will be translated to glBindBufferBase when UBO path lands).
+    void bindConstantBuffer(u32 binding, RHIBuffer *buffer, u32 offset, u32 size) override;
+    void setPushConstants(u32 offset, const void *data, u32 size) override;
+
     // Debug markers
     void pushDebugGroup(const char *name) override;
     void popDebugGroup() override;
@@ -231,22 +261,32 @@ private:
 class GLRHIDevice : public IRHIDevice
 {
 public:
-    GLRHIDevice();
+    explicit GLRHIDevice(IWindow *window = nullptr);
     ~GLRHIDevice() override;
 
+    // Legacy init (no surface). Prefer initSurface() for new code.
     bool initialize();
     void shutdown();
 
-    // IRHIDevice interface
+    // -- Surface lifecycle (IRHIDevice) ------------------------------------
+    bool initSurface(const SurfaceDesc &desc) override;
+    void shutdownSurface() override;
+    void beginFrame() override;
+    void endFrame() override;
+    void setClearColor(f32 r, f32 g, f32 b, f32 a) override;
+    void clear(ClearFlags flags) override;
+    void resizeSurface(u32 width, u32 height) override;
+
+    // -- Resource creation (IRHIDevice) ------------------------------------
     RHIBufferRef createBuffer(const BufferDesc &desc, const void *initialData) override;
     RHITextureRef createTexture(const TextureDesc &desc, const void *initialData) override;
-    RHIShaderRef createShader(ShaderStage stage, const void *bytecode, size_t size) override;
+    RHIShaderRef createShader(const ShaderBytecode &bytecode) override;
     RHIPipelineStateRef createPipelineState(const PipelineStateDesc &desc) override;
+    RHIFenceRef createFence(RHIFenceValue initialValue = 0) override;
 
     IRHICommandList *createCommandList() override;
 
     void submit(IRHICommandList *cmdList) override;
-    void present() override;
 
     RHIFenceValue signalFrame() override;
     RHIFenceValue getCompletedFenceValue() override;
@@ -294,6 +334,8 @@ private:
     // through m_pso_manager; this is the uncached worker.
     RHIPipelineStateRef createPipelineStateUncached(const PipelineStateDesc &desc);
 
+    IWindow *m_window = nullptr;
+    RenderSettings m_settings;
     PSOManager m_pso_manager;
     GLCommandList m_cmd_list;
     bool m_initialized = false;

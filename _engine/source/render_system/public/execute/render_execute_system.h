@@ -37,9 +37,6 @@ struct ExecuteStats
 // GPU resources are NOT owned here: the Prepare stage resolves asset handles
 // to PreparedMesh/PreparedMaterial; this system only looks them up (falling
 // back to the placeholder cube/pink material while assets stream in).
-//
-// Remaining simplifications (tracked in TODO.md):
-// - Owns a second GLRHIDevice + ShaderCache, same pattern as SimpleCubeRenderer.
 class RenderExecuteSystem
 {
 public:
@@ -49,7 +46,9 @@ public:
     RenderExecuteSystem(const RenderExecuteSystem &) = delete;
     RenderExecuteSystem &operator=(const RenderExecuteSystem &) = delete;
 
-    bool init();
+    // Initialize with an externally-owned RHI device. The device must
+    // outlive this system. Pass nullptr to skip initialization.
+    bool init(IRHIDevice *device);
     void shutdown();
 
     // Device/shader cache access for the Prepare stage (borrowed, not owned).
@@ -79,8 +78,8 @@ private:
     bool initSkyPass();
     void drawSky(const ExtractedView &view, const ExtractedSky &sky, IRHICommandList *cmdList);
 
-    std::unique_ptr<GLRHIDevice> m_device;
     std::unique_ptr<ShaderCache> m_shader_cache;
+    IRHIDevice *m_device = nullptr; // Borrowed, not owned
     Material m_sky_material;
     RHIBufferRef m_sky_vbo;
     bool m_sky_ready = false;

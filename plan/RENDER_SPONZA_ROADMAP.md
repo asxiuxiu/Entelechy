@@ -132,16 +132,173 @@
 
 ---
 
-## 阶段 6+ —— 架构补全（画面已成立，按文档优先级偿还债务）
+## 阶段 6 —— 多后端架构基础（以 DX12 为默认后端，Vulkan 预留）
 
-画面目标达成后，回头按 [RENDER_LAYER_PROGRESS.md](../docs/RENDER_LAYER_PROGRESS.md)「建议的下一步优先级」补架构，每项独立完成、可随时停下：
+> **修订**: 2026-08-07 —— 原"架构补全"拆分为阶段 6（多后端架构基础）与阶段 7+（高级特性）。核心目标：将渲染管线从 OpenGL-only 重构为真正的多后端架构，DX12 作为默认生产后端，OpenGL 保留为调试/兼容后端，Vulkan 接口预留。每项子任务独立可验收、可随时停下。
+> **原则**: 先让 DX12 跑通现有 Sponza 画面（功能等价），再做架构优化；避免"为了抽象而抽象"的过度设计。
 
-1. **5.7 RenderGraph 最小实现**（<500 行编译器：拓扑排序 + 死 Pass 剔除 + Barrier 插入）——为阴影 pass、后处理（5.18/5.19）铺路。
-2. **5.1 延迟命令缓冲**——`RenderCommandBuffer` + `LinearAllocator`，修复立即执行偏离，为 D3D12 过渡铺路。
-3. **5.11/5.12 材质 TAI 三层 + 着色器变体/缓存**——替换 Phase 1 简化 Material 临时代码。
-4. **5.13 BindGroup/UBO 分层**——解决 10+ 材质时 `glUniform*` 性能问题。
-5. **5.3b PSO 异步编译**、**5.5 BVH 空间加速**（Sponza 数百实体可暂缓，场景变大后必做）。
-6. **5.15/5.16/5.17** 2D/字体/UI——阶段 6 自研 UI 框架的前置。
+### 6a. RHI 接口审计与多后端对齐 ✅ 已完成（2026-08-07）
+
+**目标**: 审视并调整 `IRHIDevice` / `IRHICommandList` / `IRenderBackend` 接口，使其真正适配 D3D12/Vulkan 语义，而非仅面向 OpenGL 的薄包装。
+
+**主要工作**:
+
+1. **`IRenderBackend` ↔ `IRHIDevice` 合并或重定义**：当前两者分离（swapchain/frame 管理 vs 资源工厂+命令提交），但 D3D12/Vulkan 中 swapchain 与 device/queue 紧耦合。评估两种方案：(A) 合并为单一 `IRHIDevice`；(B) 保留分层但让 `IRenderBackend` 持有 `IRHIDevice` 引用并由设备创建。**决策点：先在知识库检索 UE/Bevy/FNA 的多后端 RHI 分层实践，再选定方案。**
+2. **`BarrierDesc` 扩展**：当前仅 4 种状态（Undefined/Common/RenderTarget/ShaderResource），D3D12 需要 UAV、Copy Source/Dest、Resolve、Present 等完整 `D3D12_RESOURCE_STATES` 映射。重新设计为位掩码或枚举集合，同时保持 GL 后端的 no-op 语义。
+3. **`IRHICommandList::setUniform*` 废弃路径规划**：当前 per-draw uniform 上传是纯 GL 语义。D3D12 走 Root Constants / CBV Descriptor Table，Vulkan 走 Push Constants / Descriptor Set。制定统一替代方案：引入 `bindConstantBuffer(binding, offset, size)` + `setPushConstants(offset, data)` 接口，GL 后端内部仍翻译为 `glUniform*`（UBO 过渡期兼容）。
+4. **`createShader()` 接口调整**：当前接受 GLSL 源码字符串。D3D12 需要 DXIL 字节码，Vulkan 需要 SPIR-V。改为接受 `ShaderBytecode { stage, format(SPIRV|DXIL|GLSL), data, entryPoint }` 结构体；GL 后端继续吃 GLSL，D3D12/VK 后端吃编译产物。离线编译工具链在 6c 落地。
+5. **Fence/Sync 模型泛化**：当前 `GLsync` 单队列模型。扩展 `IRHIFence` 为独立资源类型（`createFence()` / `signalFence()` / `waitFence()` / `getCompletedValue()`），支持多队列同步。GL 后端用 `GL_SYNC_GPU_COMMANDS_COMPLETE` 模拟。
+6. **`RenderBackendType` 枚举扩展**：新增 `D3D12`、`Vulkan` 值；设备工厂函数 `createRHIDevice(RenderBackendType)` 集中到 `rhi_device_factory.h`。
+
+**验证**: 接口改动后 GL 后端编译通过 + 既有测试全绿 + Sponza 画面无回归。接口变更记入 `docs/RENDER_LAYER_PROGRESS.md` 5.1 节。
+
+> **落地记录（2026-08-07）**：六项子任务全部完成。(1) 行业调研确认 UE/SDL GPU/bgfx 均为 device+backend 合一模式，选择方案 A 完全合并——删除 `IRenderBackend`/`OpenGLBackend`，surface 生命周期 7 个方法并入 `IRHIDevice`，设备由 main() 持有、RenderExecuteSystem 借用。(2) `ResourceState` 位掩码 12 种状态 + resource-referencing `BarrierDesc`（含 mipLevel/arrayLayer），旧 `ResourceBarrierType` 移除。(3) `bindConstantBuffer()` + `setPushConstants()` 新增到 `IRHICommandList`，GL 实现 no-op；现有 `setUniform*` 保留待 6e 迁移。(4) `createShader()` 改接受 `ShaderBytecode{stage, format, data, size, entryPoint}`，GL 后端校验 format==GLSL。(5) `IRHIFence` 提取为 GPUResource 子类（signal/wait/getCompletedValue/isSignaled），`GLFence` 底层 GLsync，`createFence()` 工厂方法就位。(6) `RenderBackendType` 扩展 D3D12/Vulkan，`createRHIDevice()` 工厂函数建立。Debug 构建通过，223 测试全绿。详细变更记录见 `docs/RENDER_LAYER_PROGRESS.md` 5.1 节。
+
+**对应章节**: 5.1（RHI 抽象层）、5.3（资源生命周期——Fence 泛化）
+
+---
+
+### 6b. 延迟命令缓冲（Deferred Command Buffer）⭐
+
+**目标**: 将 `GLCommandList` 从立即执行模式切换为延迟录制+回放模式，使同一套 `IRHICommandList` 调用在 GL/D3D12/VK 下语义一致。这是多后端架构的核心前提——D3D12/VK 天然就是延迟录制，如果上层仍是立即模式则无法利用并行 command list。
+
+**主要工作**:
+
+1. **`RenderCommandBuffer` + `LinearAllocator`**：每帧分配 4–16 MB 线性内存，所有 `IRHICommandList` 调用序列化为 `(RenderCmdHeader + payload)` 写入 buffer。命令枚举覆盖现有全部操作（BeginRenderPass / EndRenderPass / BindPipeline / BindVertexBuffer / BindIndexBuffer / BindTexture / SetUniform* / DrawIndexed / ResourceBarrier / SetViewport / PushDebugGroup / PopDebugGroup）。
+2. **`GLCommandTranslator`**：遍历 `RenderCommandBuffer` 中的命令序列，逐条翻译为 GL 调用。替换当前 `GLCommandList` 的直接执行逻辑。状态缓存（bound program/VAO/EBO/uniform location）迁入 translator。
+3. **`RenderExecuteSystem` 适配**：不再直接调 `cmdList->drawIndexed()`，而是向 `RenderCommandBuffer` 录制命令。帧末由 `RenderFrameRunner` 统一 submit → translate → execute。
+4. **GL 后端行为等价验证**：录制+回放后的 GL 调用序列必须与改造前完全一致（可通过 debug marker 或 API trace 对比）。
+
+**验证**: Debug 构建通过；Sponza 画面、帧率、剔除统计与改造前一致；单元测试全绿；新增命令缓冲序列化/反序列化测试。
+
+**对应章节**: 5.1（延迟命令缓冲）、5.2（多线程命令录制 Phase 1）
+
+---
+
+### 6c. 跨平台着色器编译工具链 ⭐
+
+**目标**: 建立统一的着色器编译管线，从单一 GLSL/HLSL 源码产出 GLSL（GL 后端）、SPIR-V（Vulkan）、DXIL（D3D12）三种目标格式。这是 D3D12 后端落地的硬性前置——没有字节码就无法创建 D3D12 PSO。
+
+**主要工作**:
+
+1. **编译器选型**：推荐 **DXC**（Microsoft DirectX Shader Compiler）作为主编译器——原生 HLSL→DXIL，配合 SPIR-V 输出能力（`-spirv`）可同时覆盖 D3D12+Vulkan。GL 后端通过 **SPIRV-Cross** 将 SPIR-V 反编译回 GLSL（或直接维护 GLSL 变体，视复杂度决定）。备选：glslang + SPIRV-Cross 全链路。**决策点：先在知识库确认 DXC 的 Conan/CMake 集成可行性与 SPIR-V 输出成熟度。**
+2. **着色器语言选择**：评估 HLSL-first vs GLSL-first vs 自定义 IR。考虑到 D3D12 为主力后端且 DXC 对 HLSL 支持最完善，**倾向 HLSL-first + SPIR-V 中间表示 + SPIRV-Cross 降级 GLSL**。需评估现有 PBR lit shader（约 200 行 GLSL）移植到 HLSL SM 6.0 的工作量。
+3. **离线编译工具**：`_engine/tools/shader_compiler/`，输入 `.hlsl` / `.glsl` + 编译配置 JSON（target profiles、include paths、macro defines），输出 `{stage}.dxil` / `{stage}.spv` / `{stage}.glsl` + 反射元数据（CBV/SRV/UAV binding、push constant layout）。Conan 引入 DXC/SPIRV-Cross。
+4. **运行时加载**：`IRHIDevice::createShader()` 改为读取预编译字节码文件（6a 已调整接口）；开发期可选实时重编译（文件 watch + 热重载，属 5.10 范畴，本阶段不做）。
+5. **现有 shader 迁移**：将当前内嵌在 C++ 代码中的 GLSL 字符串提取为独立 `.hlsl` 文件，经工具链编译验证三后端产物正确。
+
+**验证**: 工具链可从 HLSL 源码产出 DXIL + SPIR-V + GLSL 三份产物；GL 后端经 SPIRV-Cross 降级路径渲染 Sponza 画面与改造前一致；DXIL 产物可通过 `dxc -disasm` 反汇编验证。
+
+**对应章节**: 5.12（着色器变体与编译缓存）、5.1（RHI——shader 接口）
+
+---
+
+### 6d. D3D12 后端最小实现 ⭐⭐
+
+**目标**: 实现 D3D12 后端，使 Sponza 场景在 DX12 下可渲染，画面与 GL 后端功能等价。这是阶段 6 的核心交付物。
+
+**依赖**: 6a（接口对齐）、6b（延迟命令缓冲）、6c（着色器编译）全部完成后开始。
+
+**主要工作**:
+
+1. **`D3D12RHIDevice`**：实现 `IRHIDevice` 全部接口。Device + CommandQueue + SwapChain 初始化（DXGI 1.4）、Fence 管理（`ID3D12Fence` + 单调递增 fence value）、资源创建（`CreateCommittedResource`）、PSO 创建（`CreateGraphicsPipelineState`）、内存追踪（`IDXGIAdapter3::QueryVideoMemoryInfo`）。
+2. **`D3D12CommandList`**：实现 `IRHICommandList`，底层录制到 `ID3D12GraphicsCommandList`。若 6b 已完成延迟命令缓冲，则此步为 `D3D12CommandTranslator`（遍历 `RenderCommandBuffer` → 翻译为 D3D12 API 调用）；否则直接在 `D3D12CommandList` 中录制。**优先走延迟缓冲路径。**
+3. **Root Signature 设计**：按更新频率分层——Slot 0: View CBV（per-frame）、Slot 1: Light CBV（per-frame）、Slot 2: Material CBV/SRV（per-material）、Slot 3: Object CBV（per-draw push constants / dynamic CBV）。Descriptor Heap 管理（CBV/SRV/UAV heap + sampler heap）。
+4. **`D3D12Backend`**：实现 `IRenderBackend`（或与 `D3D12RHIDevice` 合并后的等价接口），管理 SwapChain present、frame resource ring buffer（2–3 帧 in-flight）、command allocator 轮换。
+5. **资源屏障自动插入**：基于 `BarrierDesc`（6a 扩展后）翻译为 `D3D12_RESOURCE_BARRIER`。初期可在每次 bind/draw 前保守插入屏障，后续由 RenderGraph 优化。
+6. **后端选择机制**：启动时根据配置 / 命令行参数 / 硬件检测选择后端；GL 与 D3D12 共存于同一二进制。
+
+**验证**: Debug 构建通过；D3D12 后端启动 Sponza 场景，画面与 GL 后端目视一致（光照/贴图/天空/剔除）；PIX capture 验证命令流合理；帧率 ≥ GL 后端 80%（初期允许开销）。新增 D3D12 后端冒烟测试。
+
+**对应章节**: 5.1（D3D12 后端）、5.3（GPU 资源生命周期——D3D12 Fence/Heap）、5.13（BindGroup/CBV 分层）
+
+---
+
+### 6e. UBO/CBV 统一绑定层 ⭐
+
+**目标**: 替换当前 per-draw `glUniform*` 立即上传模式，建立跨后端的 Constant Buffer / Uniform Buffer Object 绑定抽象。这既是 GL 后端的性能修复（10+ 材质时 `glUniform*` 瓶颈），也是 D3D12 Root Signature / Vulkan Descriptor Set 的统一表达。
+
+**依赖**: 可与 6d 并行推进（GL 侧先行），但需在 6d 完成前合入以统一绑定路径。
+
+**主要工作**:
+
+1. **`ConstantBufferRing`**：per-frame ring buffer（mapped persistent buffer），按 draw 分配对齐块，写入 view/light/material/object 常量。GL 后端为 UBO（`GL_UNIFORM_BUFFER`），D3D12 为 upload heap CBV，VK 为 host-visible buffer。
+2. **`BindGroupLayout` / `BindGroup`**：声明式绑定描述——layout 定义 binding 槽位（type + stage visibility + count），BindGroup 实例绑定具体资源（buffer view + texture view + sampler）。GL 后端翻译为 `glBindBufferBase` + `glBindTextureUnit`；D3D12 翻译为 descriptor table set；VK 翻译为 `vkUpdateDescriptorSets`。
+3. **`Material::bind()` 重写**：不再逐参数 `setUniform*`，改为填充 `ConstantBufferRing` 块 + 绑定 `BindGroup`。CPU uniform blob 保留作为 staging 区，bind 时一次性 memcpy 到 ring buffer。
+4. **按更新频率分层落地**：View/Light CBV per-frame 写一次、Material BindGroup per-material 复用、Object CBV per-draw 动态偏移。SortKey 中 material_id 分箱已有，直接复用。
+
+**验证**: GL 后端 Sponza 画面无回归；draw call 耗时下降（ImGui 面板 FPS 不降或提升）；D3D12 后端使用同一绑定路径。新增 BindGroup 创建/绑定单元测试。
+
+**对应章节**: 5.13（材质参数绑定与 GPU 上传）、5.14（PreparedMaterial → bind_group + pipeline_key）
+
+---
+
+### 6f. Vulkan 接口预留与抽象验证 ⭐
+
+**目标**: 不要求 Vulkan 后端可运行，但要求 6a–6e 的抽象层经过"纸面 Vulkan 适配性审查"，确保不需要再次大规模重构即可接入 Vulkan。
+
+**主要工作**:
+
+1. **Vulkan 适配性清单**：逐项检查 6a 定义的接口是否覆盖 Vulkan 关键概念——VkInstance/VkDevice 双层、VkRenderPass/VkFramebuffer、VkDescriptorSetLayout/VkDescriptorPool、VkPipelineLayout、VkCommandPool/VkCommandBuffer 分配策略、subpass dependencies、pipeline cache。记录缺口到 TODO.md。
+2. **`VulkanRHIDevice` 骨架**：仅头文件 + 空实现（全部方法 `assert(false)` 或返回 nullptr），确保编译通过。验证工厂函数、后端枚举、接口继承链路完整。
+3. **SPIR-V 加载路径验证**：6c 产出的 SPIR-V 能被骨架 `createShader()` 接受（即使不执行）。
+4. **窗口集成预留**：`glfw_window.cpp` 中已有的 Vulkan surface stub（`getNativeDisplay()`）补完签名，但不实现创建逻辑。
+
+**验证**: 骨架编译通过；适配性清单文档化；无阻塞性接口缺陷。
+
+**对应章节**: 5.1（RHI 抽象层——Vulkan 预留）
+
+---
+
+### 6g. PSO 异步编译 + 磁盘缓存 ⭐
+
+**目标**: 解决 shader/PSO 同步编译导致的帧卡顿（尤其 D3D12 首次编译耗时显著），并为 D3D12 Pipeline Library / Vulkan PipelineCache 的磁盘序列化铺路。
+
+**依赖**: 6d（D3D12 后端存在后才有异步编译的实际收益）。
+
+**主要工作**:
+
+1. **`AsyncPSOJob`**：desc + future + placeholder state + 编译状态机（Invalid→Pending→Valid）。后台线程池（idle priority）执行编译。
+2. **Placeholder fallback**：编译未完成时使用最近匹配 PSO 或 error-pink 材质，避免白屏/卡帧。
+3. **`PSOCompileSystem`**：ECS System 驱动，每帧检查 pending job 完成状态，替换 placeholder。
+4. **磁盘缓存**：D3D12 用 `ID3D12PipelineLibrary1` 序列化；VK 用 `vkGetPipelineCacheData`；GL 用 program binary（`glGetProgramBinary`）。版本校验（shader hash + driver version + engine version）。
+5. **`PSOManager` ECS 化**：从 `GLRHIDevice` 成员迁出为 `PSOManagerResource`（ECS Resource），解耦后端。
+
+**验证**: 冷启动无可见卡顿；PSO 缓存命中率统计正常；磁盘缓存在二次启动时跳过编译。
+
+**对应章节**: 5.3b（PSO 缓存与异步编译）
+
+---
+
+### 阶段 6 子任务依赖关系
+
+```
+6a (RHI 接口审计) ──┬──→ 6b (延迟命令缓冲) ──┐
+                    │                          ├──→ 6d (D3D12 后端) ──→ 6g (PSO 异步)
+                    ├──→ 6c (着色器编译)   ──┘
+                    │
+                    └──→ 6e (UBO/CBV 绑定) ────→ (与 6d 合流)
+                    
+6f (Vulkan 预留) ← 6a 完成后随时可做，不阻塞其他任务
+```
+
+**推荐执行顺序**: 6a → 6b + 6c（可并行）→ 6e → 6d → 6f → 6g
+
+---
+
+## 阶段 7+ —— 高级渲染特性（阶段 6 完成后按需推进）
+
+阶段 6 建立多后端架构后，以下特性均基于新架构实现，每项独立完成、可随时停下：
+
+1. **5.7 RenderGraph 最小实现**（<500 行编译器：拓扑排序 + 死 Pass 剔除 + Barrier 插入）——为阴影 pass、后处理铺路。RenderGraph 的 transient 资源别名在多后端下尤其重要（D3D12 heap aliasing / VK memory aliasing）。
+2. **5.11/5.12 材质 TAI 三层 + 着色器变体系统**——`ShaderTemplate` → `MaterialAsset` → `MaterialInstance`，keyword-driven permutation，替换 Phase 1 简化 Material。与 6c 着色器工具链深度集成。
+3. **5.5 BVH 空间加速**——Sponza 数百实体 CPU 暴力剔除尚可，场景变大后必做。Static BVH + Dynamic List 双轨制。
+4. **5.15/5.16/5.17 2D/字体/UI**——SpriteBatch + MSDF 字体 + UI 画布，自研 UI 框架前置。
+5. **5.18/5.19 后处理栈**——ToneMapping / Bloom / TAA / SSAO，依赖 RenderGraph + HDR SceneColor。
+6. **5.10 资源热重载**——FileWatcher + 帧边界替换，开发效率关键。
+7. **5.20 基础粒子系统**——SoA 存储 + GPU 升级路径预留。
+8. **5.2 多线程命令录制 Phase 3**——并行 command list 录制 + range-slice + 有序 submit（D3D12/VK 专属优化）。
+9. **Bindless / GPU-Driven Rendering**——D3D12 Shader Model 6.0+ / VK descriptor indexing，终极渲染性能路径。
 
 ---
 
@@ -150,5 +307,6 @@
 - **每阶段验收都跑 Debug 构建**（`python scripts/build/build.py --debug --build`），并保证既有单元测试不红。
 - **文档同步**：每阶段结束后更新 `docs/RENDER_LAYER_PROGRESS.md` 对应章节的"代码现状"与完成度条，以及相关模块 `AGENTS.md`。
 - **遇阻即停**：glTF 解析/cook（accessor 布局、交错顶点流、V 翻转）、metallicRoughness 打包纹理解包两处是已知风险点，卡住时按 AGENTS.md 规则停下汇报，不自行换方案绕过。原三大高风险点（Unity YAML 解析、FBX 导入、HDRP 参数映射）随资产更换已消解。
-- **不做的事**：本计划不追求性能优化（Bindless/GPU-Driven/HZB）、不追求渲染品质（阴影/TAA/Bloom）、不迁移 D3D12——这些属于阶段 6+ 或更后期。
+- **多后端新增风险点**：(1) DXC/SPIRV-Cross 的 Conan 集成可能遇到版本兼容问题；(2) D3D12 调试需 PIX/Nsight，确认本机工具可用；(3) HLSL←→GLSL 语义差异（坐标系、纹理采样、整数运算）可能导致画面不一致，需逐 shader 校对；(4) D3D12 资源屏障遗漏会导致难以排查的画面错误，初期保守插入屏障、后期由 RenderGraph 优化。卡住时同样停下汇报。
+- **不做的事**：阶段 6 不追求性能优化（Bindless/GPU-Driven/HZB）、不追求渲染品质（阴影/TAA/Bloom）——这些属于阶段 7+。阶段 6 的目标是**架构正确性**，不是性能或画质。
 - 每阶段完成后按 AGENTS.md「事后审视」规则，把偏差与新技术债务记入 `TODO.md`。

@@ -43,9 +43,10 @@ public:
     RenderFrameRunner &operator=(const RenderFrameRunner &) = delete;
 
     // Registers the extract systems on the RenderWorld and initializes the
-    // prepare/execute stages (RHI device + shader cache + fallback resources).
+    // prepare/execute stages (shader cache + fallback resources).
     // Window is used for aspect ratio and viewport extraction.
-    bool init(IWindow *window);
+    // Device is borrowed — must outlive the frame runner.
+    bool init(IWindow *window, IRHIDevice *device);
 
     // Runs Extract -> Prepare -> Cull -> Queue -> Execute for one frame.
     void runFrame(const World &mainWorld, f32 dt);

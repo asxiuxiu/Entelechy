@@ -24,29 +24,33 @@
 
 **知识库设计**：中厚度自研 RHI，接口对齐 UE `FRHICommandList`。核心接口 `IRenderDevice`（资源工厂 + Submit/Present）+ `ICommandContext`（Begin/EndRenderPass、绑定、Draw、Barrier）。命令模型选择"延迟命令缓冲"——`RenderCommandBuffer` + `LinearAllocator` 每帧分配命令内存，`RenderCmdHeader` + 命令枚举分派执行。资源标识采用 `Handle<Tag>`（index+generation）+ `ResourceTable<T,Tag>`（dense array + free list）。**首个后端 = D3D12**（隐式状态机 OpenGL 只在笔记中用于学习对比，不做引擎后端）。
 
-**代码现状** ✅ 大部分完成（接口层完整，但后端和执行模型偏离设计）
+**代码现状** ✅ 多后端接口对齐完成（6a），GL 后端功能等价
 
 已实现：
-- `IRHIDevice` 纯虚接口：`CreateBuffer/CreateTexture/CreateShader/CreatePipelineState`、`submit()`、`present()`、`signalFrame()`/`getCompletedFenceValue()`、`queueResourceForDelete()`/`flushPendingDeletes()`、`queryMemoryInfo()`/`getTrackedMemoryUsage()`、capability flags → `render/public/rhi/rhi_device.h`
-- `IRHICommandList` 纯虚接口：`beginRenderPass()`/`endRenderPass()`、viewport/scissor、绑定管线/顶点/索引/纹理/Uniform、`drawIndexed()`/`draw()`、resource barrier、debug group → 同上
-- `GLRHIDevice` + `GLCommandList`：OpenGL 具体实现 → `private/rhi/gl_rhi_device.h/.cpp` (1154 行)
-- `OpenGLBackend` + `IRenderBackend`：swapchain 层（GLAD 初始化、viewport、clear、VSync、SwapBuffers）→ `private/rhi/opengl_backend.h/.cpp`
-- `RenderBackendType` 枚举（OpenGL + 预留 D3D12/Vulkan/Metal/WebGPU）→ `public/rhi/rhi_types.h`
+- `IRHIDevice` 统一接口（合并原 `IRenderBackend`）：surface 生命周期（`initSurface`/`shutdownSurface`/`beginFrame`/`endFrame`/`setClearColor`/`clear`/`resizeSurface`）+ 资源工厂 + 命令提交 + 帧 fence + 延迟删除 + 内存追踪 → `render/public/rhi/rhi_device.h`
+- `IRHICommandList` 纯虚接口：`beginRenderPass()`/`endRenderPass()`、viewport/scissor、绑定管线/顶点/索引/纹理/Uniform、`drawIndexed()`/`draw()`、resource barrier、debug group、`bindConstantBuffer()`/`setPushConstants()` → 同上
+- `GLRHIDevice` + `GLCommandList`：OpenGL 具体实现（含 surface 管理）→ `private/rhi/gl_rhi_device.h/.cpp`
+- `IRHIFence` 独立 GPUResource 子类：`signal()`/`wait()`/`getCompletedValue()`/`isSignaled()`；`GLFence` 底层 GLsync → `public/rhi/rhi_resources.h` + `gl_rhi_device.h`
+- `ShaderBytecode` 结构体：`{stage, format(GLSL/SPIRV/DXIL), data, size, entryPoint}`；`createShader()` 接受多格式字节码 → `public/rhi/rhi_types.h`
+- `ResourceState` 位掩码枚举（Common/VertexBuffer/IndexBuffer/ConstantBuffer/ShaderResource/UAV/RenderTarget/DepthWrite/DepthRead/CopySrc/CopyDst/Present）+ resource-referencing `BarrierDesc` → `public/rhi/rhi_types.h`
+- `RenderBackendType` 枚举（OpenGL / D3D12 / Vulkan）+ `createRHIDevice()` 工厂函数 → `public/rhi/rhi_device_factory.h`
+- `ClearFlags` 位掩码（Color/Depth/Stencil）→ `public/rhi/rhi_types.h`
 
 **缺失项**：
 
 | 项目 | 笔记要求 | 当前状态 |
 |------|---------|---------|
-| 延迟命令缓冲 | `RenderCommandBuffer` + `LinearAllocator` + `RenderCmdHeader` 命令枚举分派 | ❌ 不存在。`GLCommandList` 是立即执行模式（代码注释："Phase 1 immediate for GL"） |
+| 延迟命令缓冲 | `RenderCommandBuffer` + `LinearAllocator` + `RenderCmdHeader` 命令枚举分派 | ❌ 不存在。`GLCommandList` 是立即执行模式（6b 待实现） |
 | `Handle<Tag>` + `ResourceTable` | RHI 层本身的资源标识用 tagged handle + dense array | ❌ 不存在于 RHI 层。RHI 用裸 `RHIRef<T>` 智能指针 |
 | `LinearAllocator` | 每帧 4-16MB 命令内存 | ❌ 完全不存在 |
-| D3D12 后端 | 笔记明确："首个后端 = D3D12" | ❌ 不存在。仅 OpenGL 后端。`RenderBackendType` 枚举有 D3D12/Vulkan 预留值但无实现 |
+| D3D12 后端 | 笔记明确："首个后端 = D3D12" | ❌ 不存在。仅 OpenGL 后端。接口已对齐，6d 可实现 |
 | `ErrorPolicy` / `RHIErrorCode` | 统一错误处理（DEBUG assert、Release log） | ❌ 不存在 |
+| UBO/CBV 统一绑定 | `bindConstantBuffer`/`setPushConstants` 已有接口但无调用方 | ⏳ 接口就绪，6e 落地实际绑定路径 |
 
 **问题/风险**：
-- `IRHICommandList` 接口形状面向 D3D12/Vulkan（Barrier、CommandList、BindPipeline），但唯一后端是 OpenGL 立即模式——接口与实现之间存在概念断层
+- `GLCommandList` 仍是立即执行模式——接口形状已适配 D3D12/Vulkan 延迟录制，但执行模型需 6b 改造
+- `setUniform*` 仍为 per-draw GL 语义——新 `bindConstantBuffer`/`setPushConstants` 接口已就位，6e 迁移 Material::bind()
 - AGENTS.md 明确记录债务："GLRHIDevice 不是 ECS Resource，渲染系统直接调 GL"——应通过 `IRHICommandList` 路由
-- 笔记要求 D3D12-first 但工程实际是 OpenGL-only——这是一个结构性偏离，未来移植 D3D12 时接口可能需要调整
 
 ---
 
@@ -475,7 +479,7 @@
 ## 总体进度汇总
 
 ```
-5.1  RHI 抽象层与命令模型           ████████░░  80%  接口完善，但后端仅为 OpenGL 立即模式
+5.1  RHI 抽象层与命令模型           █████████░  90%  多后端接口对齐完成(6a)，GL 后端功能等价；延迟命令缓冲/UBO 绑定待 6b/6e
 5.2  多线程命令录制与并行渲染 ⭐      ██████░░░░  60%  CPU 并行生成完成，GPU 命令并行录制未实现
 5.3  GPU 资源生命周期管理 ⭐          ████████░░  80%  核心机制齐全，缺少预算强制和 ECS 化
 5.3b PSO 缓存与异步编译 ⭐            ████░░░░░░  40%  同步缓存已接线（5c，28 材质收敛为 3 PSO），无异步编译

@@ -197,3 +197,32 @@ add_custom_command(
     DEPENDS ShaderCompiler ${SHADER_SOURCES} "${SHADER_SOURCE_DIR}/shaders.json"
     COMMENT "Compiling HLSL shaders..."
 )
+
+# ---- Asset cooking build step ----
+# Cook glTF assets (Sponza) into engine formats (.emesh/.emat/scene.json) via
+# the MeshCooker tool. Stamp-file based: the cook only re-runs when the glTF
+# input or the MeshCooker binary itself changes, so normal rebuilds do not
+# pay the cook cost. Pass explicit absolute paths because MeshCooker's default
+# input/output are resolved relative to the current working directory.
+if(TARGET MeshCooker)
+    set(SPONZA_GLTF "${CMAKE_CURRENT_SOURCE_DIR}/_content/sponza/NewSponza_Main_glTF_003.gltf")
+    set(SPONZA_COOK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/_content/sponza/cooked")
+    set(COOK_STAMP "${CMAKE_BINARY_DIR}/cook_assets.stamp")
+
+    add_custom_command(
+        OUTPUT "${COOK_STAMP}"
+        COMMAND $<TARGET_FILE:MeshCooker> "${SPONZA_GLTF}" "${SPONZA_COOK_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E touch "${COOK_STAMP}"
+        DEPENDS MeshCooker
+            "${SPONZA_GLTF}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/_content/sponza/NewSponza_Main_glTF_003.bin"
+        COMMENT "Cooking Sponza assets (MeshCooker)..."
+        VERBATIM
+    )
+
+    add_custom_target(CookAssets ALL DEPENDS "${COOK_STAMP}")
+    set_target_properties(CookAssets PROPERTIES FOLDER "Tools")
+
+    # Ensure cooking runs even when building only the launcher target.
+    add_dependencies(${PROJECT_NAME} CookAssets)
+endif()

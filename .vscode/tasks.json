@@ -134,6 +134,41 @@
             "detail": "生成 Source Forest + 配置 CMake（引擎+游戏，Release，不编译）"
         },
         // ============================================================
+        // 一键运行：编译 → cook 资产（增量）→ 启动引擎窗口
+        // ============================================================
+        {
+            "label": "Run: Entelechy (Debug)",
+            "dependsOn": "Compile: Debug",
+            "type": "shell",
+            "command": "python",
+            "args": ["scripts/build/run.py", "--debug"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "group": { "kind": "test", "isDefault": true },
+            "problemMatcher": [],
+            "detail": "编译 Debug 后 cook 资产（有变更才重跑）并启动引擎窗口"
+        },
+        {
+            "label": "Run: Entelechy (Release)",
+            "dependsOn": "Compile: Release",
+            "type": "shell",
+            "command": "python",
+            "args": ["scripts/build/run.py", "--release"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "编译 Release 后 cook 资产（有变更才重跑）并启动引擎窗口"
+        },
+        {
+            "label": "Run: Entelechy (Debug, No Build)",
+            "type": "shell",
+            "command": "python",
+            "args": ["scripts/build/run.py", "--debug"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "不重新编译，直接 cook（增量）+ 启动现有 Debug 产物"
+        },
+        // ============================================================
         // 清理生成目录
         // ============================================================
         {

@@ -112,6 +112,28 @@ python scripts/build/build.py --debug --compile-only
 
 ---
 
+## 资产管线与一键运行
+
+资产处理已接入构建，正常开发**不需要手动运行任何工具 exe**：
+
+- **Shader 编译**：根 `CMakeLists.txt` 在 `Entelechy` target 的 POST_BUILD 步骤调用 `ShaderCompiler`，输出到 `build/bin/<Config>/shaders/`，每次链接后自动更新。
+- **Mesh cook**：根 `CMakeLists.txt` 的 `CookAssets` target（`ALL`）以 stamp 文件做增量——仅当 Sponza glTF 输入或 `MeshCooker` 本身变更时才重跑 cook，输出到 `_content/sponza/cooked/`。`Entelechy` target 依赖 `CookAssets`，IDE 里单独构建 launcher 也会触发。
+
+一键运行（cook 检查 + 启动窗口）：
+
+```bash
+# cook 过期才重跑，然后启动 build/bin/Debug/Entelechy.exe
+python scripts/build/run.py --debug
+
+# 强制重新 cook / 跳过 cook
+python scripts/build/run.py --debug --force-cook
+python scripts/build/run.py --debug --no-cook
+```
+
+VS Code 任务 `Run: Entelechy (Debug/Release)` 串联了 `Compile` + `run.py`，一次点击完成编译→cook→启动。
+
+---
+
 ## Visual Studio 集成
 
 本项目不推荐使用 VS 的 **"打开本地文件夹"** 功能（即 VS 的 CMake 工作区模式），因为该模式会忽略 Conan 生成的 toolchain，导致 `find_package(glad)` 等依赖查找失败。

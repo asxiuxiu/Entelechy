@@ -11,7 +11,7 @@
 
 ## 现状一句话总结
 
-四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-5 完成（2026-08-06），NewSponza 全量 405 primitive 经 Extract → Cull → Queue → Execute 完整链路渲染——方向光 lit PBR（GGX）、法线/MR 贴图采样、天空渐变、调试统计面板（FPS/draw calls/剔除/PSO 缓存/显存）全部落地，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。下一步是阶段 6+（架构补全：RenderGraph / 延迟命令缓冲 / TAI 材质 / BindGroup）。
+四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-5 完成（2026-08-06），NewSponza 全量 405 primitive 经 Extract → Cull → Queue → Execute 完整链路渲染——方向光 lit PBR（GGX）、法线/MR 贴图采样、天空渐变、调试统计面板（FPS/draw calls/剔除/PSO 缓存/显存）全部落地，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。阶段 6a RHI 接口审计 + 6b 延迟命令缓冲已完成（2026-08-07），GL 后端已从立即执行切换为录制+回放模式。下一步是 6c（着色器编译工具链）/ 6e（UBO/CBV 绑定）。
 
 ## 断裂修复与阶段的对应关系
 
@@ -158,7 +158,7 @@
 
 ---
 
-### 6b. 延迟命令缓冲（Deferred Command Buffer）⭐
+### 6b. 延迟命令缓冲（Deferred Command Buffer）⭐ ✅ 已完成（2026-08-07）
 
 **目标**: 将 `GLCommandList` 从立即执行模式切换为延迟录制+回放模式，使同一套 `IRHICommandList` 调用在 GL/D3D12/VK 下语义一致。这是多后端架构的核心前提——D3D12/VK 天然就是延迟录制，如果上层仍是立即模式则无法利用并行 command list。
 
@@ -172,6 +172,8 @@
 **验证**: Debug 构建通过；Sponza 画面、帧率、剔除统计与改造前一致；单元测试全绿；新增命令缓冲序列化/反序列化测试。
 
 **对应章节**: 5.1（延迟命令缓冲）、5.2（多线程命令录制 Phase 1）
+
+> **落地记录（2026-08-07）**：四项子任务全部完成。(1) `RenderCommandBuffer` 实现为连续内存 bump allocator（4 MB 默认容量），`RenderCommandType` 枚举覆盖全部 24 种 IRHICommandList 操作，payload 结构体均为 POD/可平凡拷贝，变长数据（debug string / push constants / barrier 数组）以 inline trailing data 方式嵌入 buffer。(2) `DeferredCommandList` 实现 `IRHICommandList` 接口，每个方法分配 payload + memcpy 参数到 buffer，零 GL 调用。(3) `GLCommandTranslator` 遍历 buffer 逐条翻译为 GL 调用，状态缓存（bound program/VAO/EBO/uniform location cache）从旧 `GLCommandList` 完整迁入。(4) `GLRHIDevice` 删除 `GLCommandList` 类及全部立即执行实现，改用 pimpl `DeferredState` 持有 buffer/recorder/translator；`createCommandList()` 重置 buffer 返回 recorder，`submit()` 调用 translator.execute()。`RenderExecuteSystem` / `RenderFrameRunner` / `Material` 零改动——完全通过 `IRHICommandList` 接口透明切换。Debug 构建通过，234 测试全绿（原 223 + 新增 11 个命令缓冲单元测试）。详细变更记录见 `docs/RENDER_LAYER_PROGRESS.md` 5.1 节。
 
 ---
 

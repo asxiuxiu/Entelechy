@@ -2,12 +2,18 @@
 #include "render/rhi/rhi_device.h"
 #include "render/rhi/rhi_pipeline.h"
 #include "core/container/dynamic_array.h"
-#include "core/container/hash_map.h"
-#include "core/string/string_id.h"
 #include <glad/glad.h>
+#include <memory>
 
 namespace Entelechy
 {
+
+// Forward declarations for deferred command buffer types.
+// Full definitions are in render_command_buffer.h, deferred_command_list.h,
+// gl_command_translator.h — included only in the .cpp file.
+class RenderCommandBuffer;
+class DeferredCommandList;
+class GLCommandTranslator;
 
 class IWindow;
 
@@ -168,93 +174,6 @@ private:
 };
 
 // ==================================================================
-// Uniform location cache key
-// ==================================================================
-struct UniformLocKey
-{
-    GLuint program = 0;
-    StringId name;
-
-    bool operator==(const UniformLocKey &other) const
-    {
-        return program == other.program && name == other.name;
-    }
-};
-
-struct UniformLocKeyHash
-{
-    u64 operator()(const UniformLocKey &key) const
-    {
-        u64 h = static_cast<u64>(key.program);
-        h ^= key.name.value() + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
-        return h;
-    }
-};
-
-// ==================================================================
-// OpenGL Command List (immediate execution)
-// ==================================================================
-
-class GLCommandList : public IRHICommandList
-{
-public:
-    GLCommandList() = default;
-
-    void begin() override;
-    void end() override;
-
-    void beginRenderPass(const RenderPassDesc &desc) override;
-    void endRenderPass() override;
-
-    void setViewport(f32 x, f32 y, f32 w, f32 h) override;
-    void setScissor(u32 x, u32 y, u32 w, u32 h) override;
-
-    void bindPipeline(RHIPipelineState *pso) override;
-    void bindVertexBuffer(RHIBuffer *buffer, u32 slot, u32 offset) override;
-    void bindIndexBuffer(RHIBuffer *buffer, u32 offset) override;
-
-    void drawIndexed(u32 indexCount, u32 startIndex, i32 baseVertex) override;
-    void draw(u32 vertexCount, u32 startVertex) override;
-
-    void resourceBarrier(const BarrierDesc *barriers, u32 count) override;
-    void clearRenderTarget(u32 attachmentIndex, const f32 color[4]) override;
-
-    // Uniform and texture binding (immediate GL)
-    void setUniformFloat(StringId name, f32 value) override;
-    void setUniformInt(StringId name, i32 value) override;
-    void setUniformVec2(StringId name, const f32 *value) override;
-    void setUniformVec3(StringId name, const f32 *value) override;
-    void setUniformVec4(StringId name, const f32 *value) override;
-    void setUniformMat3(StringId name, const f32 *value, bool transpose = false) override;
-    void setUniformMat4(StringId name, const f32 *value, bool transpose = false) override;
-    void bindTexture(u32 slot, RHITexture *texture) override;
-
-    // Constant buffer / push constant binding (no-op on GL for now;
-    // will be translated to glBindBufferBase when UBO path lands).
-    void bindConstantBuffer(u32 binding, RHIBuffer *buffer, u32 offset, u32 size) override;
-    void setPushConstants(u32 offset, const void *data, u32 size) override;
-
-    // Debug markers
-    void pushDebugGroup(const char *name) override;
-    void popDebugGroup() override;
-    void insertDebugMarker(const char *name) override;
-
-private:
-    // Cached uniform location lookup (program + name) -> location.
-    // Eliminates per-draw-call string hashing inside the GL driver.
-    GLint getUniformLocation(StringId name);
-
-    bool m_inside_render_pass = false;
-    GLuint m_bound_program = 0;
-    GLuint m_bound_vao = 0;
-    GLuint m_bound_ebo = 0;
-    u32 m_ebo_offset = 0;
-
-    HashMap<UniformLocKey, GLint, UniformLocKeyHash> m_uniform_cache;
-    u32 m_debug_group_depth = 0;
-};
-
-// ==================================================================
 // OpenGL RHI Device
 // ==================================================================
 
@@ -337,7 +256,13 @@ private:
     IWindow *m_window = nullptr;
     RenderSettings m_settings;
     PSOManager m_pso_manager;
-    GLCommandList m_cmd_list;
+
+    // Deferred command buffer: records commands for later replay by the translator.
+    // Owned via unique_ptr because RenderCommandBuffer/DeferredCommandList/GLCommandTranslator
+    // are forward-declared in this header (full types only visible in .cpp).
+    struct DeferredState;
+    std::unique_ptr<DeferredState> m_deferred;
+
     bool m_initialized = false;
 
     DynamicArray<PendingDelete> m_pending_deletes;

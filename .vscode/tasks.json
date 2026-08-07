@@ -7,24 +7,9 @@
         {
             "label": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/tools/setup_env.py"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/tools/setup_env.py"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/tools/setup_env.py"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/tools/setup_env.py"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
             "problemMatcher": [],
             "detail": "创建 .venv 并按 configs/environment.json 安装指定版本的 Conan、CMake 等依赖，初始化项目级 .conan_home"
@@ -36,160 +21,44 @@
             "label": "Build: Engine Only (Debug)",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--debug",
-                    "--build"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--debug",
-                    "--build"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--debug",
-                    "--build"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/build/build.py", "--config", "configs/engine_only.json", "--debug", "--build"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
-            "problemMatcher": [
-                "$msCompile"
-            ],
+            "problemMatcher": ["$msCompile"],
             "detail": "完整流程：生成 → 配置 → 编译 Debug（仅引擎）"
         },
         {
             "label": "Build: Engine Only (Release)",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--release",
-                    "--build"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--release",
-                    "--build"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--release",
-                    "--build"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/build/build.py", "--config", "configs/engine_only.json", "--release", "--build"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
-            "problemMatcher": [
-                "$msCompile"
-            ],
+            "problemMatcher": ["$msCompile"],
             "detail": "完整流程：生成 → 配置 → 编译 Release（仅引擎）"
         },
         {
             "label": "Build: Full (Debug)",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--debug",
-                    "--build"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--debug",
-                    "--build"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--debug",
-                    "--build"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/build/build.py", "--config", "configs/full_build.json", "--debug", "--build"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
-            "problemMatcher": [
-                "$msCompile"
-            ],
+            "problemMatcher": ["$msCompile"],
             "detail": "完整流程：生成 → 配置 → 编译 Debug（引擎+游戏）"
         },
         {
             "label": "Build: Full (Release)",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--release",
-                    "--build"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--release",
-                    "--build"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--release",
-                    "--build"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/build/build.py", "--config", "configs/full_build.json", "--release", "--build"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
-            "problemMatcher": [
-                "$msCompile"
-            ],
+            "problemMatcher": ["$msCompile"],
             "detail": "完整流程：生成 → 配置 → 编译 Release（引擎+游戏）"
         },
         // ============================================================
@@ -199,71 +68,22 @@
             "label": "Compile: Debug",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--debug",
-                    "--compile-only"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--debug",
-                    "--compile-only"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--debug",
-                    "--compile-only"
-                ]
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": [
-                "$msCompile"
-            ],
+            "command": "python",
+            "args": ["scripts/build/build.py", "--debug", "--compile-only"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$msCompile"],
             "detail": "仅编译 Debug（不重新生成 Source Forest，使用项目 venv 内的 cmake）"
         },
         {
             "label": "Compile: Release",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--release",
-                    "--compile-only"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--release",
-                    "--compile-only"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--release",
-                    "--compile-only"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/build/build.py", "--release", "--compile-only"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
-            "problemMatcher": [
-                "$msCompile"
-            ],
+            "problemMatcher": ["$msCompile"],
             "detail": "仅编译 Release（不重新生成 Source Forest，使用项目 venv 内的 cmake）"
         },
         // ============================================================
@@ -273,33 +93,9 @@
             "label": "Generate: Engine Only (Debug)",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--debug"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--debug"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--debug"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/build/build.py", "--config", "configs/engine_only.json", "--debug"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
             "problemMatcher": [],
             "detail": "生成 Source Forest + 配置 CMake（仅引擎，Debug，不编译）"
@@ -308,33 +104,9 @@
             "label": "Generate: Engine Only (Release)",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--release"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--release"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/engine_only.json",
-                    "--release"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/build/build.py", "--config", "configs/engine_only.json", "--release"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
             "problemMatcher": [],
             "detail": "生成 Source Forest + 配置 CMake（仅引擎，Release，不编译）"
@@ -343,33 +115,9 @@
             "label": "Generate: Full (Debug)",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--debug"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--debug"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--debug"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/build/build.py", "--config", "configs/full_build.json", "--debug"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
             "problemMatcher": [],
             "detail": "生成 Source Forest + 配置 CMake（引擎+游戏，Debug，不编译）"
@@ -378,33 +126,9 @@
             "label": "Generate: Full (Release)",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--release"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--release"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/build/build.py",
-                    "--config",
-                    "configs/full_build.json",
-                    "--release"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/build/build.py", "--config", "configs/full_build.json", "--release"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
             "problemMatcher": [],
             "detail": "生成 Source Forest + 配置 CMake（引擎+游戏，Release，不编译）"
@@ -416,24 +140,9 @@
             "label": "Clean: Remove Build Directory",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/tools/clean.py"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/tools/clean.py"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/tools/clean.py"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/tools/clean.py"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
             "problemMatcher": [],
             "detail": "删除 build/ 目录（CMake 缓存、Conan 生成文件、编译产物等）"
@@ -442,27 +151,9 @@
             "label": "Clean: Deep Clean (Include .conan/)",
             "dependsOn": "Init: Setup Python Environment",
             "type": "shell",
-            "windows": {
-                "command": "python",
-                "args": [
-                    "${workspaceFolder}/scripts/tools/clean.py",
-                    "--deep"
-                ]
-            },
-            "linux": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/tools/clean.py",
-                    "--deep"
-                ]
-            },
-            "osx": {
-                "command": "python3",
-                "args": [
-                    "${workspaceFolder}/scripts/tools/clean.py",
-                    "--deep"
-                ]
-            },
+            "command": "python",
+            "args": ["scripts/tools/clean.py", "--deep"],
+            "options": { "cwd": "${workspaceFolder}" },
             "group": "build",
             "problemMatcher": [],
             "detail": "深度清理：删除 build/ + .conan/ + .conan_home/（下次构建需重新 conan install）"

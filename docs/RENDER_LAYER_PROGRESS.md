@@ -24,12 +24,12 @@
 
 **知识库设计**：中厚度自研 RHI，接口对齐 UE `FRHICommandList`。核心接口 `IRenderDevice`（资源工厂 + Submit/Present）+ `ICommandContext`（Begin/EndRenderPass、绑定、Draw、Barrier）。命令模型选择"延迟命令缓冲"——`RenderCommandBuffer` + `LinearAllocator` 每帧分配命令内存，`RenderCmdHeader` + 命令枚举分派执行。资源标识采用 `Handle<Tag>`（index+generation）+ `ResourceTable<T,Tag>`（dense array + free list）。**首个后端 = D3D12**（隐式状态机 OpenGL 只在笔记中用于学习对比，不做引擎后端）。
 
-**代码现状** ✅ 多后端接口对齐完成（6a），GL 后端功能等价
+**代码现状** ✅ 多后端接口对齐完成（6a），延迟命令缓冲完成（6b），GL 后端功能等价
 
 已实现：
 - `IRHIDevice` 统一接口（合并原 `IRenderBackend`）：surface 生命周期（`initSurface`/`shutdownSurface`/`beginFrame`/`endFrame`/`setClearColor`/`clear`/`resizeSurface`）+ 资源工厂 + 命令提交 + 帧 fence + 延迟删除 + 内存追踪 → `render/public/rhi/rhi_device.h`
 - `IRHICommandList` 纯虚接口：`beginRenderPass()`/`endRenderPass()`、viewport/scissor、绑定管线/顶点/索引/纹理/Uniform、`drawIndexed()`/`draw()`、resource barrier、debug group、`bindConstantBuffer()`/`setPushConstants()` → 同上
-- `GLRHIDevice` + `GLCommandList`：OpenGL 具体实现（含 surface 管理）→ `private/rhi/gl_rhi_device.h/.cpp`
+- **延迟命令缓冲（6b）**：`RenderCommandBuffer` 连续内存 bump allocator（4 MB 默认）+ `RenderCommandType` 枚举（24 种命令）+ payload 结构体 → `render/public/rhi/render_command_buffer.h/.cpp`；`DeferredCommandList` 实现 `IRHICommandList` 纯序列化 → `render/public/rhi/deferred_command_list.h/.cpp`；`GLCommandTranslator` 遍历 buffer 翻译为 GL 调用（含状态缓存）→ `render/public/rhi/gl_command_translator.h/.cpp`；`GLRHIDevice` 通过 pimpl `DeferredState` 持有三者，`createCommandList()` 返回 recorder，`submit()` 驱动 translator.execute()
 - `IRHIFence` 独立 GPUResource 子类：`signal()`/`wait()`/`getCompletedValue()`/`isSignaled()`；`GLFence` 底层 GLsync → `public/rhi/rhi_resources.h` + `gl_rhi_device.h`
 - `ShaderBytecode` 结构体：`{stage, format(GLSL/SPIRV/DXIL), data, size, entryPoint}`；`createShader()` 接受多格式字节码 → `public/rhi/rhi_types.h`
 - `ResourceState` 位掩码枚举（Common/VertexBuffer/IndexBuffer/ConstantBuffer/ShaderResource/UAV/RenderTarget/DepthWrite/DepthRead/CopySrc/CopyDst/Present）+ resource-referencing `BarrierDesc` → `public/rhi/rhi_types.h`
@@ -40,15 +40,13 @@
 
 | 项目 | 笔记要求 | 当前状态 |
 |------|---------|---------|
-| 延迟命令缓冲 | `RenderCommandBuffer` + `LinearAllocator` + `RenderCmdHeader` 命令枚举分派 | ❌ 不存在。`GLCommandList` 是立即执行模式（6b 待实现） |
+| ~~延迟命令缓冲~~ | ~~`RenderCommandBuffer` + `LinearAllocator` + `RenderCmdHeader` 命令枚举分派~~ | ✅ 已完成（6b）。专用 bump allocator 替代通用 LinearAllocator |
 | `Handle<Tag>` + `ResourceTable` | RHI 层本身的资源标识用 tagged handle + dense array | ❌ 不存在于 RHI 层。RHI 用裸 `RHIRef<T>` 智能指针 |
-| `LinearAllocator` | 每帧 4-16MB 命令内存 | ❌ 完全不存在 |
 | D3D12 后端 | 笔记明确："首个后端 = D3D12" | ❌ 不存在。仅 OpenGL 后端。接口已对齐，6d 可实现 |
 | `ErrorPolicy` / `RHIErrorCode` | 统一错误处理（DEBUG assert、Release log） | ❌ 不存在 |
 | UBO/CBV 统一绑定 | `bindConstantBuffer`/`setPushConstants` 已有接口但无调用方 | ⏳ 接口就绪，6e 落地实际绑定路径 |
 
 **问题/风险**：
-- `GLCommandList` 仍是立即执行模式——接口形状已适配 D3D12/Vulkan 延迟录制，但执行模型需 6b 改造
 - `setUniform*` 仍为 per-draw GL 语义——新 `bindConstantBuffer`/`setPushConstants` 接口已就位，6e 迁移 Material::bind()
 - AGENTS.md 明确记录债务："GLRHIDevice 不是 ECS Resource，渲染系统直接调 GL"——应通过 `IRHICommandList` 路由
 
@@ -479,7 +477,7 @@
 ## 总体进度汇总
 
 ```
-5.1  RHI 抽象层与命令模型           █████████░  90%  多后端接口对齐完成(6a)，GL 后端功能等价；延迟命令缓冲/UBO 绑定待 6b/6e
+5.1  RHI 抽象层与命令模型           ██████████  95%  多后端接口对齐(6a)+延迟命令缓冲(6b)完成，GL 后端录制+回放模式；UBO 绑定待 6e
 5.2  多线程命令录制与并行渲染 ⭐      ██████░░░░  60%  CPU 并行生成完成，GPU 命令并行录制未实现
 5.3  GPU 资源生命周期管理 ⭐          ████████░░  80%  核心机制齐全，缺少预算强制和 ECS 化
 5.3b PSO 缓存与异步编译 ⭐            ████░░░░░░  40%  同步缓存已接线（5c，28 材质收敛为 3 PSO），无异步编译
@@ -530,6 +528,6 @@ Extract/Cull/Queue 各 System 通过单元测试独立验证，但没有 `Render
 
 1. **5.14 + 5.8 集成** — 将 `asset/` 的 `Handle<T>` 集成到 Render 组件中（修复断裂 #1），补齐 Prepare 阶段（修复断裂 #2）
 2. **5.7 RenderGraph 最小实现** — RenderGraph 编译器 <500 行即可打通多 Pass 依赖管理，是 5.18/5.19 的前置
-3. **5.1 命令缓冲** — 实现 Deferred Command Buffer（修复立即执行→延迟执行），为 D3D12 过渡铺路
+3. ~~**5.1 命令缓冲**~~ — ✅ 已完成（6b，2026-08-07）
 4. **5.11 材质系统升级** — 从 Phase 1 升级到 TAI 三层（当前 Phase 1 的 Simplistic Material 是明确的临时代码）
 5. **5.15 2D 渲染** — 解锁 5.16 字体和 5.17 UI 画布，为阶段 6 自研 UI 框架提供基础

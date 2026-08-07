@@ -1,11 +1,12 @@
 #include "render/rhi/gl_rhi_device.h"
+#include "render/rhi/render_command_buffer.h"
+#include "render/rhi/deferred_command_list.h"
+#include "render/rhi/gl_command_translator.h"
 #include "window/window.h"
 #include "log/core/log_macros.h"
 #include "core/allocator/allocator.h"
-#include "core/string/string_intern_pool.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <cstring>
 #include <memory>
 
 namespace Entelechy
@@ -385,202 +386,22 @@ void GLPipelineState::setDebugName(const String &name)
 }
 
 // ==================================================================
-// GLCommandList
+// GLRHIDevice::DeferredState — holds the deferred command buffer,
+// recorder, and translator. Defined here so the header only needs
+// forward declarations.
 // ==================================================================
 
-void GLCommandList::begin()
+struct GLRHIDevice::DeferredState
 {
-    m_inside_render_pass = false;
-    m_bound_program = 0;
-    m_bound_vao = 0;
-    m_bound_ebo = 0;
-    m_ebo_offset = 0;
-    m_uniform_cache.clear();
-    m_debug_group_depth = 0;
-}
+    RenderCommandBuffer buffer;
+    DeferredCommandList recorder;
+    GLCommandTranslator translator;
 
-// ------------------------------------------------------------------
-// Uniform location cache
-// ------------------------------------------------------------------
-GLint GLCommandList::getUniformLocation(StringId name)
-{
-    if (!m_bound_program || name.value() == 0)
-        return -1;
-    UniformLocKey key{m_bound_program, name};
-    if (auto *cached = m_uniform_cache.find(key))
+    explicit DeferredState(usize capacity)
+        : buffer(capacity), recorder(buffer)
     {
-        return *cached;
     }
-    const char *resolved = StringInternPool::instance().resolve(name);
-    GLint loc = glGetUniformLocation(m_bound_program, resolved ? resolved : "");
-    m_uniform_cache.insert(key, loc);
-    return loc;
-}
-
-void GLCommandList::end()
-{
-    if (m_inside_render_pass)
-    {
-        endRenderPass();
-    }
-}
-
-void GLCommandList::beginRenderPass(const RenderPassDesc &desc)
-{
-    if (m_inside_render_pass)
-    {
-        endRenderPass();
-    }
-    m_inside_render_pass = true;
-
-    // For now, assume framebuffer 0 (default / swapchain)
-    // In the future, bind FBO based on desc attachments
-    for (u32 i = 0; i < desc.colorAttachmentCount; ++i)
-    {
-        if (desc.colorAttachments[i].clear)
-        {
-            const f32 *c = desc.colorAttachments[i].clearColor;
-            glClearColor(c[0], c[1], c[2], c[3]);
-            glClear(GL_COLOR_BUFFER_BIT);
-        }
-    }
-}
-
-void GLCommandList::endRenderPass()
-{
-    m_inside_render_pass = false;
-}
-
-void GLCommandList::setViewport(f32 x, f32 y, f32 w, f32 h)
-{
-    glViewport(static_cast<GLint>(x), static_cast<GLint>(y), static_cast<GLsizei>(w), static_cast<GLsizei>(h));
-}
-
-void GLCommandList::setScissor(u32 x, u32 y, u32 w, u32 h)
-{
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(static_cast<GLint>(x), static_cast<GLint>(y), static_cast<GLsizei>(w), static_cast<GLsizei>(h));
-}
-
-void GLCommandList::bindPipeline(RHIPipelineState *pso)
-{
-    if (!pso)
-        return;
-    auto *glPso = static_cast<GLPipelineState *>(pso);
-    m_bound_program = glPso->getProgram();
-    glUseProgram(m_bound_program);
-
-    // Apply rasterizer state
-    const auto &raster = glPso->getDesc().rasterizerState;
-    if (raster.cullMode != CullMode::None)
-    {
-        glEnable(GL_CULL_FACE);
-        glCullFace(getGLCullMode(raster.cullMode));
-        glFrontFace(getGLFrontFace(raster.frontFace));
-    }
-    else
-    {
-        glDisable(GL_CULL_FACE);
-    }
-
-    // Apply depth state
-    const auto &ds = glPso->getDesc().depthStencilState;
-    if (ds.depthTest)
-    {
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(getGLCompareFunc(ds.depthFunc));
-        glDepthMask(ds.depthWrite ? GL_TRUE : GL_FALSE);
-    }
-    else
-    {
-        glDisable(GL_DEPTH_TEST);
-    }
-
-    // Apply blend state
-    const auto &blend = glPso->getDesc().blendState;
-    if (blend.enable)
-    {
-        glEnable(GL_BLEND);
-        glBlendFunc(getGLBlendFactor(blend.srcFactor), getGLBlendFactor(blend.dstFactor));
-        glBlendEquation(getGLBlendOp(blend.op));
-    }
-    else
-    {
-        glDisable(GL_BLEND);
-    }
-}
-
-void GLCommandList::bindVertexBuffer(RHIBuffer *buffer, u32 /*slot*/, u32 /*offset*/)
-{
-    if (!buffer)
-        return;
-    auto *glBuf = static_cast<GLBuffer *>(buffer);
-    if (glBuf->getVAO())
-    {
-        m_bound_vao = glBuf->getVAO();
-        glBindVertexArray(m_bound_vao);
-    }
-    else
-    {
-        // Legacy mode: bind VBO only, no VAO
-        m_bound_vao = 0;
-        glBindBuffer(GL_ARRAY_BUFFER, glBuf->getVBO());
-    }
-}
-
-void GLCommandList::bindIndexBuffer(RHIBuffer *buffer, u32 offset)
-{
-    if (!buffer)
-        return;
-    auto *glBuf = static_cast<GLBuffer *>(buffer);
-    m_bound_ebo = glBuf->getVBO(); // For index buffers, VBO field stores EBO name
-    m_ebo_offset = offset;
-}
-
-void GLCommandList::drawIndexed(u32 indexCount, u32 startIndex, i32 baseVertex)
-{
-    if (m_bound_vao && m_bound_ebo)
-    {
-        // Bind EBO to the current VAO
-        glBindVertexArray(m_bound_vao);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_bound_ebo);
-    }
-
-    GLenum topology = GL_TRIANGLES; // TODO: track from bound pipeline
-    GLsizei count = static_cast<GLsizei>(indexCount);
-    GLenum indexType = GL_UNSIGNED_INT; // TODO: derive from buffer desc
-    const void *indexOffset =
-        reinterpret_cast<const void *>(static_cast<uintptr_t>(m_ebo_offset) + startIndex * sizeof(u32));
-
-    if (baseVertex != 0)
-    {
-        glDrawElementsBaseVertex(topology, count, indexType, indexOffset, baseVertex);
-    }
-    else
-    {
-        glDrawElements(topology, count, indexType, indexOffset);
-    }
-}
-
-void GLCommandList::draw(u32 vertexCount, u32 startVertex)
-{
-    if (m_bound_vao)
-    {
-        glBindVertexArray(m_bound_vao);
-    }
-    glDrawArrays(GL_TRIANGLES, static_cast<GLint>(startVertex), static_cast<GLsizei>(vertexCount));
-}
-
-void GLCommandList::resourceBarrier(const BarrierDesc * /*barriers*/, u32 /*count*/)
-{
-    // No-op on OpenGL backend (driver handles implicit barriers)
-}
-
-void GLCommandList::clearRenderTarget(u32 /*attachmentIndex*/, const f32 color[4])
-{
-    glClearColor(color[0], color[1], color[2], color[3]);
-    glClear(GL_COLOR_BUFFER_BIT);
-}
+};
 
 // ==================================================================
 // GLFence
@@ -658,7 +479,11 @@ void GLFence::onDestroy()
 // GLRHIDevice
 // ==================================================================
 
-GLRHIDevice::GLRHIDevice(IWindow *window) : m_window(window) {}
+GLRHIDevice::GLRHIDevice(IWindow *window)
+    : m_window(window),
+      m_deferred(std::make_unique<DeferredState>(4 * 1024 * 1024))
+{
+}
 
 GLRHIDevice::~GLRHIDevice()
 {
@@ -948,18 +773,19 @@ RHIPipelineStateRef GLRHIDevice::createPipelineStateUncached(const PipelineState
 
 IRHICommandList *GLRHIDevice::createCommandList()
 {
-    // Return the single internal command list
-    m_cmd_list.begin();
-    return &m_cmd_list;
+    // Reset the command buffer for a new frame and return the recorder.
+    m_deferred->buffer.reset();
+    m_deferred->recorder.begin();
+    return &m_deferred->recorder;
 }
 
 void GLRHIDevice::submit(IRHICommandList *cmdList)
 {
     if (!cmdList)
         return;
-    // Immediate GL: commands have already been executed. Future
-    // backends will translate and queue to GPU.
     cmdList->end();
+    // Replay all recorded commands through the GL translator.
+    m_deferred->translator.execute(m_deferred->buffer);
 }
 
 // -- Surface lifecycle -----------------------------------------------------
@@ -1241,145 +1067,6 @@ void PSOManager::clear()
 usize PSOManager::getCacheSize() const
 {
     return m_cache.size();
-}
-
-// ==================================================================
-// GLCommandList — Uniform and texture binding
-// ==================================================================
-
-void GLCommandList::setUniformFloat(StringId name, f32 value)
-{
-    GLint loc = getUniformLocation(name);
-    if (loc >= 0)
-        glUniform1f(loc, value);
-}
-
-void GLCommandList::setUniformInt(StringId name, i32 value)
-{
-    GLint loc = getUniformLocation(name);
-    if (loc >= 0)
-        glUniform1i(loc, value);
-}
-
-void GLCommandList::setUniformVec2(StringId name, const f32 *value)
-{
-    if (!value)
-        return;
-    GLint loc = getUniformLocation(name);
-    if (loc >= 0)
-        glUniform2fv(loc, 1, value);
-}
-
-void GLCommandList::setUniformVec3(StringId name, const f32 *value)
-{
-    if (!value)
-        return;
-    GLint loc = getUniformLocation(name);
-    if (loc >= 0)
-        glUniform3fv(loc, 1, value);
-}
-
-void GLCommandList::setUniformVec4(StringId name, const f32 *value)
-{
-    if (!value)
-        return;
-    GLint loc = getUniformLocation(name);
-    if (loc >= 0)
-        glUniform4fv(loc, 1, value);
-}
-
-void GLCommandList::setUniformMat3(StringId name, const f32 *value, bool transpose)
-{
-    if (!value)
-        return;
-    GLint loc = getUniformLocation(name);
-    if (loc >= 0)
-        glUniformMatrix3fv(loc, 1, transpose ? GL_TRUE : GL_FALSE, value);
-}
-
-void GLCommandList::setUniformMat4(StringId name, const f32 *value, bool transpose)
-{
-    if (!value)
-        return;
-    GLint loc = getUniformLocation(name);
-    if (loc >= 0)
-        glUniformMatrix4fv(loc, 1, transpose ? GL_TRUE : GL_FALSE, value);
-}
-
-void GLCommandList::bindTexture(u32 slot, RHITexture *texture)
-{
-    if (!texture)
-        return;
-    auto *glTex = static_cast<GLTexture *>(texture);
-    glActiveTexture(GL_TEXTURE0 + slot);
-    glBindTexture(glTex->getTarget(), glTex->getTexture());
-}
-
-void GLCommandList::bindConstantBuffer(u32 /*binding*/, RHIBuffer * /*buffer*/, u32 /*offset*/, u32 /*size*/)
-{
-    // No-op on OpenGL for now. When the UBO/CBV unified binding layer lands,
-    // this will translate to glBindBufferBase(GL_UNIFORM_BUFFER, binding, ...).
-}
-
-void GLCommandList::setPushConstants(u32 /*offset*/, const void * /*data*/, u32 /*size*/)
-{
-    // No-op on OpenGL. Push constants map to root constants (D3D12) or
-    // vkCmdPushConstants (Vulkan). GL uses glUniform* instead.
-}
-
-// ------------------------------------------------------------------
-// Debug markers
-// ------------------------------------------------------------------
-void GLCommandList::pushDebugGroup(const char *name)
-{
-#if defined(GLAD_GL_KHR_debug)
-    if (name)
-    {
-        glPushDebugGroupKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, 0, -1, name);
-    }
-#elif defined(GLAD_GL_VERSION_4_3)
-    if (name)
-    {
-        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, name);
-    }
-#endif
-    ++m_debug_group_depth;
-}
-
-void GLCommandList::popDebugGroup()
-{
-#if defined(GLAD_GL_KHR_debug)
-    if (m_debug_group_depth > 0)
-    {
-        glPopDebugGroupKHR();
-    }
-#elif defined(GLAD_GL_VERSION_4_3)
-    if (m_debug_group_depth > 0)
-    {
-        glPopDebugGroup();
-    }
-#endif
-    if (m_debug_group_depth > 0)
-    {
-        --m_debug_group_depth;
-    }
-}
-
-void GLCommandList::insertDebugMarker(const char *name)
-{
-#if defined(GLAD_GL_KHR_debug)
-    if (name)
-    {
-        glDebugMessageInsertKHR(GL_DEBUG_SOURCE_APPLICATION_KHR, GL_DEBUG_TYPE_MARKER_KHR, 0,
-                                GL_DEBUG_SEVERITY_NOTIFICATION_KHR, -1, name);
-    }
-#elif defined(GLAD_GL_VERSION_4_3)
-    if (name)
-    {
-        glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, -1,
-                             name);
-    }
-#endif
 }
 
 } // namespace Entelechy

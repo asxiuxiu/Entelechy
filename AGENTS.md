@@ -59,7 +59,7 @@ python scripts/build/build.py --release
 
 ## 渲染截图验收
 
-渲染改动可截图自查（2026-08-07 起）：运行 `build/bin/Debug/Entelechy.exe` 时按 `F9` 手动截图，或用环境变量自动化——`ENTELECHY_SCREENSHOT_FRAME=<n>`（第 n 帧截图，Sponza 全量贴图常驻约需 90 秒 ≈ 4800 帧）、`ENTELECHY_SCREENSHOT_PATH=<png 路径>`、`ENTELECHY_EXIT_AFTER_SCREENSHOT=1`（截图后退出）。读回的是窗口后台缓冲（含 ImGui 叠加层）。
+渲染改动可截图自查（2026-08-07 起）：运行 `build/bin/Debug/Entelechy.exe` 时按 `F9` 手动截图，或用环境变量自动化——`ENTELECHY_SCREENSHOT_FRAME=<n>`（第 n 帧截图，Sponza 全量贴图常驻约需 90 秒 ≈ 4800 帧）、`ENTELECHY_SCREENSHOT_PATH=<png 路径>`、`ENTELECHY_EXIT_AFTER_SCREENSHOT=1`（截图后退出）。读回的是窗口后台缓冲（含 ImGui 叠加层）。渲染后端可用 `--backend=<gl|d3d12>` 或 `ENTELECHY_BACKEND` 选择（2026-08-07 起默认 **D3D12**；D3D12 模式暂无 ImGui 叠加层，OpenGL 保留为调试/兼容后端）。
 
 ## Agent 工作规则
 

@@ -20,7 +20,11 @@ struct PipelineStateDesc
 {
     RHIShader *vertexShader = nullptr;
     RHIShader *fragmentShader = nullptr;
-    // TODO: vertex layout handle when we have a dedicated type
+    // Vertex input layout. GL ignores this (layouts live in VAOs created
+    // with the vertex buffer); D3D12/Vulkan bake it into the PSO.
+    u32 vertexStride = 0;
+    VertexAttributeDesc vertexAttributes[8] = {};
+    u32 vertexAttributeCount = 0;
     BlendState blendState;
     DepthStencilState depthStencilState;
     RasterizerState rasterizerState;
@@ -37,6 +41,16 @@ struct PipelineStateDesc
             return false;
         if (topology != other.topology)
             return false;
+        if (vertexStride != other.vertexStride || vertexAttributeCount != other.vertexAttributeCount)
+            return false;
+        for (u32 i = 0; i < vertexAttributeCount; ++i)
+        {
+            const VertexAttributeDesc &a = vertexAttributes[i];
+            const VertexAttributeDesc &b = other.vertexAttributes[i];
+            if (a.location != b.location || a.components != b.components || a.normalized != b.normalized ||
+                a.offset != b.offset)
+                return false;
+        }
         if (renderTargetCount != other.renderTargetCount)
             return false;
         if (depthFormat != other.depthFormat)
@@ -96,6 +110,16 @@ struct PipelineStateDescHash
         u64 h = reinterpret_cast<u64>(desc.vertexShader);
         h = hashCombine(h, reinterpret_cast<u64>(desc.fragmentShader));
         h = hashCombine(h, static_cast<u64>(desc.topology));
+        h = hashCombine(h, static_cast<u64>(desc.vertexStride));
+        h = hashCombine(h, static_cast<u64>(desc.vertexAttributeCount));
+        for (u32 i = 0; i < desc.vertexAttributeCount; ++i)
+        {
+            const VertexAttributeDesc &a = desc.vertexAttributes[i];
+            h = hashCombine(h, static_cast<u64>(a.location));
+            h = hashCombine(h, static_cast<u64>(a.components));
+            h = hashCombine(h, a.normalized ? 1ULL : 0ULL);
+            h = hashCombine(h, static_cast<u64>(a.offset));
+        }
         h = hashCombine(h, static_cast<u64>(desc.renderTargetCount));
         for (u32 i = 0; i < desc.renderTargetCount; ++i)
         {

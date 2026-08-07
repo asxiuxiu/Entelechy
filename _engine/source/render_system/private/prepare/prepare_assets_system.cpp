@@ -1,10 +1,13 @@
 #include "render_system/prepare/prepare_assets_system.h"
 #include "render_system/components/render_components.h"
+#include "render/rhi/rhi_device_factory.h"
 #include "asset/type/mesh_primitives.h"
 #include "ecs/world/world.h"
 #include "ecs/query/query.h"
 #include "log/core/log_macros.h"
 #include <cstddef>
+#include <cstring>
+#include <string>
 
 namespace Entelechy
 {
@@ -181,6 +184,13 @@ bool loggedBefore(const DynamicArray<Handle<T>> &list, Handle<T> handle)
     return false;
 }
 
+// Resolve "shaders/<base>" to the precompiled bytecode file for the
+// device's backend (e.g. shaders/pbr_lit_vertex.dxil on D3D12).
+std::string shaderPathForBackend(IRHIDevice *device, const char *base)
+{
+    return std::string("shaders/") + base + shaderFileExtensionForBackend(device->getBackendType());
+}
+
 } // namespace
 
 PrepareAssetsSystem::~PrepareAssetsSystem()
@@ -261,9 +271,15 @@ bool PrepareAssetsSystem::init(IRHIDevice *device, ShaderCache *shaderCache)
     pipelineDesc.rasterizerState.cullMode = CullMode::Back;
     pipelineDesc.depthStencilState.depthTest = true;
     pipelineDesc.depthStencilState.depthWrite = true;
+    pipelineDesc.vertexStride = MeshAsset::vertexStride();
+    std::memcpy(pipelineDesc.vertexAttributes, s_meshAttrs, sizeof(s_meshAttrs));
+    pipelineDesc.vertexAttributeCount = s_meshAttrCount;
 
-    if (!m_fallback_material.material.initFromBytecode(m_device, "shaders/pbr_lit_vertex.glsl", "shaders/pbr_lit_pixel.glsl",
-                                                       ShaderBytecodeFormat::GLSL, params, s_materialParamCount, pipelineDesc))
+    const std::string pbrVs = shaderPathForBackend(m_device, "pbr_lit_vertex");
+    const std::string pbrPs = shaderPathForBackend(m_device, "pbr_lit_pixel");
+    if (!m_fallback_material.material.initFromBytecode(m_device, pbrVs.c_str(), pbrPs.c_str(),
+                                                       shaderFormatForBackend(m_device->getBackendType()), params,
+                                                       s_materialParamCount, pipelineDesc))
     {
         LOG_ERROR(kLogPrepare, "PrepareAssetsSystem: failed to init fallback material");
         return false;
@@ -533,10 +549,16 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
     pipelineDesc.rasterizerState.cullMode = asset->double_sided ? CullMode::None : CullMode::Back;
     pipelineDesc.depthStencilState.depthTest = true;
     pipelineDesc.depthStencilState.depthWrite = true;
+    pipelineDesc.vertexStride = MeshAsset::vertexStride();
+    std::memcpy(pipelineDesc.vertexAttributes, s_meshAttrs, sizeof(s_meshAttrs));
+    pipelineDesc.vertexAttributeCount = s_meshAttrCount;
 
     PreparedMaterial prepared;
-    if (!prepared.material.initFromBytecode(m_device, "shaders/pbr_lit_vertex.glsl", "shaders/pbr_lit_pixel.glsl",
-                                            ShaderBytecodeFormat::GLSL, params, s_materialParamCount, pipelineDesc))
+    const std::string pbrVs = shaderPathForBackend(m_device, "pbr_lit_vertex");
+    const std::string pbrPs = shaderPathForBackend(m_device, "pbr_lit_pixel");
+    if (!prepared.material.initFromBytecode(m_device, pbrVs.c_str(), pbrPs.c_str(),
+                                            shaderFormatForBackend(m_device->getBackendType()), params,
+                                            s_materialParamCount, pipelineDesc))
     {
         LOG_ERROR(kLogPrepare, "Prepare: failed to init material %u", handle.index);
         return false;

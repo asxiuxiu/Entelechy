@@ -24,16 +24,19 @@
 
 **知识库设计**：中厚度自研 RHI，接口对齐 UE `FRHICommandList`。核心接口 `IRenderDevice`（资源工厂 + Submit/Present）+ `ICommandContext`（Begin/EndRenderPass、绑定、Draw、Barrier）。命令模型选择"延迟命令缓冲"——`RenderCommandBuffer` + `LinearAllocator` 每帧分配命令内存，`RenderCmdHeader` + 命令枚举分派执行。资源标识采用 `Handle<Tag>`（index+generation）+ `ResourceTable<T,Tag>`（dense array + free list）。**首个后端 = D3D12**（隐式状态机 OpenGL 只在笔记中用于学习对比，不做引擎后端）。
 
-**代码现状** ✅ 多后端接口对齐完成（6a），延迟命令缓冲完成（6b），GL 后端功能等价
+**代码现状** ✅ 多后端接口对齐完成（6a），延迟命令缓冲完成（6b），D3D12 后端落地（6d），GL/D3D12 双后端功能等价
 
 已实现：
 - `IRHIDevice` 统一接口（合并原 `IRenderBackend`）：surface 生命周期（`initSurface`/`shutdownSurface`/`beginFrame`/`endFrame`/`setClearColor`/`clear`/`resizeSurface`）+ 资源工厂 + 命令提交 + 帧 fence + 延迟删除 + 内存追踪 → `render/public/rhi/rhi_device.h`
 - `IRHICommandList` 纯虚接口：`beginRenderPass()`/`endRenderPass()`、viewport/scissor、绑定管线/顶点/索引/纹理/Uniform、`drawIndexed()`/`draw()`、resource barrier、debug group、`bindConstantBuffer()`/`setPushConstants()` → 同上
 - **延迟命令缓冲（6b）**：`RenderCommandBuffer` 连续内存 bump allocator（4 MB 默认）+ `RenderCommandType` 枚举（24 种命令）+ payload 结构体 → `render/public/rhi/render_command_buffer.h/.cpp`；`DeferredCommandList` 实现 `IRHICommandList` 纯序列化 → `render/public/rhi/deferred_command_list.h/.cpp`；`GLCommandTranslator` 遍历 buffer 翻译为 GL 调用（含状态缓存）→ `render/public/rhi/gl_command_translator.h/.cpp`；`GLRHIDevice` 通过 pimpl `DeferredState` 持有三者，`createCommandList()` 返回 recorder，`submit()` 驱动 translator.execute()
-- `IRHIFence` 独立 GPUResource 子类：`signal()`/`wait()`/`getCompletedValue()`/`isSignaled()`；`GLFence` 底层 GLsync → `public/rhi/rhi_resources.h` + `gl_rhi_device.h`
+- **D3D12 后端（6d）**：`D3D12RHIDevice` 实现 `IRHIDevice` 全接口（DXGI 1.6 + flip-model swapchain 2 帧 + 自有 D32 深度 + 2 帧 in-flight allocator 轮换 + `IDXGIAdapter3` 显存查询 + backbuffer readback）→ `render/public/rhi/d3d12_rhi_device.h` + `render/private/rhi/d3d12_rhi_device.cpp`；`D3D12CommandTranslator` 复用同一 `RenderCommandBuffer` 翻译为 D3D12 调用：全局 root signature（CBV b0..b2 按 stage 拆分 slot 0-5 + SRV 表 t0..t2 slot 6 + 3 静态 sampler），cbuffer 布局由 DXC 容器反射（`IDxcContainerReflection`，非旧 `D3DReflect`——不支持 DXIL）在 PSO 创建时获得，`setUniform*` 展平名解析回 (cbuffer, vec4 索引) 经 CPU staging → per-frame upload ring → root CBV；纹理 SRV 持久 CPU heap（free-list）→ 每帧 copy 进 shader-visible heap；纹理上传时行翻转（cooked UV 的 V 翻转是 GL 底左原点的几何侧约定）→ `render/public/rhi/d3d12_command_translator.h` + `render/private/rhi/d3d12_command_translator.cpp`
+- 后端选择：`--backend=<gl|d3d12>` / `ENTELECHY_BACKEND` 环境变量，默认 OpenGL；`shaderFileExtensionForBackend()`/`shaderFormatForBackend()` 按后端选着色器产物（`.glsl`/`.dxil`/`.spv`）→ `render/private/rhi/rhi_device_factory.cpp`
+- `IRHIFence` 独立 GPUResource 子类：`signal()`/`wait()`/`getCompletedValue()`/`isSignaled()`；`GLFence` 底层 GLsync、`D3D12Fence` 底层 `ID3D12Fence` + event → `public/rhi/rhi_resources.h` + `gl_rhi_device.h` + `d3d12_rhi_device.h`
 - `ShaderBytecode` 结构体：`{stage, format(GLSL/SPIRV/DXIL), data, size, entryPoint}`；`createShader()` 接受多格式字节码 → `public/rhi/rhi_types.h`
-- `ResourceState` 位掩码枚举（Common/VertexBuffer/IndexBuffer/ConstantBuffer/ShaderResource/UAV/RenderTarget/DepthWrite/DepthRead/CopySrc/CopyDst/Present）+ resource-referencing `BarrierDesc` → `public/rhi/rhi_types.h`
+- `ResourceState` 位掩码枚举（Common/VertexBuffer/IndexBuffer/ConstantBuffer/ShaderResource/UAV/RenderTarget/DepthWrite/DepthRead/CopySrc/CopyDst/Present）+ resource-referencing `BarrierDesc` → `public/rhi/rhi_types.h`；D3D12 后端翻译为 `D3D12_RESOURCE_BARRIER`（6d）
 - `RenderBackendType` 枚举（OpenGL / D3D12 / Vulkan）+ `createRHIDevice()` 工厂函数 → `public/rhi/rhi_device_factory.h`
+- `PipelineStateDesc` 含顶点输入布局（`vertexStride` + `vertexAttributes[8]`，6d 起；GL 忽略，D3D12 烘焙进 PSO，attribute location→HLSL 语义名映射在 D3D12 后端内）→ `public/rhi/rhi_pipeline.h`
 - `ClearFlags` 位掩码（Color/Depth/Stencil）→ `public/rhi/rhi_types.h`
 
 **缺失项**：
@@ -42,7 +45,7 @@
 |------|---------|---------|
 | ~~延迟命令缓冲~~ | ~~`RenderCommandBuffer` + `LinearAllocator` + `RenderCmdHeader` 命令枚举分派~~ | ✅ 已完成（6b）。专用 bump allocator 替代通用 LinearAllocator |
 | `Handle<Tag>` + `ResourceTable` | RHI 层本身的资源标识用 tagged handle + dense array | ❌ 不存在于 RHI 层。RHI 用裸 `RHIRef<T>` 智能指针 |
-| D3D12 后端 | 笔记明确："首个后端 = D3D12" | ❌ 不存在。仅 OpenGL 后端。接口已对齐，6d 可实现 |
+| ~~D3D12 后端~~ | ~~笔记明确："首个后端 = D3D12"~~ | ✅ 已完成（6d，2026-08-07）。Sponza 画面与 GL 等价；已知限制见 TODO（mip 生成/同步上传/PIX/ImGui-DX12） |
 | `ErrorPolicy` / `RHIErrorCode` | 统一错误处理（DEBUG assert、Release log） | ❌ 不存在 |
 | UBO/CBV 统一绑定 | `bindConstantBuffer`/`setPushConstants` 已有接口但无调用方 | ⏳ 接口就绪，6e 落地实际绑定路径 |
 
@@ -89,8 +92,9 @@
 
 已实现：
 - `GPUResource` 原子引用计数 + `RHIRef<T>` 智能句柄 → `public/rhi/rhi_resources.h`
-- Fence 门控延迟删除：`signalFrame()`/`getCompletedFenceValue()`/`queueResourceForDelete()`/`flushPendingDeletes()` → `GLRHIDevice`（GL sync object `GL_SYNC_GPU_COMMANDS_COMPLETE`）
-- 内存预算查询：`queryMemoryInfo()`（NVX/ATI 扩展）+ `getTrackedMemoryUsage()` + 每资源 `memorySizeBytes()`
+- Fence 门控延迟删除：`signalFrame()`/`getCompletedFenceValue()`/`queueResourceForDelete()`/`flushPendingDeletes()` → `GLRHIDevice`（GL sync object `GL_SYNC_GPU_COMMANDS_COMPLETE`）+ `D3D12RHIDevice`（6d：`ID3D12Fence` 单时间线 + event 等待，2 帧 in-flight command allocator 轮换）
+- D3D12 堆模型（6d）：default heap + 专用 upload list 资源上传、8MB per-frame upload ring（root CBV 常量）、256 槽持久 CPU SRV heap（free-list）+ 4096 槽 per-frame shader-visible SRV heap（bump）
+- 内存预算查询：`queryMemoryInfo()`（GL: NVX/ATI 扩展；D3D12: `IDXGIAdapter3::QueryVideoMemoryInfo`）+ `getTrackedMemoryUsage()` + 每资源 `memorySizeBytes()`
 - `TransientTexturePool`：按描述符分组复用 + Fence 保护回收 + `acquire`/`release`/`purgeCompleted` → `public/rhi/rhi_transient_resource_pool.h/.cpp`
 - `FrameArenaRing<2>` 在 RenderWorld 中用作帧环形缓冲区 → `render_world/RenderWorld.h`
 - 测试覆盖：延迟删除、引用计数句柄、transient pool、内存大小计算 → `tests/test_gpu_resource_lifecycle.cpp`
@@ -478,7 +482,7 @@
 ## 总体进度汇总
 
 ```
-5.1  RHI 抽象层与命令模型           ██████████  95%  多后端接口对齐(6a)+延迟命令缓冲(6b)完成，GL 后端录制+回放模式；UBO 绑定待 6e
+5.1  RHI 抽象层与命令模型           ██████████  98%  多后端接口对齐(6a)+延迟命令缓冲(6b)+D3D12 后端(6d)完成，GL/D3D12 双后端等价；UBO 绑定待 6e
 5.2  多线程命令录制与并行渲染 ⭐      ██████░░░░  60%  CPU 并行生成完成，GPU 命令并行录制未实现
 5.3  GPU 资源生命周期管理 ⭐          ████████░░  80%  核心机制齐全，缺少预算强制和 ECS 化
 5.3b PSO 缓存与异步编译 ⭐            ████░░░░░░  40%  同步缓存已接线（5c，28 材质收敛为 3 PSO），无异步编译

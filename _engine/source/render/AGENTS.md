@@ -3,7 +3,7 @@
 
 ## 一句话职责
 
-图形渲染后端抽象与 OpenGL 实现，包含 RHI（Render Hardware Interface）抽象层骨架。
+图形渲染后端抽象与多后端实现（OpenGL + D3D12），包含 RHI（Render Hardware Interface）抽象层与延迟命令缓冲。
 
 ## 关键文件
 | 文件 | 职责 |
@@ -13,7 +13,13 @@
 | `rhi_device.h` | `IRHIDevice`（资源工厂 + 提交 + Frame Fence + 延迟删除 + 显存预算）与 `IRHICommandList`（命令录制 + 调试标注）纯虚接口 |
 | `rhi_pipeline.h` | `PipelineStateDesc`（完整 PSO 描述，含哈希支持）、`PSOManager`（设备级缓存；2026-08-06 阶段 5c 起 `GLRHIDevice::createPipelineState` 经 `find`/`insert` 走缓存，相同 shader pair + 状态共享一个 GL program） |
 | `rhi_transient_resource_pool.h` / `.cpp` | 瞬态纹理池：按描述符分组复用单帧生命周期纹理，预留显存别名接口 |
-| `gl_rhi_device.h` / `.cpp` | OpenGL 后端对 RHI 接口的实现：`GLRHIDevice`、`GLCommandList`、GL 资源对象、Fence 跟踪、延迟删除队列、显存统计 |
+| `gl_rhi_device.h` / `.cpp` | OpenGL 后端对 RHI 接口的实现：`GLRHIDevice`、GL 资源对象、Fence 跟踪、延迟删除队列、显存统计；经 pimpl `DeferredState` 持有命令缓冲三件套（6b 起录制+回放） |
+| `render_command_buffer.h` / `.cpp` | 延迟命令缓冲（6b）：连续内存 bump allocator + `RenderCommandType` 24 种命令 payload |
+| `deferred_command_list.h` / `.cpp` | `IRHICommandList` 的纯序列化实现（录制进 `RenderCommandBuffer`，零图形 API 调用） |
+| `gl_command_translator.h` / `.cpp` | GL 翻译器：遍历命令缓冲逐条翻译为 GL 调用（状态缓存从旧 `GLCommandList` 迁入） |
+| `d3d12_rhi_device.h` / `.cpp` | **D3D12 后端（6d）**：`D3D12RHIDevice`（swapchain/深度/2 帧 in-flight/upload ring/SRV heaps/显存查询/readback）、资源对象、`D3D12Fence`；cbuffer 布局经 DXC 容器反射（`IDxcContainerReflection`，需 dxcompiler.dll+dxil.dll） |
+| `d3d12_command_translator.h` / `.cpp` | D3D12 翻译器：全局 root signature（CBV b0-b2 按 stage 拆 slot + SRV 表 + 3 静态 sampler）；`setUniform*` 展平名解析回 cbuffer staging，draw 时上传 upload ring 绑 root CBV |
+| `rhi_device_factory.h` / `.cpp` | `createRHIDevice()` 工厂 + `shaderFileExtensionForBackend()`/`shaderFormatForBackend()`（按后端选 `.glsl`/`.dxil`/`.spv`） |
 | `rhi_resources.cpp` | `GPUResource::release()` 实现：引用计数归零后交给所属设备延迟删除 |
 | `opengl_backend.cpp` | OpenGL 初始化、视口管理、清除与呈现（SwapChain 层，保留兼容） |
 | `opengl_backend.h` | `OpenGLBackend` 类声明 |
@@ -54,7 +60,10 @@
 
 ## 重要入口
 - 改**RHI 抽象接口** → 动 `rhi_device.h` / `rhi_types.h`
-- 改**OpenGL RHI 具体实现** → 动 `gl_rhi_device.h` / `.cpp`
+- 改**OpenGL RHI 具体实现** → 动 `gl_rhi_device.h` / `.cpp` + `gl_command_translator.h` / `.cpp`
+- 改**D3D12 RHI 具体实现** → 动 `d3d12_rhi_device.h` / `.cpp` + `d3d12_command_translator.h` / `.cpp`
+- 改**命令缓冲格式/命令集** → 动 `render_command_buffer.h` / `deferred_command_list.h` / `.cpp`（两个翻译器需同步）
+- 改**后端选择/着色器路径** → 动 `rhi_device_factory.cpp`（后端枚举 + `--backend=` 参数在 `launch/templates/main.cpp.in`）
 - 改**GPU 资源生命周期（延迟删除 / Fence / 显存预算）** → 动 `rhi_resources.h/.cpp` / `rhi_device.h` / `gl_rhi_device.h/.cpp`
 - 改**瞬态资源池** → 动 `rhi_transient_resource_pool.h/.cpp`
 - 改**PSO 缓存策略** → 动 `rhi_pipeline.h` / `gl_rhi_device.cpp`
@@ -93,7 +102,13 @@
 
 ## 技术债务
 
-> 统一维护于 [TODO.md](../../../../TODO.md)。本模块相关条目包括：Render/RHIImmediateExecution、Render/UniformBinding、Render/MaterialNoVariant、Render/ShaderSyncCompile、Render/SingleBackend。
+> 统一维护于 [TODO.md](../../../../TODO.md)。本模块相关条目包括：Render/UniformBinding、Render/MaterialNoVariant、Render/ShaderSyncCompile、Render/D3D12MipGeneration、Render/D3D12SyncUpload、Render/D3D12PixMarkers、Render/D3D12NoImGui。
+
+### 2026-08-07 已完成（6d D3D12 后端）
+- ✅ `D3D12RHIDevice` + `D3D12CommandTranslator`：D3D12 后端落地，Sponza 画面与 GL 功能等价（~114 fps vs GL 60 vsync，剔除统计一致），`--backend=d3d12` 选择后端
+- ✅ `PipelineStateDesc` 携带顶点输入布局（D3D12 PSO 必需，GL 忽略）；着色器字节码路径按后端选择
+- ✅ 新增 `test_d3d12_backend.cpp` 冒烟测试（设备/buffer/纹理/fence/显存）
+- ✅ 既知限制记入 TODO：D3D12 纹理无运行时 mip 生成（mip 0 only）、逐纹理同步上传偏慢、PIX 调试标注未接、D3D12 模式无 ImGui
 
 ### 2026-05-31 已完成（级别 1 轻量优化）
 - ✅ `IRHICommandList::pushDebugGroup` / `popDebugGroup` / `insertDebugMarker` — GPU 调试标注接口（映射到 GL_KHR_debug / GL 4.3+）

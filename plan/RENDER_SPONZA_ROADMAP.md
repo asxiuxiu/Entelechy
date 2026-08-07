@@ -11,7 +11,7 @@
 
 ## 现状一句话总结
 
-四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-5 完成（2026-08-06），NewSponza 全量 405 primitive 经 Extract → Cull → Queue → Execute 完整链路渲染——方向光 lit PBR（GGX）、法线/MR 贴图采样、天空渐变、调试统计面板（FPS/draw calls/剔除/PSO 缓存/显存）全部落地，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。阶段 6a RHI 接口审计 + 6b 延迟命令缓冲已完成（2026-08-07），GL 后端已从立即执行切换为录制+回放模式。阶段 6c 着色器编译工具链已完成（2026-08-07）：HLSL-first + DXC + SPIRV-Cross 管线落地，3 组 shader 移植为 HLSL SM 6.0，离线编译产出 DXIL/SPIR-V/GLSL 三格式，运行时从预编译字节码加载。下一步是 6e（UBO/CBV 绑定）。
+四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-5 完成（2026-08-06），NewSponza 全量 405 primitive 经 Extract → Cull → Queue → Execute 完整链路渲染——方向光 lit PBR（GGX）、法线/MR 贴图采样、天空渐变、调试统计面板（FPS/draw calls/剔除/PSO 缓存/显存）全部落地，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。阶段 6a RHI 接口审计 + 6b 延迟命令缓冲已完成（2026-08-07），GL 后端已从立即执行切换为录制+回放模式。阶段 6c 着色器编译工具链已完成（2026-08-07）：HLSL-first + DXC + SPIRV-Cross 管线落地，3 组 shader 移植为 HLSL SM 6.0，离线编译产出 DXIL/SPIR-V/GLSL 三格式，运行时从预编译字节码加载。阶段 6d D3D12 后端已完成（2026-08-07）：Sponza 在 DX12 下渲染与 GL 功能等价（~114 fps，剔除统计一致），`--backend=d3d12` 选择后端，默认仍 OpenGL。下一步是 6e（UBO/CBV 绑定）。
 
 ## 断裂修复与阶段的对应关系
 
@@ -197,7 +197,7 @@
 
 ---
 
-### 6d. D3D12 后端最小实现 ⭐⭐
+### 6d. D3D12 后端最小实现 ⭐⭐ ✅ 已完成（2026-08-07）
 
 **目标**: 实现 D3D12 后端，使 Sponza 场景在 DX12 下可渲染，画面与 GL 后端功能等价。这是阶段 6 的核心交付物。
 
@@ -215,6 +215,8 @@
 **验证**: Debug 构建通过；D3D12 后端启动 Sponza 场景，画面与 GL 后端目视一致（光照/贴图/天空/剔除）；PIX capture 验证命令流合理；帧率 ≥ GL 后端 80%（初期允许开销）。新增 D3D12 后端冒烟测试。
 
 **对应章节**: 5.1（D3D12 后端）、5.3（GPU 资源生命周期——D3D12 Fence/Heap）、5.13（BindGroup/CBV 分层）
+
+> **落地记录（2026-08-07）**：六项子任务全部完成。(1) `D3D12RHIDevice`（`render/public/rhi/d3d12_rhi_device.h` + `render/private/rhi/d3d12_rhi_device.cpp`）实现 `IRHIDevice` 全接口：DXGI 1.6 高性能适配器选择、flip-model swapchain（2 帧 RGBA8）+ 自有 D32 深度缓冲、`CreateCommittedResource` 资源创建（default heap + 专用 upload list 同步上传）、PSO 经 `PSOManager` 缓存、`IDXGIAdapter3::QueryVideoMemoryInfo` 显存查询。(2) 走延迟缓冲路径：`D3D12CommandTranslator` 遍历 `RenderCommandBuffer` 翻译为 D3D12 调用，上层 `RenderExecuteSystem`/`Material` 零改动。(3) Root Signature 全局一份：CBV b0..b2 按 stage visibility 拆分（slot 0-5）+ SRV 表 t0..t2（slot 6）+ 3 个静态 sampler；cbuffer 布局用 **DXC 容器反射**（`IDxcContainerReflection`，旧 `D3DReflect` 不支持 DXIL——首次实跑踩坑后改）在 PSO 创建时反射获得；翻译器把 `setUniform*` 的展平名（`type_PerDraw[N]`）解析回 (cbuffer, vec4 索引)，CPU staging 累积后 draw 时上传 per-frame upload ring（8MB）并绑 root CBV；纹理 SRV 创建在 256 槽持久 CPU heap（free-list 回收），draw 时 copy 进 4096 槽 per-frame shader-visible heap。(4) 6a 已完成 device/backend 合并，`D3D12RHIDevice` 直接管 swapchain present + 2 帧 in-flight allocator 轮换（fence 按 slot 等待）。(5) `BarrierDesc` → `D3D12_RESOURCE_BARRIER` 翻译落地（含 backbuffer PRESENT↔RENDER_TARGET、纹理 COPY_DEST→PS_RESOURCE）。(6) 后端选择：`--backend=d3d12` 或 `ENTELECHY_BACKEND` 环境变量，默认仍 OpenGL；`main.cpp.in` 按后端分支（GL 传 GLFWwindow*、D3D12 传 HWND），**D3D12 模式暂跳过 ImGui**（无 DX12 ImGui 后端，统计仍有每秒日志）。配套变更：`PipelineStateDesc` 增加顶点布局字段（D3D12 PSO 必需，GL 忽略；attribute location→HLSL 语义名映射在 D3D12 后端内），着色器路径按后端选扩展名（`shaderFileExtensionForBackend`）。**跨后端语义确认**：`Mat4::perspective` 本就是 z∈[0,1] D3D 风格无需修正；cooked UV 的 V 翻转是为 GL 底左原点服务的几何侧约定，D3D12 上传纹理时翻转像素行序等价。**验收**：Debug 构建通过，239 测试全绿（含 5 个新增 D3D12 冒烟：设备/buffer/纹理/fence/显存）；D3D12 实跑 Sponza 零错误日志，~114 fps（vs GL vsync 上限 60），剔除统计一致（285 visible / 120 culled）；截图验证几何/光照/贴图/天空与 GL 一致。**已知限制（记 TODO）**：纹理只建 mip 0（无运行时 mip 生成，静态 sampler clamp LOD=0，远景略 aliasing）；每纹理上传为同步 execute+wait（加载期偏慢）；PIX 调试标注未接（debug marker 丢弃）；D3D12 模式无 ImGui 叠加层。
 
 ---
 

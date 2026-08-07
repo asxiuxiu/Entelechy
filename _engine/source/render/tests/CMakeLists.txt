@@ -8,6 +8,7 @@ entelechy_module(
     SOURCES
         ${CMAKE_CURRENT_LIST_DIR}/test_gpu_resource_lifecycle.cpp
         ${CMAKE_CURRENT_LIST_DIR}/test_command_buffer.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/test_d3d12_backend.cpp
     PUBLIC_DEPS
         RenderCoreLib
         TestFrameworkLib

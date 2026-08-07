@@ -9,6 +9,9 @@
 - [ ] ECS / Core Runtime | ECS 当前没有 Resource 概念（全局单例数据的调度器感知存储）。`String` / `Assets<T>` / `InputState` 等全局数据目前以独立单例或全局变量形式存在。Resource 的核心价值不是存储，而是**让 Scheduler 感知 System 对全局数据的读写依赖以正确并行调度**。需在 System 并行化前引入 `insertResource<T>()` / `Res<T>` / `ResMut<T>` SystemParam。注意：并非所有全局状态都应进 ECS Resource——仅被多个 ECS System 并发访问且调度器需要感知依赖的数据才需要（如 `Time`、`InputState`、`Assets<T>`），底层基础服务（如 `StringInternPool`、`IAllocator`）保持单例即可（2026-08-04 讨论结论）。
 - [ ] ECS / Core Runtime | `ecs/world/plugin.h` `PluginManifest` 只记录 name/phase/dependencies，缺少 registered_components / registered_systems / registered_resources，AI Agent 无法完整查询插件能力。
 
+- [x] ECS / Core Runtime | `ThreadPool/Submit1000Tasks` 测试偶发卡死/段错误（2026-08-07 复现，~25% 失败率）。根因（2026-08-08 定位）：(A) `submit()` 从任意线程直推 worker 本地 Chase-Lev 队列，违反 `push()` owner-only 约束——外部 push 与 owner `pop()` 在 `m_bottom` 上无同步竞争，导致任务丢失与 `std::function` 槽位撕扯（`bad_function_call`/野指针）；(B) 构造函数边建 Worker 边启动线程，worker steal 遍历 `m_workers` 时主线程 `pushBack` realloc 造成 use-after-free。修复：外部提交一律走全局 mutex 队列 + 构造两阶段化；新增 `StressDiagnostic` 回归测试（300 轮 submit/wait + 逐任务执行计数 + 有界等待）。
+- [ ] ECS / Core Runtime | ThreadPool 本地工作窃取队列当前无生产路径（外部 submit 全走全局 mutex 队列），`WorkStealingQueue` 的 push/pop/steal 实质空转。引入 worker 本地任务派生（嵌套并行）时需 TLS owner 路由或 MPSC 安全的外部 push，并回归 `StressDiagnostic`。
+
 ## Asset / 资源管理
 > 2026-05-25：已完成简化路径（Handle Table + 单后台线程异步加载 + 手动 unload）。以下差额在后续阶段补齐。
 
@@ -49,8 +52,13 @@
 - [ ] Render / RHI | `PSOManager::getOrCreateAsync()` 缓存未命中时同步编译造成帧时间尖刺（hitch），需返回占位 PSO（如最简单的纯色着色器），同时启动后台线程编译，后台完成后自动切换。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/RHI抽象层.md` 问题 5。
 - [ ] Render / RHI | 纹理显存无预算控制：Sponza 73 张 PNG 全部以 RGBA8 + 完整 mip 链上传（5b 修复 minification aliasing 引入 mip 链后约 +33%），合计约 6.2 GiB 量级。无纹理压缩（BC7/ASTC）、无 cook 期降采样、无流式加载。当前场景能跑，但第二个更大场景或低端 GPU 会爆显存；压缩纹理格式支持需 RHI `TextureDesc` 增加压缩 format 枚举 + cooker 侧编码。
-- [ ] Render / RHI | RHI 抽象接口目前仅有 OpenGL 后端，需在接口已跑通带纹理旋转立方体、接口稳定后启动第二个后端，先钉死 D3D12（Windows 默认，调试工具顶尖），跑通全部上层管线后再移植 Vulkan。
-  - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/RHI抽象层.md` 问题 7。
+- [x] Render / RHI | RHI 抽象接口目前仅有 OpenGL 后端，需在接口已跑通带纹理旋转立方体、接口稳定后启动第二个后端，先钉死 D3D12（Windows 默认，调试工具顶尖），跑通全部上层管线后再移植 Vulkan。
+  - 完成：2026-08-07（阶段 6d），`D3D12RHIDevice` + `D3D12CommandTranslator` 落地，Sponza 画面与 GL 功能等价（截图验证），`--backend=d3d12` / `ENTELECHY_BACKEND` 选择后端。见 `render/public/rhi/d3d12_rhi_device.h`、`render/public/rhi/d3d12_command_translator.h`。Vulkan 预留在 6f。
+- [ ] Render / RHI | Render/D3D12MipGeneration：D3D12 后端纹理只建 mip 0（`d3d12_rhi_device.cpp` `createTexture` 强制 `MipLevels=1`，静态 sampler clamp LOD=0），GL 侧有 `glGenerateMipmap` 而 D3D12 无等价 API，远景 minification 会 aliasing（法线贴图最明显）。需 mip 生成 pass（compute box-filter 或简单逐层 blit shader），或 cook 期预生成 mip 链进资产。
+- [ ] Render / RHI | Render/D3D12SyncUpload：D3D12 `createBuffer`/`createTexture` 每次上传单独 `CreateCommittedResource` staging + close/execute/fence 同步等待，137 张纹理加载期明显慢于 GL（14000 帧仅 52 张 vs GL 90s 全量）。应改批量上传（staging 池 + 单 list 多 copy + 一次 fence），或异步上传线程。
+- [ ] Render / RHI | Render/D3D12PixMarkers：D3D12 翻译器的 `pushDebugGroup`/`popDebugGroup`/`insertDebugMarker` 为空操作（未链接 WinPixEventRuntime），PIX capture 时无事件分层。接入 PIX runtime 后映射到 `PIXBeginEvent`/`PIXEndEvent`/`PIXSetMarker`。
+- [ ] Render / RHI | Render/D3D12NoImGui：D3D12 模式下 ImGui 整体跳过（`main.cpp.in` 按后端分支），调试面板/统计叠加层不可用（统计仍有每秒日志）。需接 imgui_impl_dx12（共享 SRV descriptor heap + 独立 render pass），或做后端无关的 UI 叠加抽象。
+- [ ] Render / RHI | `D3D12RHIDevice` 的 attribute location→HLSL 语义名映射（0=POSITION/1=NORMAL/2=TEXCOORD/3=TANGENT）硬编码在 `getSemanticName()`，与 `prepare_assets_system.cpp` 的 `s_meshAttrs` 隐式耦合；顶点布局格式升级（如多 UV/顶点色）时两处需同步。6e/材质变体阶段应让语义名直接进入 `VertexAttributeDesc`。
 - [ ] Render / RHI | 主 World 与渲染未分离，无法支持 CPU-GPU 流水线并行、多视图隔离、确定性快照，需实现双 World 模型（主 World 跑逻辑 30Hz，Render World 跑渲染 60Hz），每帧 Extract 阶段单向只读复制可渲染数据到 Render World，Render World 内 System 生成命令，最终 `PresentSystem` 输出。
   - 参考：知识库 `Notes/SelfGameEngine/渲染管线与第一帧/RHI抽象层.md` 问题 6。
 - [x] Render / RHI | `FrustumCullSystem`（`render/culling/FrustumCullSystem.cpp:37`）与 `QueueDrawsSystem`（`render/queue/QueueDrawsSystem.cpp:31`）每帧通过 `Query<ViewVisibleList>` / `Query<ViewBinnedPhases>` / `Query<ViewSortedPhases>` 遍历全部实体来定位唯一的 Resource-like 组件，且不存在时会创建新实体，导致 render world 实体数只增不减，需将 View-level Resource 绑定到 view 实体或引入 ECS 的 Resource 系统（非组件的全局表）。

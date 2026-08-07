@@ -6,11 +6,13 @@
 #include "render_system/components/render_sky.h"
 #include "render_system/phase/render_resources.h"
 #include "render/rhi/gl_rhi_device.h"
+#include "render/rhi/rhi_device_factory.h"
 #include "render/material/shader_cache.h"
 #include "ecs/world/world.h"
 #include "ecs/query/query.h"
 #include "log/core/log_macros.h"
 #include "core/math/mat3.h"
+#include <string>
 
 namespace Entelechy
 {
@@ -159,9 +161,15 @@ bool RenderExecuteSystem::initSkyPass()
     pipelineDesc.depthStencilState.depthTest = true;
     pipelineDesc.depthStencilState.depthWrite = false;
     pipelineDesc.depthStencilState.depthFunc = CompareFunc::LessEqual;
+    pipelineDesc.vertexStride = sizeof(f32) * 2;
+    pipelineDesc.vertexAttributes[0] = {0, 2, false, 0};
+    pipelineDesc.vertexAttributeCount = 1;
 
-    if (!m_sky_material.initFromBytecode(m_device, "shaders/sky_vertex.glsl", "shaders/sky_pixel.glsl",
-                                         ShaderBytecodeFormat::GLSL, params, s_skyParamCount, pipelineDesc))
+    const std::string skyVs = std::string("shaders/sky_vertex") + shaderFileExtensionForBackend(m_device->getBackendType());
+    const std::string skyPs = std::string("shaders/sky_pixel") + shaderFileExtensionForBackend(m_device->getBackendType());
+    if (!m_sky_material.initFromBytecode(m_device, skyVs.c_str(), skyPs.c_str(),
+                                         shaderFormatForBackend(m_device->getBackendType()), params, s_skyParamCount,
+                                         pipelineDesc))
         return false;
 
     // Set default sky colors using flattened cbuffer layout

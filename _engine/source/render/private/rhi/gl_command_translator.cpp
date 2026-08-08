@@ -405,9 +405,18 @@ void GLCommandTranslator::execute(const RenderCommandBuffer &buffer)
         }
 
         case RenderCommandType::BindConstantBuffer:
-            // No-op on OpenGL for now. When UBO/CBV unified binding lands,
-            // this will translate to glBindBufferBase(GL_UNIFORM_BUFFER, ...).
+        {
+            // UBO/CBV unified binding (6e): the GLSL UBO blocks carry
+            // layout(binding = N, std140), so binding point N maps straight
+            // to a GL_UNIFORM_BUFFER binding index.
+            const auto *cmd = reinterpret_cast<const CmdBindConstantBuffer *>(payloadPtr);
+            if (cmd->buffer)
+            {
+                auto *glBuf = static_cast<GLBuffer *>(cmd->buffer);
+                glBindBufferRange(GL_UNIFORM_BUFFER, cmd->binding, glBuf->getVBO(), cmd->offset, cmd->size);
+            }
             break;
+        }
 
         case RenderCommandType::SetPushConstants:
             // No-op on OpenGL. Push constants map to root constants (D3D12) or

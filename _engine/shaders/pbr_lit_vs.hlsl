@@ -19,11 +19,15 @@ struct VSOutput
     float2 vUV        : TEXCOORD4;
 };
 
+// Cbuffer layout constraint (6e): every cbuffer member is a float4/float4x4
+// so that HLSL constant-buffer packing (DXC) and std140 (GL UBO) agree
+// exactly — the CPU uploads ONE shared layout blob for both backends.
+// uNormalMatrix is a 4x4 carrying a mat3 in its upper-left 3x3.
 cbuffer PerDraw : register(b2)
 {
     float4x4 uMVP;
     float4x4 uModel;
-    float3x3 uNormalMatrix;
+    float4x4 uNormalMatrix;
 };
 
 VSOutput main(VSInput input)
@@ -35,7 +39,7 @@ VSOutput main(VSInput input)
     // N goes through the normal matrix (inverse-transpose),
     // T through the plain model matrix, then T is re-orthogonalized
     // against N (Gram-Schmidt) — B is rebuilt in the fragment shader.
-    float3 N = mul(uNormalMatrix, input.aNormal);
+    float3 N = mul((float3x3)uNormalMatrix, input.aNormal);
     float3 T = mul((float3x3)uModel, input.aTangent.xyz);
     T = normalize(T - dot(T, N) * N);
 

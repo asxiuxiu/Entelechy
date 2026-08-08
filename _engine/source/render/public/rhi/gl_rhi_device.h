@@ -24,7 +24,7 @@ class IWindow;
 class GLBuffer : public RHIBuffer
 {
 public:
-    GLBuffer(u32 size, BufferUsage usage, GLuint vbo, GLuint vao);
+    GLBuffer(u32 size, BufferUsage usage, GLuint vbo, GLuint vao, void *mapped);
     ~GLBuffer() override;
 
     u32 getSize() const override
@@ -45,6 +45,11 @@ public:
         return m_vao;
     }
 
+    void *getCpuMappedPointer() override
+    {
+        return m_mapped;
+    }
+
     u64 memorySizeBytes() const override
     {
         return static_cast<u64>(m_size);
@@ -59,6 +64,7 @@ private:
     BufferUsage m_usage = BufferUsage::None;
     GLuint m_vbo = 0;
     GLuint m_vao = 0; // 0 if not a vertex buffer with layout
+    void *m_mapped = nullptr; // persistent CPU map (cpuAccessible buffers)
 };
 
 class GLTexture : public RHITexture

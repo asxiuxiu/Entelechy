@@ -1089,15 +1089,23 @@ RHIBufferRef D3D12RHIDevice::createBuffer(const BufferDesc &desc, const void *in
         return nullptr;
     }
 
+    void *persistentMap = nullptr;
+    if (cpuAccessible)
+    {
+        // Keep the upload-heap resource persistently mapped for the buffer's
+        // lifetime (ConstantBufferRing memcpys into it every frame).
+        if (FAILED(resource->Map(0, nullptr, &persistentMap)))
+        {
+            LOG_ERROR(kLogD3D12, "D3D12: buffer persistent map failed (%u bytes)", desc.size);
+            return nullptr;
+        }
+    }
+
     if (initialData)
     {
         if (cpuAccessible)
         {
-            void *mapped = nullptr;
-            if (FAILED(resource->Map(0, nullptr, &mapped)))
-                return nullptr;
-            std::memcpy(mapped, initialData, desc.size);
-            resource->Unmap(0, nullptr);
+            std::memcpy(persistentMap, initialData, desc.size);
         }
         else
         {
@@ -1128,6 +1136,7 @@ RHIBufferRef D3D12RHIDevice::createBuffer(const BufferDesc &desc, const void *in
     }
 
     auto *buffer = allocateResource<D3D12Buffer>(desc.size, desc.usage, std::move(resource), desc.vertexStride);
+    buffer->setMappedPointer(persistentMap);
     buffer->setDevice(this);
     trackResourceCreated(buffer);
     return RHIBufferRef(buffer);

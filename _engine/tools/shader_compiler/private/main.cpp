@@ -449,11 +449,25 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            printf("    -> %s (%zu bytes DXIL, %zu bytes SPIR-V, %zu chars GLSL)\n",
+            // Write cbuffer/texture reflection metadata (consumed by
+            // ShaderReflection at runtime for the UBO/CBV binding path).
+            std::string reflectionPath = baseName + "_reflection.json";
+            auto reflectionResult = spirvCross.writeReflection(reflectionPath.c_str(), spirvResult.bytecode.data(),
+                                                               spirvResult.bytecode.size(), shader.name.c_str(),
+                                                               ep.stage.c_str());
+            if (!reflectionResult.success)
+            {
+                fprintf(stderr, "  [ERROR] Reflection write failed: %s\n", reflectionResult.error_message.c_str());
+                ++errorCount;
+                continue;
+            }
+
+            printf("    -> %s (%zu bytes DXIL, %zu bytes SPIR-V, %zu chars GLSL, reflection %s)\n",
                    ep.stage.c_str(),
                    dxilResult.bytecode.size(),
                    spirvResult.bytecode.size(),
-                   glslResult.glsl_source.size());
+                   glslResult.glsl_source.size(),
+                   reflectionPath.c_str());
             ++compiledCount;
         }
     }

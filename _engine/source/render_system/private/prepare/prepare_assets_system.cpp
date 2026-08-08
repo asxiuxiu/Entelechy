@@ -234,38 +234,31 @@ bool PrepareAssetsSystem::init(IRHIDevice *device, ShaderCache *shaderCache)
     }
 
     // Material parameter layout matching the HLSL cbuffer structure.
-    // After SPIRV-Cross flattening, cbuffers become vec4 arrays:
-    //   PerFrame[3]:  [0]=uViewPos.xyz+pad, [1]=uLightDir.xyz+uLightIntensity, [2]=uLightColor.xyz+uAmbient
-    //   PerMaterial[2]: [0]=uColor.xyz+uMetallic, [1]=uRoughness+uAlphaCutoff+uHasNormalTex+uHasMRTex
-    //   PerDraw[11]:  [0..3]=uMVP rows, [4..7]=uModel rows, [8..10]=uNormalMatrix (mat3 packed in 3 vec4)
-    // Textures keep their original HLSL names — the shader compiler renames
-    // SPIRV-Cross combined samplers back to the source texture names.
+    // Member names are the real shader cbuffer names from the reflection
+    // JSON (6e); cbuffers are vec4/mat4-only so the single CPU blob layout
+    // matches both D3D12 (HLSL packing) and GL (std140 UBO):
+    //   PerFrame(b0):    uViewPos / uLightDir / uLightColor  (vec4)
+    //   PerMaterial(b1): uColor.xyz+metallic / uAlphaMR{roughness,alpha,hasN,hasMR}
+    //   PerDraw(b2):     uMVP / uModel / uNormalMatrix (mat4, carries mat3)
+    // Textures bind by their reflected t-register (uBaseColorTex=0, ...).
     MaterialParamDesc params[] = {
-        // PerFrame uniforms (flattened to type_PerFrame[N])
-        {"type_PerFrame[0]", MaterialParamType::Vec4},  // uViewPos.xyz + pad
-        {"type_PerFrame[1]", MaterialParamType::Vec4},  // uLightDir.xyz + uLightIntensity
-        {"type_PerFrame[2]", MaterialParamType::Vec4},  // uLightColor.xyz + uAmbient
-        // PerMaterial uniforms (flattened to type_PerMaterial[N])
-        {"type_PerMaterial[0]", MaterialParamType::Vec4}, // uColor.xyz + uMetallic
-        {"type_PerMaterial[1]", MaterialParamType::Vec4}, // uRoughness + uAlphaCutoff + uHasNormalTex + uHasMRTex
-        // PerDraw uniforms (flattened to type_PerDraw[N])
-        {"type_PerDraw[0]", MaterialParamType::Vec4},  // uMVP row 0
-        {"type_PerDraw[1]", MaterialParamType::Vec4},  // uMVP row 1
-        {"type_PerDraw[2]", MaterialParamType::Vec4},  // uMVP row 2
-        {"type_PerDraw[3]", MaterialParamType::Vec4},  // uMVP row 3
-        {"type_PerDraw[4]", MaterialParamType::Vec4},  // uModel row 0
-        {"type_PerDraw[5]", MaterialParamType::Vec4},  // uModel row 1
-        {"type_PerDraw[6]", MaterialParamType::Vec4},  // uModel row 2
-        {"type_PerDraw[7]", MaterialParamType::Vec4},  // uModel row 3
-        {"type_PerDraw[8]", MaterialParamType::Vec4},  // uNormalMatrix row 0
-        {"type_PerDraw[9]", MaterialParamType::Vec4},  // uNormalMatrix row 1
-        {"type_PerDraw[10]", MaterialParamType::Vec4}, // uNormalMatrix row 2
-        // Textures (combined samplers renamed to original HLSL names)
+        // PerFrame (pixel stage)
+        {"uViewPos", MaterialParamType::Vec4},
+        {"uLightDir", MaterialParamType::Vec4},
+        {"uLightColor", MaterialParamType::Vec4},
+        // PerMaterial (pixel stage)
+        {"uColor", MaterialParamType::Vec4},
+        {"uAlphaMR", MaterialParamType::Vec4},
+        // PerDraw (vertex stage)
+        {"uMVP", MaterialParamType::Mat4},
+        {"uModel", MaterialParamType::Mat4},
+        {"uNormalMatrix", MaterialParamType::Mat4},
+        // Textures (t-register)
         {"uBaseColorTex", MaterialParamType::Texture},
         {"uNormalTex", MaterialParamType::Texture},
         {"uMRTex", MaterialParamType::Texture},
     };
-    constexpr u32 s_materialParamCount = 19;
+    constexpr u32 s_materialParamCount = 11;
     PipelineStateDesc pipelineDesc{};
     pipelineDesc.topology = PrimitiveTopology::Triangles;
     pipelineDesc.rasterizerState.cullMode = CullMode::Back;
@@ -284,10 +277,10 @@ bool PrepareAssetsSystem::init(IRHIDevice *device, ShaderCache *shaderCache)
         LOG_ERROR(kLogPrepare, "PrepareAssetsSystem: failed to init fallback material");
         return false;
     }
-    // Set fallback material uniforms using flattened cbuffer layout.
-    // PerMaterial[0] = {uColor.xyz, uMetallic}, PerMaterial[1] = {uRoughness, uAlphaCutoff, uHasNormalTex, uHasMRTex}
-    m_fallback_material.material.setVec4("type_PerMaterial[0]"_sid, Vec4{1.0f, 0.0f, 1.0f, 0.0f}); // color + metallic
-    m_fallback_material.material.setVec4("type_PerMaterial[1]"_sid, Vec4{0.9f, 0.0f, 0.0f, 0.0f}); // roughness + alpha + flags
+    // Set fallback material constants using the reflected member names.
+    // PerMaterial: uColor.xyz + uMetallic(w), uAlphaMR = {roughness, alphaCutoff, hasNormal, hasMR}
+    m_fallback_material.material.setVec4("uColor"_sid, Vec4{1.0f, 0.0f, 1.0f, 0.0f});
+    m_fallback_material.material.setVec4("uAlphaMR"_sid, Vec4{0.9f, 0.0f, 0.0f, 0.0f});
     m_fallback_material.material.setTexture("uBaseColorTex"_sid, m_white_texture);
     m_fallback_material.material.setTexture("uNormalTex"_sid, m_white_texture);
     m_fallback_material.material.setTexture("uMRTex"_sid, m_white_texture);
@@ -510,38 +503,31 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
     }
 
     // Material parameter layout matching the HLSL cbuffer structure.
-    // After SPIRV-Cross flattening, cbuffers become vec4 arrays:
-    //   PerFrame[3]:   [0]=uViewPos.xyz+pad, [1]=uLightDir.xyz+uLightIntensity, [2]=uLightColor.xyz+uAmbient
-    //   PerMaterial[2]: [0]=uColor.xyz+uMetallic, [1]=uRoughness+uAlphaCutoff+uHasNormalTex+uHasMRTex
-    //   PerDraw[11]:   [0..3]=uMVP rows, [4..7]=uModel rows, [8..10]=uNormalMatrix (mat3 in 3 vec4)
-    // Textures keep their original HLSL names — the shader compiler renames
-    // SPIRV-Cross combined samplers back to the source texture names.
+    // Member names are the real shader cbuffer names from the reflection
+    // JSON (6e); cbuffers are vec4/mat4-only so the single CPU blob layout
+    // matches both D3D12 (HLSL packing) and GL (std140 UBO):
+    //   PerFrame(b0):    uViewPos / uLightDir / uLightColor  (vec4)
+    //   PerMaterial(b1): uColor.xyz+metallic / uAlphaMR{roughness,alpha,hasN,hasMR}
+    //   PerDraw(b2):     uMVP / uModel / uNormalMatrix (mat4, carries mat3)
+    // Textures bind by their reflected t-register (uBaseColorTex=0, ...).
     MaterialParamDesc params[] = {
-        // PerFrame uniforms (flattened to type_PerFrame[N])
-        {"type_PerFrame[0]", MaterialParamType::Vec4},  // uViewPos.xyz + pad
-        {"type_PerFrame[1]", MaterialParamType::Vec4},  // uLightDir.xyz + uLightIntensity
-        {"type_PerFrame[2]", MaterialParamType::Vec4},  // uLightColor.xyz + uAmbient
-        // PerMaterial uniforms (flattened to type_PerMaterial[N])
-        {"type_PerMaterial[0]", MaterialParamType::Vec4}, // uColor.xyz + uMetallic
-        {"type_PerMaterial[1]", MaterialParamType::Vec4}, // uRoughness + uAlphaCutoff + uHasNormalTex + uHasMRTex
-        // PerDraw uniforms (flattened to type_PerDraw[N])
-        {"type_PerDraw[0]", MaterialParamType::Vec4},  // uMVP row 0
-        {"type_PerDraw[1]", MaterialParamType::Vec4},  // uMVP row 1
-        {"type_PerDraw[2]", MaterialParamType::Vec4},  // uMVP row 2
-        {"type_PerDraw[3]", MaterialParamType::Vec4},  // uMVP row 3
-        {"type_PerDraw[4]", MaterialParamType::Vec4},  // uModel row 0
-        {"type_PerDraw[5]", MaterialParamType::Vec4},  // uModel row 1
-        {"type_PerDraw[6]", MaterialParamType::Vec4},  // uModel row 2
-        {"type_PerDraw[7]", MaterialParamType::Vec4},  // uModel row 3
-        {"type_PerDraw[8]", MaterialParamType::Vec4},  // uNormalMatrix row 0
-        {"type_PerDraw[9]", MaterialParamType::Vec4},  // uNormalMatrix row 1
-        {"type_PerDraw[10]", MaterialParamType::Vec4}, // uNormalMatrix row 2
-        // Textures (combined samplers renamed to original HLSL names)
+        // PerFrame (pixel stage)
+        {"uViewPos", MaterialParamType::Vec4},
+        {"uLightDir", MaterialParamType::Vec4},
+        {"uLightColor", MaterialParamType::Vec4},
+        // PerMaterial (pixel stage)
+        {"uColor", MaterialParamType::Vec4},
+        {"uAlphaMR", MaterialParamType::Vec4},
+        // PerDraw (vertex stage)
+        {"uMVP", MaterialParamType::Mat4},
+        {"uModel", MaterialParamType::Mat4},
+        {"uNormalMatrix", MaterialParamType::Mat4},
+        // Textures (t-register)
         {"uBaseColorTex", MaterialParamType::Texture},
         {"uNormalTex", MaterialParamType::Texture},
         {"uMRTex", MaterialParamType::Texture},
     };
-    constexpr u32 s_materialParamCount = 19;
+    constexpr u32 s_materialParamCount = 11;
     PipelineStateDesc pipelineDesc{};
     pipelineDesc.topology = PrimitiveTopology::Triangles;
     // Hand-written pipeline variant — double-sided materials
@@ -563,12 +549,12 @@ bool PrepareAssetsSystem::prepareMaterial(Handle<MaterialAsset> handle)
         LOG_ERROR(kLogPrepare, "Prepare: failed to init material %u", handle.index);
         return false;
     }
-    // Set material uniforms using flattened cbuffer layout.
-    // PerMaterial[0] = {uColor.xyz, uMetallic}, PerMaterial[1] = {uRoughness, uAlphaCutoff, uHasNormalTex, uHasMRTex}
+    // Set material constants using the reflected member names.
+    // PerMaterial: uColor.xyz + uMetallic(w), uAlphaMR = {roughness, alphaCutoff, hasNormal, hasMR}
     f32 alphaCutoff = asset->alpha_mode == AlphaMode::Mask ? asset->alpha_cutoff : 0.0f;
-    prepared.material.setVec4("type_PerMaterial[0]"_sid,
+    prepared.material.setVec4("uColor"_sid,
                               Vec4{asset->base_color.x, asset->base_color.y, asset->base_color.z, asset->metallic_factor});
-    prepared.material.setVec4("type_PerMaterial[1]"_sid,
+    prepared.material.setVec4("uAlphaMR"_sid,
                               Vec4{asset->roughness_factor, alphaCutoff,
                                    hasNormalTexture ? 1.0f : 0.0f, hasMrTexture ? 1.0f : 0.0f});
     prepared.material.setTexture("uBaseColorTex"_sid, texture);

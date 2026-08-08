@@ -1,8 +1,6 @@
 #include "render/rhi/d3d12_command_translator.h"
-#include "core/string/string_intern_pool.h"
 #include "core/math/align.h"
 #include "log/core/log_macros.h"
-#include <cstdlib>
 #include <cstring>
 
 namespace Entelechy
@@ -85,8 +83,7 @@ D3D12CommandTranslator::D3D12CommandTranslator(D3D12RHIDevice &device) : m_devic
 void D3D12CommandTranslator::resetState()
 {
     m_current_pso = nullptr;
-    m_vs_staging.clear();
-    m_ps_staging.clear();
+    m_pending_cbvs.clear();
     for (auto &tex : m_bound_textures)
     {
         tex = nullptr;
@@ -97,35 +94,15 @@ void D3D12CommandTranslator::resetState()
 }
 
 // ------------------------------------------------------------------
-// Pipeline binding + constant staging
+// Pipeline binding
 // ------------------------------------------------------------------
 void D3D12CommandTranslator::bindPipeline(D3D12PipelineState *pso)
 {
     m_current_pso = pso;
     m_pipeline_dirty = true;
 
-    // (Re)build staging blocks matching the reflected cbuffers. Clearing
-    // here means every uniform must be re-set after each bindPipeline —
-    // which is exactly what Material::bind does today.
-    m_vs_staging.clear();
-    for (const D3D12CBufferInfo &info : pso->vsCBuffers())
-    {
-        StagedCBuffer staged;
-        staged.rootSlot = rootSlotForCBuffer(true, info.bindPoint);
-        staged.data.assign(info.size, 0);
-        staged.dirty = false;
-        m_vs_staging.push_back(std::move(staged));
-    }
-    m_ps_staging.clear();
-    for (const D3D12CBufferInfo &info : pso->psCBuffers())
-    {
-        StagedCBuffer staged;
-        staged.rootSlot = rootSlotForCBuffer(false, info.bindPoint);
-        staged.data.assign(info.size, 0);
-        staged.dirty = false;
-        m_ps_staging.push_back(std::move(staged));
-    }
-
+    // Textures are reset on pipeline bind so each draw re-declares the ones
+    // it actually uses (Material::bind binds its textures after the PSO).
     for (auto &tex : m_bound_textures)
     {
         tex = nullptr;
@@ -138,45 +115,6 @@ void D3D12CommandTranslator::bindPipeline(D3D12PipelineState *pso)
         m_topology = getTopology(pso->getDesc().topology);
         break;
     }
-}
-
-void D3D12CommandTranslator::stageUniform(const StringId name, const void *payload, u32 payloadSize)
-{
-    if (!m_current_pso || name.value() == 0)
-        return;
-
-    const char *resolved = StringInternPool::instance().resolve(name);
-    if (!resolved)
-        return;
-
-    // Parse "type_<CBufferName>[<vec4Index>]" (SPIRV-Cross flattening).
-    // Bare "<name>[i]" and "<name>" (index 0) are also accepted so future
-    // non-flattened writes keep working.
-    const char *base = resolved;
-    if (std::strncmp(base, "type_", 5) == 0)
-        base += 5;
-
-    const char *bracket = std::strchr(base, '[');
-    const u32 vec4Index = bracket ? static_cast<u32>(std::atoi(bracket + 1)) : 0;
-    const usize baseLen = bracket ? static_cast<usize>(bracket - base) : std::strlen(base);
-    const u32 offset = vec4Index * 16;
-
-    auto tryStage = [&](std::vector<StagedCBuffer> &staging, const std::vector<D3D12CBufferInfo> &infos) {
-        for (usize i = 0; i < infos.size(); ++i)
-        {
-            if (std::strlen(infos[i].name) != baseLen || std::strncmp(infos[i].name, base, baseLen) != 0)
-                continue;
-            StagedCBuffer &staged = staging[i];
-            if (offset >= staged.data.size())
-                return; // out of cbuffer bounds — drop silently
-            const u32 copySize = static_cast<u32>(staged.data.size()) - offset;
-            std::memcpy(staged.data.data() + offset, payload, copySize < payloadSize ? copySize : payloadSize);
-            staged.dirty = true;
-            return;
-        }
-    };
-    tryStage(m_vs_staging, m_current_pso->vsCBuffers());
-    tryStage(m_ps_staging, m_current_pso->psCBuffers());
 }
 
 // ------------------------------------------------------------------
@@ -195,23 +133,13 @@ void D3D12CommandTranslator::flushStateForDraw(ID3D12GraphicsCommandList *list)
         m_pipeline_dirty = false;
     }
 
-    // Upload dirty constant staging blocks and bind as root CBVs.
-    auto flushStaging = [&](std::vector<StagedCBuffer> &staging) {
-        for (StagedCBuffer &staged : staging)
-        {
-            if (!staged.dirty || staged.rootSlot == kUnmappedRootSlot)
-                continue;
-            D3D12RHIDevice::UploadAllocation alloc =
-                m_device.allocateUpload(static_cast<u32>(staged.data.size()));
-            if (!alloc.cpu)
-                continue;
-            std::memcpy(alloc.cpu, staged.data.data(), staged.data.size());
-            list->SetGraphicsRootConstantBufferView(staged.rootSlot, alloc.gpu);
-            staged.dirty = false;
-        }
-    };
-    flushStaging(m_vs_staging);
-    flushStaging(m_ps_staging);
+    // Apply deferred root CBV bindings recorded by bindConstantBuffer.
+    for (const PendingCBV &cbv : m_pending_cbvs)
+    {
+        if (cbv.rootSlot != kUnmappedRootSlot)
+            list->SetGraphicsRootConstantBufferView(cbv.rootSlot, cbv.gpu);
+    }
+    m_pending_cbvs.clear();
 
     // Bind the SRV table for bound textures. Textures were bound by slot
     // (t-register); gaps are filled with the lowest bound slot's texture so
@@ -404,57 +332,18 @@ void D3D12CommandTranslator::execute(ID3D12GraphicsCommandList *list, const Rend
             break;
         }
 
+        // Legacy immediate-uniform commands: the 6e path no longer emits
+        // these (Material uploads cbuffers via ConstantBufferRing), so they
+        // are dropped on D3D12. Kept in the command enum for serialization
+        // compatibility with the command buffer tests.
         case RenderCommandType::SetUniformFloat:
-        {
-            const auto *cmd = reinterpret_cast<const CmdSetUniformFloat *>(payloadPtr);
-            stageUniform(cmd->name, &cmd->value, sizeof(cmd->value));
-            break;
-        }
-
         case RenderCommandType::SetUniformInt:
-        {
-            // Sampler-slot writes ("uBaseColorTex" etc.) never match a
-            // reflected cbuffer name and are dropped by stageUniform; real
-            // integer constants would be staged like floats.
-            const auto *cmd = reinterpret_cast<const CmdSetUniformInt *>(payloadPtr);
-            stageUniform(cmd->name, &cmd->value, sizeof(cmd->value));
-            break;
-        }
-
         case RenderCommandType::SetUniformVec2:
-        {
-            const auto *cmd = reinterpret_cast<const CmdSetUniformVec2 *>(payloadPtr);
-            stageUniform(cmd->name, cmd->value, sizeof(cmd->value));
-            break;
-        }
-
         case RenderCommandType::SetUniformVec3:
-        {
-            const auto *cmd = reinterpret_cast<const CmdSetUniformVec3 *>(payloadPtr);
-            stageUniform(cmd->name, cmd->value, sizeof(cmd->value));
-            break;
-        }
-
         case RenderCommandType::SetUniformVec4:
-        {
-            const auto *cmd = reinterpret_cast<const CmdSetUniformVec4 *>(payloadPtr);
-            stageUniform(cmd->name, cmd->value, sizeof(cmd->value));
-            break;
-        }
-
         case RenderCommandType::SetUniformMat3:
-        {
-            const auto *cmd = reinterpret_cast<const CmdSetUniformMat3 *>(payloadPtr);
-            stageUniform(cmd->name, cmd->value, sizeof(cmd->value));
-            break;
-        }
-
         case RenderCommandType::SetUniformMat4:
-        {
-            const auto *cmd = reinterpret_cast<const CmdSetUniformMat4 *>(payloadPtr);
-            stageUniform(cmd->name, cmd->value, sizeof(cmd->value));
             break;
-        }
 
         case RenderCommandType::BindTexture:
         {
@@ -469,12 +358,51 @@ void D3D12CommandTranslator::execute(ID3D12GraphicsCommandList *list, const Rend
         }
 
         case RenderCommandType::BindConstantBuffer:
-            // Not used by the upper layers yet (6e will route UBOs through
-            // this); constant data currently arrives via setUniform*.
+        {
+            // Resolve the binding to a root CBV slot via the PSO's reflected
+            // per-stage cbuffer list (binding points are unique per stage
+            // within a material), then defer the call to draw time.
+            const auto *cmd = reinterpret_cast<const CmdBindConstantBuffer *>(payloadPtr);
+            if (!m_current_pso || !cmd->buffer)
+                break;
+            auto *d3dBuffer = dynamic_cast<D3D12Buffer *>(cmd->buffer);
+            if (!d3dBuffer)
+                break;
+
+            const D3D12_GPU_VIRTUAL_ADDRESS gpu = d3dBuffer->gpuAddress() + cmd->offset;
+            bool matched = false;
+            for (const D3D12CBufferInfo &info : m_current_pso->vsCBuffers())
+            {
+                if (info.bindPoint == cmd->binding)
+                {
+                    m_pending_cbvs.pushBack({rootSlotForCBuffer(true, cmd->binding), gpu});
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched)
+            {
+                for (const D3D12CBufferInfo &info : m_current_pso->psCBuffers())
+                {
+                    if (info.bindPoint == cmd->binding)
+                    {
+                        m_pending_cbvs.pushBack({rootSlotForCBuffer(false, cmd->binding), gpu});
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+            if (!matched)
+            {
+                LOG_WARN(kLogD3D12Cmd,
+                            "D3D12: bindConstantBuffer(%u) does not match any reflected cbuffer of the current PSO",
+                            cmd->binding);
+            }
             break;
+        }
 
         case RenderCommandType::SetPushConstants:
-            // Same as above — reserved for 6e.
+            // Reserved for future root constants; not used by 6e.
             break;
 
         case RenderCommandType::PushDebugGroup:

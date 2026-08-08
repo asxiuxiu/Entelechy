@@ -2,6 +2,7 @@
 #include "core/foundation_types.h"
 #include "ecs/type/entity_registry.h"
 #include "render/material/material.h"
+#include "render/material/shader_cache.h"
 #include "render/rhi/rhi_resources.h"
 #include <memory>
 
@@ -13,6 +14,7 @@ class IRHIDevice;
 class ShaderCache;
 class World;
 class IRHICommandList;
+class ConstantBufferRing;
 class PrepareAssetsSystem;
 struct ExtractedView;
 struct ExtractedLight;
@@ -80,6 +82,7 @@ private:
 
     std::unique_ptr<ShaderCache> m_shader_cache;
     IRHIDevice *m_device = nullptr; // Borrowed, not owned
+    std::unique_ptr<ConstantBufferRing> m_ring;
     Material m_sky_material;
     RHIBufferRef m_sky_vbo;
     bool m_sky_ready = false;

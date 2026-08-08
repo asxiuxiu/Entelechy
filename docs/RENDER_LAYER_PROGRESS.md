@@ -298,7 +298,7 @@
 **代码现状** 🟡 部分完成（仅 Phase 1 单层简化实现）
 
 已实现：
-- `Material` 类：Vertex/Fragment shader pair、CPU uniform block（std140 对齐）、按名参数 layout、PSO desc、`bind()` 上传 → `render/public/material/material.h/.cpp`
+- `Material` 类：Vertex/Fragment shader pair、**反射驱动 CPU 常量 blob（6e：cbuffer 成员 name→offset 来自 `_reflection.json`）**、按名参数 layout、PSO desc、`bind(cmdList, ring)`（一次 memcpy 到 `ConstantBufferRing` + BindGroup 绑定，6e）→ `render/public/material/material.h/.cpp`
 - `MaterialParamType` 枚举 + `MaterialParamDesc` → `render/public/material/material_types.h`
 - `SimpleCubeRenderer` 示例：indexed cube + MVP shader 背靠 Material + GLRHIDevice → `render/public/material/example/simple_cube_renderer.h`
 - `MaterialAsset`（asset 模块 CPU 侧，非 TAI 三层语义）：glTF pbrMetallicRoughness 字段（baseColorFactor[Vec3，弃 A]/metallic/roughness factor、normal/MR 贴图 Handle、`AlphaMode`/alpha_cutoff/double_sided）+ 贴图内容路径字符串（loader 只解析路径，Handle 由场景加载侧 loadAsync 回填）；`.emat` 由 mesh_cooker 每材质导出一个，`MaterialAssetLoader` 用 core JsonCursor 解析（2026-08-06 阶段 4a）→ `asset/public/type/material_asset.h`、`asset/private/loader/material_asset_loader.cpp`。阶段 4b：3c 临时 `shade_mode` 白模开关已退役（字段、shader `uShadeMode`/`uModel` 分支、共享 `mat_white` 全部拆除），baseColor 贴图 Handle 经 `MaterialTextureBackfillSystem` 轮询回填落位（2026-08-06）。阶段 4c：回填系统随场景加载迁入引擎 `asset/scene/`（`SceneLoader` 自持 `MaterialAssetLoader` 与场景材质清单，游戏侧 `RenderAssets` 的 Sponza 专属成员移除），normal/MR 贴图 Handle 经同一机制 loadAsync 落位（只加载不采样，D4，shader 消费端属阶段 5）
@@ -324,7 +324,7 @@
 
 已实现：
 - `ShaderCache`：按 `(stage, sourceHash)` 去重（FNV-1a 哈希）、同步 `getOrCreateShader()`、仅内存缓存 → `render/private/material/shader_cache.h/.cpp`
-- **离线着色器编译工具链**（6c，2026-08-07）：`_engine/tools/shader_compiler/` — HLSL SM 6.0 源码经 DXC 编译为 DXIL + SPIR-V，再经 SPIRV-Cross 交叉编译为 GLSL 330（UBO 展平为 plain uniform）。构建时自动运行（CMake post-build），产物输出到 `build/bin/{Config}/shaders/`。运行时通过 `Material::initFromBytecode()` 从磁盘加载预编译字节码。DXC 预编译包位于 `third_party/dxc/`（v1.9.2607），SPIRV-Cross 经 Conan 引入（`spirv-cross/1.4.350.0`）。同日修复：combined sampler 自动命名（`_<SPIR-V ID>`）按首次采样顺序分配而非 t0/t1/t2 声明顺序，曾导致 normal/MR 贴图绑反；现编译器在 `build_combined_image_samplers` 后把合并采样器重命名回原始 HLSL 贴图名（`uBaseColorTex`/`uNormalTex`/`uMRTex`），运行时按原名绑定；sky PS cbuffer 改名 `PerFramePS` 消除 VS/PS 展平 uniform 同名冲突。同日追加修复（截图机制辅助定位）：GLSL 输出目标从 330 升至 410 —— 330 下 FS 输入无法带显式 `layout(location)`，stage 接口按变量名链接，而 SPIRV-Cross 生成的 `out_var_*`/`in_var_*` 名恒不匹配，导致所有 FS 输入读零（贴图/法线/天空全失效）；410 后接口全带显式 location，截图验证恢复。
+- **离线着色器编译工具链**（6c，2026-08-07）：`_engine/tools/shader_compiler/` — HLSL SM 6.0 源码经 DXC 编译为 DXIL + SPIR-V，再经 SPIRV-Cross 交叉编译为 GLSL 410（**6e 起 cbuffer 保持为真 UBO 块 `layout(binding=N, std140)`，不再展平为 plain uniform**；420pack 扩展使 UBO/sampler 带显式 binding）。构建时自动运行（CMake post-build），产物输出到 `build/bin/{Config}/shaders/` 并新增 `{name}_{stage}_reflection.json`（cbuffer 成员布局 + 纹理 t-register，6e 消费）。运行时通过 `Material::initFromBytecode()` 从磁盘加载预编译字节码。DXC 预编译包位于 `third_party/dxc/`（v1.9.2607），SPIRV-Cross 经 Conan 引入（`spirv-cross/1.4.350.0`）。6c 修复（保留记录）：combined sampler 自动命名（`_<SPIR-V ID>`）按首次采样顺序分配而非 t0/t1/t2 声明顺序，曾导致 normal/MR 贴图绑反；现编译器在 `build_combined_image_samplers` 后把合并采样器重命名回原始 HLSL 贴图名（`uBaseColorTex`/`uNormalTex`/`uMRTex`）**并继承 image 的 Binding 装饰**，运行时按 t-register 绑定；sky PS cbuffer 改名 `PerFramePS` 消除 VS/PS 展平 uniform 同名冲突。同日追加修复（截图机制辅助定位）：GLSL 输出目标从 330 升至 410 —— 330 下 FS 输入无法带显式 `layout(location)`，stage 接口按变量名链接，而 SPIRV-Cross 生成的 `out_var_*`/`in_var_*` 名恒不匹配，导致所有 FS 输入读零（贴图/法线/天空全失效）；410 后接口全带显式 location，截图验证恢复。**6e 变更（2026-08-08）**：移除 SPIRV-Cross 的 `flatten_buffer_block`（cbuffer 保持 UBO）；GLSL 保持 410 + 启用 420pack 扩展；sky PS `PerFramePS` 与 simple_cube PS `PerMaterial` 的 binding 从 b0 改 b1（同一材质内 cbuffer binding 跨 stage 唯一，GL `GL_UNIFORM_BUFFER` 命名空间共享）；cbuffer 成员改为 vec4/mat4-only（HLSL 打包与 std140 一致，见 5.13）。
 
 **缺失项**：
 
@@ -341,29 +341,24 @@
 
 **知识库设计**：每 Draw 独立上传的代价分析、Uniform Buffer 数组、`BindGroup`/`DescriptorSet` 池、Push Constants + Bindless（终极优化路径）、按更新频率分层（View/Light at binding 0-1、Material at binding 2、Object/Transform at binding 3）最大化 BindGroup 复用。
 
-**代码现状** 🟡 部分完成（仅简单 uniform 立即模式）
+**代码现状** 🟢 已落地（6e UBO/CBV 统一绑定层，2026-08-08）
 
 已实现：
-- CPU uniform block + per-draw `setUniform*` 系列（`setUniformFloat/Int/Vec2/3/4/Mat3/Mat4`）→ 通过 `IRHICommandList` 调用
-- 光照/对象 uniform 链（阶段 5a，2026-08-06）：`RenderExecuteSystem::drawItem` 每 draw 下发 `uModel`/`uNormalMatrix`（core math 新增 `Mat3` 类型 + `normalMatrix` 逆转置 helper，`IRHICommandList`/`Material` 全链补 `Mat3`）/`uViewPos`/`uLightDir`/`uLightColor`/`uLightIntensity`/`uAmbient`；材质参数表扩至 13 项，`uMetallic`/`uRoughness` 自 `.emat` factor 传入。同日截图自验修正：glTF factor 是 MR 贴图的乘数（导出方有贴图时留 spec 默认 1.0），当常量用会把全部 25 个贴图材质判成全金属、漫反射归零（kD=(1-F)(1-metallic)=0，画面只剩高光+环境项、天花板纯色）；`prepareMaterial` 改为「有 MR 贴图 → 占位 metallic 0.0/roughness 0.9，factor-only 材质用真 factor」，5b 采样 MR 贴图后恢复 factor×texture。阶段 5b（2026-08-06）：参数表 13→17 项（新增 `uNormalTex`/`uMRTex`/`uHasNormalTex`/`uHasMRTex`），MR 占位已移除、恢复 factor×texture 语义（shader 内 `uHasMRTex` 分支采样 G=roughness/B=metallic 与 factor 相乘）
-- OpenGL 后端：`glUniform*` + 缓存 `(program, name) → location` map → `gl_rhi_device.h` (line 148-167, 212-223)
-- `Material::setTexture` 绑定纹理单元
-- baseColor 贴图绑定链路（阶段 4b，2026-08-06）：`PrepareAssetsSystem::prepareMaterial` 把 `MaterialAsset::base_color_texture` prepare 成 RHI 纹理随材质下发（未就绪走 1x1 白纹理/粉色 fallback + 热替换），shader 采样 `uBaseColorTex`；normal/MR 贴图 Handle 已加载落位（阶段 4c），阶段 5b（2026-08-06）起经同一机制 prepare 下发并由 shader 采样（见 5.14 的 5b 条目）
-- 调试统计面板数据链（阶段 5c，2026-08-06，D7）：`FrameStats` 扩展 `pso_cache_size`/`tracked_memory_bytes`/`gpu_total_bytes`/`gpu_available_bytes`，`RenderFrameRunner::runFrame` 每帧自 `IRHIDevice::queryMemoryInfo()`/`getTrackedMemoryUsage()` 与 Execute 的 PSO 缓存填充；`buildRenderStatsPanel` 改收 `RenderStatsParams` POD（FPS/draw calls/visible/culled/total/PSO cache/显存，ImGuiLib 保持零引擎依赖）。实跑校对：GPU Tracked 6.22 GiB，与 5b mip 链修复后的预期量级（约 6.2 GiB）吻合；`queryMemoryInfo()` 在无 NVX/ATI 扩展的机器上返回 0，面板显示 n/a
+- **反射驱动绑定路径**（6e）：`Material` 由 `_reflection.json`（shader_compiler 输出）构建 CPU 常量 blob——cbuffer 成员 name→offset 来自 SPIR-V Offset 装饰，参数表用真实 HLSL 成员名（`uViewPos`/`uMVP`/...），不再有任何 SPIRV-Cross 展平名。`bind(cmdList, ring)` 一次性 memcpy 各 cbuffer 到 `ConstantBufferRing`（GL 持久映射 UBO / D3D12 upload-heap CBV，256B 对齐按块分配、线性回卷）+ 经 `BindGroupLayout`/`BindGroup` 声明式绑定（`bindConstantBuffer` 按 b-register、`bindTexture` 按 t-register）。GL 翻译器 `bindConstantBuffer` → `glBindBufferRange(GL_UNIFORM_BUFFER, binding, ...)`；D3D12 翻译器按当前 PSO 反射的 vs/ps cbuffer 解析 binding → root CBV slot（延迟到 draw 提交），`setUniform*` 遗留路径与展平名解析已移除。
+- 绑定约束（写在各 `.hlsl` 注释）：cbuffer 成员 **vec4/mat4-only**（HLSL 打包与 std140 完全一致，单 blob 双后端共用；float3+float、mat3 的 HLSL/std140 偏移会分叉）；同一材质内 cbuffer **binding 跨 stage 唯一**（GL 共享一个 `GL_UNIFORM_BUFFER` 命名空间，sky PS 改 b1、simple_cube PS 改 b1）。GLSL 矩阵由 SPIRV-Cross 输出 `layout(row_major)` + 乘序转置补偿，CPU 照写 column-major `Mat4::m`。
+- `RenderExecuteSystem` 自持 `ConstantBufferRing`（帧间复用），sky pass 与 per-draw 均走 `Material::bind(cmdList, ring)`；`SimpleCubeRenderer` 同路径迁移。
+- 单元测试：`test_bind_group.cpp`（BindGroup 绑定发出正确命令 payload）、`test_shader_reflection.cpp`（反射 JSON 解析 + cbuffer size 对齐 16）。
+- 2026-08-08 实跑：GL + D3D12 双后端 Sponza 零渲染期 ERROR，剔除统计一致（285 visible / 120 culled），截图验收几何/光照/贴图/天空与 6d 一致。
 
 **缺失项**：
 
 | 项目 | 笔记要求 | 当前状态 |
 |------|---------|---------|
-| `BindGroupLayout` | 按材质类型定义 BindGroup 布局 | ❌ 不存在 |
-| `MaterialBindGroupAllocator` | 按 TypeId 池化 BindGroup | ❌ 不存在 |
-| `BindGroup`/`DescriptorSet` 池 | 数百对象共享少量 BindGroup | ❌ 不存在 |
-| Push Constants | 高频参数走 push constant | ❌ 不存在 |
+| `MaterialBindGroupAllocator` | 按 TypeId 池化 BindGroup | ❌ 不存在（ring 每 draw 全量分配，见 TODO 6e 遗留项） |
+| 按更新频率分层 | View/Material/Object 三层 binding | 🟡 结构就位（b0=frame/b1=material/b2=draw），但 ring 每 draw 全量写入，未做 per-frame/per-material 复用 |
+| Push Constants | 高频参数走 push constant | ❌ 不存在（`setPushConstants` 接口预留，两后端均未接） |
 | Bindless Descriptor Heap | 大规模纹理数组 | ❌ 不存在 |
-| 按更新频率分层 | View/Material/Object 三层 binding | ❌ 不存在 |
-| UBO Buffer Object | GPU 端 Uniform Buffer | ❌ 当前是立即 `glUniform*` 调用，不是 UBO |
-
-**问题/风险**：AGENTS.md 记录此为明确债务 `Render/UniformBinding`。当前方案在 10+ 材质时性能不可接受（每个 draw call 都做多次 `glUniform*` 系统调用）。
+| UBO Buffer Object | GPU 端 Uniform Buffer | ✅ 已落地（GL `glBindBufferRange` + 真 UBO 块） |
 
 ---
 

@@ -8,6 +8,7 @@
 #include "core/container/hash_map.h"
 #include "core/foundation_types.h"
 #include "render/material/material.h"
+#include "render/material/shader_cache.h"
 #include "render/rhi/rhi_resources.h"
 
 namespace Entelechy

@@ -3,15 +3,14 @@
 // equivalent D3D12 calls onto the device's per-frame graphics command
 // list. Counterpart to GLCommandTranslator.
 //
-// Uniform model: the upper layer still speaks the legacy per-draw
-// setUniform* API with SPIRV-Cross-flattened names ("type_PerDraw[3]").
-// The translator parses those names back into (cbuffer, vec4 index),
-// accumulates writes in CPU staging buffers laid out exactly like the
-// HLSL cbuffers (recovered via D3DReflect at PSO creation), and at draw
-// time uploads each dirty staging block into the device's per-frame
-// upload ring and binds it as a root CBV. This keeps RenderExecuteSystem
-// and Material untouched until 6e replaces the whole path with
-// bindConstantBuffer/BindGroup.
+// Binding model (6e): the upper layer uploads constant data into a
+// ConstantBufferRing and records bindConstantBuffer(binding, ring, offset,
+// size) per cbuffer — no more setUniform*/SPIRV-Cross-flattened names.
+// The translator resolves each binding to a root-signature CBV slot by
+// looking up the current PSO's reflected per-stage cbuffer list (the same
+// HLSL register() the shader was compiled with), defers the
+// SetGraphicsRootConstantBufferView call to draw time, and rebinds the SRV
+// table for the textures bound via bindTexture.
 //
 // Global root signature (shared by all PSOs):
 //   slot 0: CBV b0, VERTEX      slot 1: CBV b0, PIXEL
@@ -21,6 +20,7 @@
 //   static samplers s0..s2 (linear wrap, LOD clamped to mip 0), PIXEL
 #include "render/rhi/render_command_buffer.h"
 #include "render/rhi/d3d12_rhi_device.h"
+#include "core/container/dynamic_array.h"
 
 namespace Entelechy
 {
@@ -37,25 +37,21 @@ public:
     void resetState();
 
 private:
-    // CPU staging mirror of one reflected cbuffer.
-    struct StagedCBuffer
+    // A deferred root CBV binding: applied at draw time, after the root
+    // signature and PSO are set.
+    struct PendingCBV
     {
-        u32 rootSlot = 0; // 0xFFFFFFFF = unmapped, skip at draw
-        std::vector<u8> data;
-        bool dirty = false;
+        u32 rootSlot = 0;
+        D3D12_GPU_VIRTUAL_ADDRESS gpu = 0;
     };
 
     void bindPipeline(D3D12PipelineState *pso);
-    void stageUniform(const StringId name, const void *payload, u32 payloadSize);
     void flushStateForDraw(ID3D12GraphicsCommandList *list);
 
     D3D12RHIDevice &m_device;
 
     D3D12PipelineState *m_current_pso = nullptr;
-    // One staging entry per reflected cbuffer; parallel to the PSO's
-    // vsCBuffers()/psCBuffers() arrays.
-    std::vector<StagedCBuffer> m_vs_staging;
-    std::vector<StagedCBuffer> m_ps_staging;
+    DynamicArray<PendingCBV> m_pending_cbvs;
 
     RHITexture *m_bound_textures[8] = {};
     bool m_has_bound_textures = false;

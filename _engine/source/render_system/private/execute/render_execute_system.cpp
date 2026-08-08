@@ -5,6 +5,7 @@
 #include "render_system/components/render_light.h"
 #include "render_system/components/render_sky.h"
 #include "render_system/phase/render_resources.h"
+#include "render/binding/constant_buffer_ring.h"
 #include "render/rhi/gl_rhi_device.h"
 #include "render/rhi/rhi_device_factory.h"
 #include "render/material/shader_cache.h"
@@ -16,42 +17,6 @@
 
 namespace Entelechy
 {
-
-namespace
-{
-
-// Sky gradient shader pair: a fullscreen triangle drawn right
-// after clear and before the opaque phase. The vs pins the triangle to the
-// far plane (NDC z = 1) and reconstructs the world-space far-plane position
-// via the inverse view-projection; the fs normalizes the view ray and blends
-// horizon -> zenith along its y component. Output uses the same approximate
-// gamma as the lit PBR shader (pow(1/2.2), not true sRGB).
-const char *s_skyVertexShader = R"(#version 330 core
-layout(location = 0) in vec2 aNDC;
-uniform mat4 uInvViewProj;
-out vec3 vFarPos;
-void main() {
-    gl_Position = vec4(aNDC, 1.0, 1.0);
-    vec4 world = uInvViewProj * vec4(aNDC, 1.0, 1.0);
-    vFarPos = world.xyz / world.w;
-}
-)";
-
-const char *s_skyFragmentShader = R"(#version 330 core
-in vec3 vFarPos;
-uniform vec3 uViewPos;
-uniform vec3 uHorizonColor;
-uniform vec3 uZenithColor;
-out vec4 FragColor;
-void main() {
-    vec3 dir = normalize(vFarPos - uViewPos);
-    float t = clamp(dir.y, 0.0, 1.0);
-    vec3 color = mix(uHorizonColor, uZenithColor, t);
-    FragColor = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);
-}
-)";
-
-} // namespace
 
 RenderExecuteSystem::RenderExecuteSystem() = default;
 
@@ -75,6 +40,15 @@ bool RenderExecuteSystem::init(IRHIDevice *device)
 
     m_shader_cache = std::make_unique<ShaderCache>();
 
+    // Per-frame constant data ring (UBO on GL, upload-heap CBV on D3D12).
+    m_ring = std::make_unique<ConstantBufferRing>();
+    if (!m_ring->init(device))
+    {
+        LOG_ERROR(LogCategories::kEngine, "RenderExecuteSystem: constant buffer ring init failed");
+        m_ring.reset();
+        return false;
+    }
+
     // Sky gradient pass. Best-effort: failure only disables
     // the sky, the rest of the pipeline keeps working.
     m_sky_ready = initSkyPass();
@@ -97,6 +71,7 @@ void RenderExecuteSystem::shutdown()
     m_sky_vbo.reset();
     m_sky_ready = false;
     m_shader_cache.reset();
+    m_ring.reset();
     // Device is borrowed — do not shut it down or delete it here.
     m_device = nullptr;
     m_initialized = false;
@@ -138,20 +113,16 @@ bool RenderExecuteSystem::initSkyPass()
     if (!m_sky_vbo)
         return false;
 
-    // Sky shader flattened cbuffers (VS and PS use distinct block names so
-    // their flattened uniforms don't collide in the shared GL namespace):
-    // Vertex: type_PerFrame[0..3]   = uInvViewProj (mat4 as 4 vec4 rows)
-    // Pixel:  type_PerFramePS[0..2] = {uViewPos, uHorizonColor, uZenithColor}
+    // Sky shader cbuffers (reflection-driven, 6e):
+    //   PerFrame(b0, VS):   uInvViewProj (mat4)
+    //   PerFramePS(b1, PS): uViewPos / uHorizonColor / uZenithColor (vec4)
     MaterialParamDesc params[] = {
-        {"type_PerFrame[0]", MaterialParamType::Vec4},
-        {"type_PerFrame[1]", MaterialParamType::Vec4},
-        {"type_PerFrame[2]", MaterialParamType::Vec4},
-        {"type_PerFrame[3]", MaterialParamType::Vec4},
-        {"type_PerFramePS[0]", MaterialParamType::Vec4},
-        {"type_PerFramePS[1]", MaterialParamType::Vec4},
-        {"type_PerFramePS[2]", MaterialParamType::Vec4},
+        {"uInvViewProj", MaterialParamType::Mat4},
+        {"uViewPos", MaterialParamType::Vec4},
+        {"uHorizonColor", MaterialParamType::Vec4},
+        {"uZenithColor", MaterialParamType::Vec4},
     };
-    constexpr u32 s_skyParamCount = 7;
+    constexpr u32 s_skyParamCount = 4;
     PipelineStateDesc pipelineDesc{};
     pipelineDesc.topology = PrimitiveTopology::Triangles;
     pipelineDesc.rasterizerState.cullMode = CullMode::None;
@@ -172,27 +143,23 @@ bool RenderExecuteSystem::initSkyPass()
                                          pipelineDesc))
         return false;
 
-    // Set default sky colors using flattened cbuffer layout
-    m_sky_material.setVec4("type_PerFramePS[1]"_sid, Vec4{0.55f, 0.65f, 0.75f, 0.0f}); // horizon
-    m_sky_material.setVec4("type_PerFramePS[2]"_sid, Vec4{0.10f, 0.23f, 0.55f, 0.0f}); // zenith
+    // Set default sky colors using reflected member names
+    m_sky_material.setVec4("uHorizonColor"_sid, Vec4{0.55f, 0.65f, 0.75f, 0.0f});
+    m_sky_material.setVec4("uZenithColor"_sid, Vec4{0.10f, 0.23f, 0.55f, 0.0f});
     return true;
 }
 
 void RenderExecuteSystem::drawSky(const ExtractedView &view, const ExtractedSky &sky, IRHICommandList *cmdList)
 {
-    // Vertex stage: type_PerFrame[0..3] = uInvViewProj (mat4 rows)
+    // PerFrame(b0, VS): uInvViewProj; PerFramePS(b1, PS): uViewPos + colors
     Mat4 invVP = (view.proj_matrix * view.view_matrix).inverse();
-    m_sky_material.setVec4("type_PerFrame[0]"_sid, Vec4{invVP.m[0], invVP.m[1], invVP.m[2], invVP.m[3]});
-    m_sky_material.setVec4("type_PerFrame[1]"_sid, Vec4{invVP.m[4], invVP.m[5], invVP.m[6], invVP.m[7]});
-    m_sky_material.setVec4("type_PerFrame[2]"_sid, Vec4{invVP.m[8], invVP.m[9], invVP.m[10], invVP.m[11]});
-    m_sky_material.setVec4("type_PerFrame[3]"_sid, Vec4{invVP.m[12], invVP.m[13], invVP.m[14], invVP.m[15]});
-    // Pixel stage: type_PerFramePS[0] = uViewPos, [1] = horizon, [2] = zenith
-    m_sky_material.setVec4("type_PerFramePS[0]"_sid, Vec4{view.view_pos.x, view.view_pos.y, view.view_pos.z, 0.0f});
-    m_sky_material.setVec4("type_PerFramePS[1]"_sid,
+    m_sky_material.setMat4("uInvViewProj"_sid, invVP);
+    m_sky_material.setVec4("uViewPos"_sid, Vec4{view.view_pos.x, view.view_pos.y, view.view_pos.z, 0.0f});
+    m_sky_material.setVec4("uHorizonColor"_sid,
                            Vec4{sky.horizon_color.x, sky.horizon_color.y, sky.horizon_color.z, 0.0f});
-    m_sky_material.setVec4("type_PerFramePS[2]"_sid,
+    m_sky_material.setVec4("uZenithColor"_sid,
                            Vec4{sky.zenith_color.x, sky.zenith_color.y, sky.zenith_color.z, 0.0f});
-    m_sky_material.bind(cmdList);
+    m_sky_material.bind(cmdList, m_ring.get());
     cmdList->bindVertexBuffer(m_sky_vbo.get(), 0, 0);
     cmdList->draw(3, 0);
     // The sky pass is view-level, not a queued phase item — keep it out of
@@ -225,31 +192,33 @@ void RenderExecuteSystem::drawItem(World &renderWorld, const ExtractedView &view
         ++m_stats.fallback_material_draws;
     }
 
-    // Per-draw uniforms using flattened cbuffer layout.
-    // PerFrame[0] = {uViewPos.xyz, pad}, [1] = {uLightDir.xyz, uLightIntensity}, [2] = {uLightColor.xyz, uAmbient}
-    // PerDraw[0..3] = uMVP rows, [4..7] = uModel rows, [8..10] = uNormalMatrix rows (mat3 in 3 vec4)
-    prepared->material.setVec4("type_PerFrame[0]"_sid, Vec4{view.view_pos.x, view.view_pos.y, view.view_pos.z, 0.0f});
-    prepared->material.setVec4("type_PerFrame[1]"_sid, Vec4{light.direction.x, light.direction.y, light.direction.z, light.intensity});
-    prepared->material.setVec4("type_PerFrame[2]"_sid, Vec4{light.color.x, light.color.y, light.color.z, light.ambient});
+    // Per-draw constants using the reflected member names (6e):
+    //   PerFrame(b0, PS): uViewPos / uLightDir(dir.xyz + intensity.w) / uLightColor(color.xyz + ambient.w)
+    //   PerDraw(b2, VS):  uMVP / uModel / uNormalMatrix (mat4 carrying a mat3)
+    prepared->material.setVec4("uViewPos"_sid, Vec4{view.view_pos.x, view.view_pos.y, view.view_pos.z, 0.0f});
+    prepared->material.setVec4("uLightDir"_sid,
+                               Vec4{light.direction.x, light.direction.y, light.direction.z, light.intensity});
+    prepared->material.setVec4("uLightColor"_sid,
+                               Vec4{light.color.x, light.color.y, light.color.z, light.ambient});
 
     Mat4 mvp = view.proj_matrix * view.view_matrix * transform->world_matrix;
-    prepared->material.setVec4("type_PerDraw[0]"_sid, Vec4{mvp.m[0], mvp.m[1], mvp.m[2], mvp.m[3]});
-    prepared->material.setVec4("type_PerDraw[1]"_sid, Vec4{mvp.m[4], mvp.m[5], mvp.m[6], mvp.m[7]});
-    prepared->material.setVec4("type_PerDraw[2]"_sid, Vec4{mvp.m[8], mvp.m[9], mvp.m[10], mvp.m[11]});
-    prepared->material.setVec4("type_PerDraw[3]"_sid, Vec4{mvp.m[12], mvp.m[13], mvp.m[14], mvp.m[15]});
+    prepared->material.setMat4("uMVP"_sid, mvp);
 
     const Mat4 &model = transform->world_matrix;
-    prepared->material.setVec4("type_PerDraw[4]"_sid, Vec4{model.m[0], model.m[1], model.m[2], model.m[3]});
-    prepared->material.setVec4("type_PerDraw[5]"_sid, Vec4{model.m[4], model.m[5], model.m[6], model.m[7]});
-    prepared->material.setVec4("type_PerDraw[6]"_sid, Vec4{model.m[8], model.m[9], model.m[10], model.m[11]});
-    prepared->material.setVec4("type_PerDraw[7]"_sid, Vec4{model.m[12], model.m[13], model.m[14], model.m[15]});
+    prepared->material.setMat4("uModel"_sid, model);
 
+    // Normal matrix as a 4x4 with the mat3 in the upper-left 3x3 (column-
+    // major, matching the shader's (float3x3)uNormalMatrix cast).
     Mat3 normalMat = Mat3::normalMatrix(model);
-    prepared->material.setVec4("type_PerDraw[8]"_sid, Vec4{normalMat.m[0], normalMat.m[1], normalMat.m[2], 0.0f});
-    prepared->material.setVec4("type_PerDraw[9]"_sid, Vec4{normalMat.m[3], normalMat.m[4], normalMat.m[5], 0.0f});
-    prepared->material.setVec4("type_PerDraw[10]"_sid, Vec4{normalMat.m[6], normalMat.m[7], normalMat.m[8], 0.0f});
+    Mat4 normalMat4{};
+    for (int col = 0; col < 3; ++col)
+    {
+        for (int row = 0; row < 3; ++row)
+            normalMat4.m[col * 4 + row] = normalMat.m[col * 3 + row];
+    }
+    prepared->material.setMat4("uNormalMatrix"_sid, normalMat4);
 
-    prepared->material.bind(cmdList);
+    prepared->material.bind(cmdList, m_ring.get());
 
     cmdList->bindVertexBuffer(gpuMesh->vbo.get(), 0, 0);
     cmdList->bindIndexBuffer(gpuMesh->ibo.get(), 0);

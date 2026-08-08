@@ -9,24 +9,27 @@
 | 文件 | 职责 |
 |------|------|
 | `rhi_types.h` | RHI 基础类型：Buffer/Texture/Shader 枚举、资源描述结构、渲染通道描述、`RHIFenceValue`、`RHIMemoryInfo` |
-| `rhi_resources.h` | GPUResource 基类（引用计数 + 延迟删除支持）、RHIRef 智能句柄、具体资源类型声明 |
+| `rhi_resources.h` | GPUResource 基类（引用计数 + 延迟删除支持）、RHIRef 智能句柄、具体资源类型声明（`RHIBuffer::getCpuMappedPointer` 供 CPU 可访问缓冲持久映射） |
 | `rhi_device.h` | `IRHIDevice`（资源工厂 + 提交 + Frame Fence + 延迟删除 + 显存预算）与 `IRHICommandList`（命令录制 + 调试标注）纯虚接口 |
 | `rhi_pipeline.h` | `PipelineStateDesc`（完整 PSO 描述，含哈希支持）、`PSOManager`（设备级缓存；2026-08-06 阶段 5c 起 `GLRHIDevice::createPipelineState` 经 `find`/`insert` 走缓存，相同 shader pair + 状态共享一个 GL program） |
 | `rhi_transient_resource_pool.h` / `.cpp` | 瞬态纹理池：按描述符分组复用单帧生命周期纹理，预留显存别名接口 |
+| `binding/bind_group.h` / `.cpp` | **BindGroup/BindGroupLayout（6e）**：声明式绑定描述（cbuffer b 寄存器 + 纹理 t 寄存器 + stage 可见性）；BindGroup 自持 layout 副本（move 安全），`bind()` 逐 entry 发 `bindConstantBuffer`/`bindTexture` |
+| `binding/shader_reflection.h` / `.cpp` | **ShaderReflection（6e）**：解析 shader_compiler 产出的 `_reflection.json`（cbuffer 成员 name/type/offset/size + 纹理 binding），cbuffer size 对齐到 16；驱动 Material 的 CPU blob 布局与参数名解析 |
+| `binding/constant_buffer_ring.h` / `.cpp` | **ConstantBufferRing（6e）**：per-frame 常量环形缓冲（GL 持久映射 UBO / D3D12 upload-heap CBV），256B 对齐按块分配，线性游标满则回卷（容量 >> in-flight 帧数 × 每帧用量） |
 | `gl_rhi_device.h` / `.cpp` | OpenGL 后端对 RHI 接口的实现：`GLRHIDevice`、GL 资源对象、Fence 跟踪、延迟删除队列、显存统计；经 pimpl `DeferredState` 持有命令缓冲三件套（6b 起录制+回放） |
 | `render_command_buffer.h` / `.cpp` | 延迟命令缓冲（6b）：连续内存 bump allocator + `RenderCommandType` 24 种命令 payload |
 | `deferred_command_list.h` / `.cpp` | `IRHICommandList` 的纯序列化实现（录制进 `RenderCommandBuffer`，零图形 API 调用） |
 | `gl_command_translator.h` / `.cpp` | GL 翻译器：遍历命令缓冲逐条翻译为 GL 调用（状态缓存从旧 `GLCommandList` 迁入） |
 | `d3d12_rhi_device.h` / `.cpp` | **D3D12 后端（6d）**：`D3D12RHIDevice`（swapchain/深度/2 帧 in-flight/upload ring/SRV heaps/显存查询/readback）、资源对象、`D3D12Fence`；cbuffer 布局经 DXC 容器反射（`IDxcContainerReflection`，需 dxcompiler.dll+dxil.dll） |
-| `d3d12_command_translator.h` / `.cpp` | D3D12 翻译器：全局 root signature（CBV b0-b2 按 stage 拆 slot + SRV 表 + 3 静态 sampler）；`setUniform*` 展平名解析回 cbuffer staging，draw 时上传 upload ring 绑 root CBV |
+| `d3d12_command_translator.h` / `.cpp` | D3D12 翻译器：全局 root signature（CBV b0-b2 按 stage 拆 slot + SRV 表 + 3 静态 sampler）；**6e 起 `bindConstantBuffer` 按 PSO 反射的 cbuffer 解析到 root CBV slot**（延迟到 draw 提交），`setUniform*` 遗留路径与 SPIRV-Cross 展平名解析已移除 |
 | `rhi_device_factory.h` / `.cpp` | `createRHIDevice()` 工厂 + `shaderFileExtensionForBackend()`/`shaderFormatForBackend()`（按后端选 `.glsl`/`.dxil`/`.spv`） |
 | `rhi_resources.cpp` | `GPUResource::release()` 实现：引用计数归零后交给所属设备延迟删除 |
 | `opengl_backend.cpp` | OpenGL 初始化、视口管理、清除与呈现（SwapChain 层，保留兼容） |
 | `opengl_backend.h` | `OpenGLBackend` 类声明 |
 | `render_backend.h` | `IRenderBackend` 接口 + `RenderSettings`（SwapChain 兼容层） |
 | `material_types.h` | 材质参数类型枚举（Float/Vec2/Vec3/Vec4/Mat3/Mat4/Texture）与布局描述 |
-| `shader_cache.h` / `.cpp` | Shader 编译缓存：按 (stage, sourceHash) 去重，同步编译，内存缓存 |
-| `material.h` / `.cpp` | **材质系统核心**：Shader 引用 + CPU uniform 块 + 参数按名设置 + PSO 绑定 |
+| `shader_cache.h` / `.cpp` | Shader 编译缓存：按 (stage, sourceHash) 去重，同步编译，内存缓存。**6e 起 Material 不再使用**（改用 initFromBytecode 直连设备 + 反射），保留类 |
+| `material.h` / `.cpp` | **材质系统核心（6e 反射驱动）**：Shader 引用 + 反射 cbuffer 布局 + 按名设置 CPU 常量 blob + `bind(cmdList, ring)`（memcpy 到 ConstantBufferRing + BindGroup 绑定） |
 | `screenshot/screenshot.h` / `.cpp` | 调试用截图：RGBA8 像素写 PNG（stb_image_write，PRIVATE stb 依赖），配合 `IRHIDevice::readbackBackbuffer()` 使用 |
 | `simple_cube_renderer.cpp` | 最小可行立方体渲染器：通过 `Material` + `GLRHIDevice` 绘制（批次 B 验证用）。**保留在仓库，但 2026-08-04 起主循环已改用 RenderFrameRunner，不再被 main 使用** |
 | `simple_cube_renderer.h` | `SimpleCubeRenderer` 类声明 |
@@ -63,6 +66,7 @@
 - 改**OpenGL RHI 具体实现** → 动 `gl_rhi_device.h` / `.cpp` + `gl_command_translator.h` / `.cpp`
 - 改**D3D12 RHI 具体实现** → 动 `d3d12_rhi_device.h` / `.cpp` + `d3d12_command_translator.h` / `.cpp`
 - 改**命令缓冲格式/命令集** → 动 `render_command_buffer.h` / `deferred_command_list.h` / `.cpp`（两个翻译器需同步）
+- 改**常量绑定（UBO/CBV ring、BindGroup、反射）** → 动 `binding/` 目录（`constant_buffer_ring` / `bind_group` / `shader_reflection`）+ `material.h/.cpp`
 - 改**后端选择/着色器路径** → 动 `rhi_device_factory.cpp`（后端枚举 + `--backend=` 参数在 `launch/templates/main.cpp.in`）
 - 改**GPU 资源生命周期（延迟删除 / Fence / 显存预算）** → 动 `rhi_resources.h/.cpp` / `rhi_device.h` / `gl_rhi_device.h/.cpp`
 - 改**瞬态资源池** → 动 `rhi_transient_resource_pool.h/.cpp`
@@ -102,7 +106,13 @@
 
 ## 技术债务
 
-> 统一维护于 [TODO.md](../../../../TODO.md)。本模块相关条目包括：Render/UniformBinding、Render/MaterialNoVariant、Render/ShaderSyncCompile、Render/D3D12MipGeneration、Render/D3D12SyncUpload、Render/D3D12PixMarkers、Render/D3D12NoImGui。
+> 统一维护于 [TODO.md](../../../../TODO.md)。本模块相关条目包括：Render/D3D12MipGeneration、Render/D3D12SyncUpload、Render/D3D12PixMarkers、Render/D3D12NoImGui。
+
+### 2026-08-08 已完成（6e UBO/CBV 统一绑定层）
+- ✅ `ConstantBufferRing`（GL 持久映射 UBO / D3D12 upload-heap CBV，256B 对齐按块分配）+ `BindGroupLayout`/`BindGroup`（声明式绑定，自持 layout 副本）+ `ShaderReflection`（`_reflection.json` 解析，cbuffer 成员 name→offset 驱动 CPU blob）
+- ✅ `Material::bind(cmdList, ring)` 重写：CPU blob 一次 memcpy 进 ring + BindGroup 绑定，`setUniform*` 从材质路径移除（GL 翻译器保留序列化兼容；D3D12 翻译器删除展平名解析，`bindConstantBuffer` → root CBV）
+- ✅ SPIRV-Cross 命名债务消除：cbuffer 保持真 UBO（不再展平）、combined sampler 继承 image binding、反射 JSON 输出
+- ✅ 遗留债务记入 TODO：ring 每 draw 全量分配未做按频率复用；GL 退出时 `window->destroy()` 先于设备析构 flush 的 glad 1282（既有）
 
 ### 2026-08-07 已完成（6d D3D12 后端）
 - ✅ `D3D12RHIDevice` + `D3D12CommandTranslator`：D3D12 后端落地，Sponza 画面与 GL 功能等价（~114 fps vs GL 60 vsync，剔除统计一致），`--backend=d3d12` 选择后端

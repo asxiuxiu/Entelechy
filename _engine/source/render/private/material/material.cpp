@@ -1,4 +1,5 @@
 #include "render/material/material.h"
+#include "render/binding/constant_buffer_ring.h"
 #include "log/core/log_macros.h"
 #include "core/allocator/allocator.h"
 #include <cstring>
@@ -16,55 +17,77 @@
 namespace Entelechy
 {
 
-// ------------------------------------------------------------------
-// std140 alignment helpers
-// ------------------------------------------------------------------
-static u32 alignOffset(u32 offset, u32 alignment)
+namespace
 {
-    return (offset + alignment - 1) & ~(alignment - 1);
+
+// Read a file into a byte buffer. Tries the path as-is first, then relative
+// to the executable directory so shaders/reflection can be found regardless
+// of the process working directory.
+std::vector<u8> readFileResolved(const char *path)
+{
+    auto tryRead = [](const char *p) -> std::vector<u8> {
+        std::ifstream f(p, std::ios::binary | std::ios::ate);
+        if (!f.is_open())
+            return {};
+        auto size = f.tellg();
+        if (size <= 0)
+            return {};
+        f.seekg(0, std::ios::beg);
+        std::vector<u8> buf(static_cast<size_t>(size));
+        f.read(reinterpret_cast<char *>(buf.data()), size);
+        return buf;
+    };
+
+    auto data = tryRead(path);
+    if (!data.empty())
+        return data;
+
+#ifdef _WIN32
+    char exePath[MAX_PATH] = {};
+    GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+    char *lastSep = strrchr(exePath, '\\');
+    if (!lastSep)
+        lastSep = strrchr(exePath, '/');
+    if (lastSep)
+    {
+        *(lastSep + 1) = '\0';
+        return tryRead((std::string(exePath) + path).c_str());
+    }
+#endif
+    return {};
 }
 
-static u32 getParamAlign(MaterialParamType type)
+// Derive the reflection JSON path from a bytecode path:
+// "shaders/pbr_lit_vertex.glsl" -> "shaders/pbr_lit_vertex_reflection.json"
+std::string reflectionPathFor(const std::string &bytecodePath)
+{
+    const size_t dot = bytecodePath.find_last_of('.');
+    const std::string base = dot == std::string::npos ? bytecodePath : bytecodePath.substr(0, dot);
+    return base + "_reflection.json";
+}
+
+ShaderMemberType memberTypeForParamType(MaterialParamType type)
 {
     switch (type)
     {
     case MaterialParamType::Float:
-        return 4;
+        return ShaderMemberType::Float;
     case MaterialParamType::Vec2:
-        return 8;
+        return ShaderMemberType::Vec2;
     case MaterialParamType::Vec3:
-        return 16;
+        return ShaderMemberType::Vec3;
     case MaterialParamType::Vec4:
-        return 16;
+        return ShaderMemberType::Vec4;
     case MaterialParamType::Mat3:
-        return 16;
+        return ShaderMemberType::Mat3;
     case MaterialParamType::Mat4:
-        return 16;
+        return ShaderMemberType::Mat4;
     default:
-        return 4;
+        return ShaderMemberType::Unknown;
     }
 }
 
-static u32 getParamSize(MaterialParamType type)
-{
-    switch (type)
-    {
-    case MaterialParamType::Float:
-        return 4;
-    case MaterialParamType::Vec2:
-        return 8;
-    case MaterialParamType::Vec3:
-        return 16; // std140: vec3 padded to 16
-    case MaterialParamType::Vec4:
-        return 16;
-    case MaterialParamType::Mat3:
-        return 36; // 9 floats; uploaded via glUniformMatrix3fv (no std140 padding needed)
-    case MaterialParamType::Mat4:
-        return 64;
-    default:
-        return 0;
-    }
-}
+} // namespace
 
 // ------------------------------------------------------------------
 // Material
@@ -82,6 +105,9 @@ Material::Material(Material &&other) noexcept
       m_fragment_shader(std::move(other.m_fragment_shader)),
       m_pipeline_desc(std::move(other.m_pipeline_desc)),
       m_pipeline_state(std::move(other.m_pipeline_state)),
+      m_cbuffers(std::move(other.m_cbuffers)),
+      m_bind_layout(std::move(other.m_bind_layout)),
+      m_bind_group(std::move(other.m_bind_group)),
       m_uniform_data(other.m_uniform_data),
       m_uniform_data_size(other.m_uniform_data_size),
       m_params(std::move(other.m_params)),
@@ -102,6 +128,9 @@ Material &Material::operator=(Material &&other) noexcept
         m_fragment_shader = std::move(other.m_fragment_shader);
         m_pipeline_desc = std::move(other.m_pipeline_desc);
         m_pipeline_state = std::move(other.m_pipeline_state);
+        m_cbuffers = std::move(other.m_cbuffers);
+        m_bind_layout = std::move(other.m_bind_layout);
+        m_bind_group = std::move(other.m_bind_group);
         m_uniform_data = other.m_uniform_data;
         m_uniform_data_size = other.m_uniform_data_size;
         m_params = std::move(other.m_params);
@@ -113,109 +142,91 @@ Material &Material::operator=(Material &&other) noexcept
     return *this;
 }
 
-bool Material::init(IRHIDevice *device, ShaderCache *shaderCache, const char *vertexSource, const char *fragmentSource,
-                    const MaterialParamDesc *params, u32 paramCount, const PipelineStateDesc &pipelineDesc)
+void Material::insertCBuffer(const ShaderReflectionCBuffer &ref, ShaderStage stage)
 {
-    shutdown();
+    CBufferSlot slot;
+    slot.binding = ref.binding;
+    slot.size = ref.size;
+    slot.stage = stage;
 
-    if (!device || !vertexSource || !fragmentSource)
+    usize insertAt = 0;
+    while (insertAt < m_cbuffers.size() && m_cbuffers[insertAt].binding < slot.binding)
+        ++insertAt;
+    m_cbuffers.insert(insertAt, slot);
+}
+
+bool Material::buildParamLayout(const MaterialParamDesc *params, u32 paramCount,
+                                const ShaderReflection &vsReflection, const ShaderReflection &psReflection)
+{
+    if (!params || paramCount == 0)
+        return true;
+
+    for (u32 i = 0; i < paramCount; ++i)
     {
-        LOG_ERROR(LogCategories::kEngine, "Material::init: invalid arguments");
-        return false;
-    }
+        StringId key = StringInternPool::instance().intern(params[i].name);
+        if (key.value() == 0)
+            continue;
 
-    // Compile shaders
-    usize vsLen = std::strlen(vertexSource);
-    usize fsLen = std::strlen(fragmentSource);
+        ParamSlot slot;
+        slot.memberType = ShaderMemberType::Unknown;
 
-    if (shaderCache)
-    {
-        m_vertex_shader = shaderCache->getOrCreateShader(device, ShaderStage::Vertex, vertexSource, vsLen);
-        m_fragment_shader = shaderCache->getOrCreateShader(device, ShaderStage::Fragment, fragmentSource, fsLen);
-    }
-    else
-    {
-        ShaderBytecode vsBytecode{};
-        vsBytecode.stage = ShaderStage::Vertex;
-        vsBytecode.format = ShaderBytecodeFormat::GLSL;
-        vsBytecode.data = vertexSource;
-        vsBytecode.size = vsLen;
-        vsBytecode.entryPoint = "main";
-
-        ShaderBytecode fsBytecode{};
-        fsBytecode.stage = ShaderStage::Fragment;
-        fsBytecode.format = ShaderBytecodeFormat::GLSL;
-        fsBytecode.data = fragmentSource;
-        fsBytecode.size = fsLen;
-        fsBytecode.entryPoint = "main";
-
-        m_vertex_shader = device->createShader(vsBytecode);
-        m_fragment_shader = device->createShader(fsBytecode);
-    }
-
-    if (!m_vertex_shader || !m_fragment_shader)
-    {
-        LOG_ERROR(LogCategories::kEngine, "Material::init: shader compilation failed");
-        shutdown();
-        return false;
-    }
-
-    // Create pipeline state
-    m_pipeline_desc = pipelineDesc;
-    m_pipeline_desc.vertexShader = m_vertex_shader.get();
-    m_pipeline_desc.fragmentShader = m_fragment_shader.get();
-    m_pipeline_state = device->createPipelineState(m_pipeline_desc);
-    if (!m_pipeline_state)
-    {
-        LOG_ERROR(LogCategories::kEngine, "Material::init: pipeline state creation failed");
-        shutdown();
-        return false;
-    }
-
-    // Build parameter layout
-    if (params && paramCount > 0)
-    {
-        u32 uniformOffset = 0;
-        u32 nextTextureSlot = 0;
-
-        for (u32 i = 0; i < paramCount; ++i)
+        if (params[i].type == MaterialParamType::Texture)
         {
-            // Intern the name so GLCommandList::getUniformLocation can resolve
-            // it back to a string for glGetUniformLocation. A bare _sid literal
-            // is hash-only and can never be resolved.
-            StringId key = StringInternPool::instance().intern(params[i].name);
-            if (key.value() == 0)
-                continue;
-            ParamSlot slot;
-            slot.type = params[i].type;
-
-            if (params[i].type == MaterialParamType::Texture)
+            // Resolve the t-register from the (PS-first) texture lists.
+            for (const ShaderReflection *ref : {&psReflection, &vsReflection})
             {
-                slot.offset = 0;
-                slot.textureSlot = nextTextureSlot++;
+                for (usize t = 0; t < ref->textures.size(); ++t)
+                {
+                    if (ref->textures[t].name == params[i].name)
+                    {
+                        slot.isTexture = true;
+                        slot.textureSlot = ref->textures[t].binding;
+                        break;
+                    }
+                }
+                if (slot.isTexture)
+                    break;
             }
-            else
-            {
-                u32 align = getParamAlign(params[i].type);
-                u32 size = getParamSize(params[i].type);
-                uniformOffset = alignOffset(uniformOffset, align);
-                slot.offset = uniformOffset;
-                slot.textureSlot = 0;
-                uniformOffset += size;
-            }
-
-            m_params.insert(key, slot);
+            if (slot.isTexture)
+                m_params.insert(key, slot);
+            continue;
         }
 
-        if (uniformOffset > 0)
+        const ShaderMemberType wantType = memberTypeForParamType(params[i].type);
+
+        for (const ShaderReflection *ref : {&vsReflection, &psReflection})
         {
-            m_uniform_data_size = alignOffset(uniformOffset, 16);
-            m_uniform_data = static_cast<u8 *>(DefaultAllocator::alloc(m_uniform_data_size, alignof(u8)));
-            std::memset(m_uniform_data, 0, m_uniform_data_size);
+            for (usize c = 0; c < ref->cbuffers.size(); ++c)
+            {
+                const ShaderReflectionCBuffer &cbuf = ref->cbuffers[c];
+                const ShaderReflectionMember *member = cbuf.findMember(params[i].name);
+                if (!member)
+                    continue;
+
+                if (member->type != wantType)
+                {
+                    LOG_WARN(LogCategories::kEngine,
+                                "Material: param '%s' type mismatch (shader member has different type)", params[i].name);
+                    break;
+                }
+
+                for (usize mi = 0; mi < m_cbuffers.size(); ++mi)
+                {
+                    if (m_cbuffers[mi].binding == cbuf.binding)
+                    {
+                        slot.cbufferIndex = static_cast<u32>(mi);
+                        break;
+                    }
+                }
+                slot.memberOffset = member->offset;
+                slot.memberType = member->type;
+                m_params.insert(key, slot);
+                break;
+            }
+            if (slot.memberType != ShaderMemberType::Unknown)
+                break;
         }
     }
-
-    m_valid = true;
     return true;
 }
 
@@ -233,47 +244,9 @@ bool Material::initFromBytecode(IRHIDevice *device,
         return false;
     }
 
-    // Helper to read a file into a byte buffer.
-    // Tries the path as-is first, then relative to the executable directory
-    // so shaders can be found regardless of the process working directory.
-    auto readFile = [](const char *path) -> std::vector<u8> {
-        auto tryRead = [](const char *p) -> std::vector<u8> {
-            std::ifstream f(p, std::ios::binary | std::ios::ate);
-            if (!f.is_open())
-                return {};
-            auto size = f.tellg();
-            if (size <= 0)
-                return {};
-            f.seekg(0, std::ios::beg);
-            std::vector<u8> buf(static_cast<size_t>(size));
-            f.read(reinterpret_cast<char *>(buf.data()), size);
-            return buf;
-        };
-
-        // Try path as-is (works when CWD == exe dir)
-        auto data = tryRead(path);
-        if (!data.empty())
-            return data;
-
-        // Try relative to executable directory
-#ifdef _WIN32
-        char exePath[MAX_PATH] = {};
-        GetModuleFileNameA(nullptr, exePath, MAX_PATH);
-        // Strip filename to get directory
-        char *lastSep = strrchr(exePath, '\\');
-        if (!lastSep) lastSep = strrchr(exePath, '/');
-        if (lastSep)
-        {
-            *(lastSep + 1) = '\0';
-            std::string fullPath = std::string(exePath) + path;
-            return tryRead(fullPath.c_str());
-        }
-#endif
-        return {};
-    };
-
-    auto vsData = readFile(vertexBytecodePath);
-    auto fsData = readFile(fragmentBytecodePath);
+    // -- Read bytecode -----------------------------------------------------
+    auto vsData = readFileResolved(vertexBytecodePath);
+    auto fsData = readFileResolved(fragmentBytecodePath);
 
     if (vsData.empty())
     {
@@ -288,6 +261,31 @@ bool Material::initFromBytecode(IRHIDevice *device,
         return false;
     }
 
+    // -- Load reflection metadata (cbuffer layout, texture bindings) -------
+    ShaderReflection vsReflection;
+    ShaderReflection psReflection;
+    {
+        const std::string vsReflectionPath = reflectionPathFor(vertexBytecodePath);
+        auto vsJson = readFileResolved(vsReflectionPath.c_str());
+        if (vsJson.empty() ||
+            !parseShaderReflection(reinterpret_cast<const char *>(vsJson.data()), vsJson.size(), vsReflection))
+        {
+            LOG_ERROR(LogCategories::kEngine, "Material::initFromBytecode: cannot load reflection: %s",
+                      vsReflectionPath.c_str());
+            return false;
+        }
+        const std::string psReflectionPath = reflectionPathFor(fragmentBytecodePath);
+        auto psJson = readFileResolved(psReflectionPath.c_str());
+        if (psJson.empty() ||
+            !parseShaderReflection(reinterpret_cast<const char *>(psJson.data()), psJson.size(), psReflection))
+        {
+            LOG_ERROR(LogCategories::kEngine, "Material::initFromBytecode: cannot load reflection: %s",
+                      psReflectionPath.c_str());
+            return false;
+        }
+    }
+
+    // -- Create shaders ----------------------------------------------------
     ShaderBytecode vsBytecode{};
     vsBytecode.stage = ShaderStage::Vertex;
     vsBytecode.format = format;
@@ -312,7 +310,7 @@ bool Material::initFromBytecode(IRHIDevice *device,
         return false;
     }
 
-    // Create pipeline state
+    // -- Create pipeline state ---------------------------------------------
     m_pipeline_desc = pipelineDesc;
     m_pipeline_desc.vertexShader = m_vertex_shader.get();
     m_pipeline_desc.fragmentShader = m_fragment_shader.get();
@@ -324,44 +322,60 @@ bool Material::initFromBytecode(IRHIDevice *device,
         return false;
     }
 
-    // Build parameter layout (same logic as init())
-    if (params && paramCount > 0)
+    // -- Merge cbuffers (binding-sorted) + bind group layout ---------------
+    for (usize c = 0; c < vsReflection.cbuffers.size(); ++c)
+        insertCBuffer(vsReflection.cbuffers[c], ShaderStage::Vertex);
+    for (usize c = 0; c < psReflection.cbuffers.size(); ++c)
+        insertCBuffer(psReflection.cbuffers[c], ShaderStage::Fragment);
+
+    u32 blobOffset = 0;
+    for (usize i = 0; i < m_cbuffers.size(); ++i)
     {
-        u32 uniformOffset = 0;
-        u32 nextTextureSlot = 0;
+        m_cbuffers[i].blobOffset = blobOffset;
+        blobOffset += m_cbuffers[i].size;
 
-        for (u32 i = 0; i < paramCount; ++i)
-        {
-            StringId key = StringInternPool::instance().intern(params[i].name);
-            if (key.value() == 0)
-                continue;
-            ParamSlot slot;
-            slot.type = params[i].type;
+        BindGroupLayoutEntry entry;
+        entry.binding = m_cbuffers[i].binding;
+        entry.type = BindResourceType::UniformBuffer;
+        entry.stage = m_cbuffers[i].stage;
+        m_bind_layout.addEntry(entry);
+    }
+    for (usize c = 0; c < psReflection.textures.size(); ++c)
+    {
+        BindGroupLayoutEntry entry;
+        entry.binding = psReflection.textures[c].binding;
+        entry.type = BindResourceType::Texture;
+        entry.stage = ShaderStage::Fragment;
+        m_bind_layout.addEntry(entry);
+    }
+    for (usize c = 0; c < vsReflection.textures.size(); ++c)
+    {
+        BindGroupLayoutEntry entry;
+        entry.binding = vsReflection.textures[c].binding;
+        entry.type = BindResourceType::Texture;
+        entry.stage = ShaderStage::Vertex;
+        m_bind_layout.addEntry(entry);
+    }
+    if (!m_bind_group.init(&m_bind_layout))
+    {
+        LOG_ERROR(LogCategories::kEngine, "Material::initFromBytecode: bind group init failed");
+        shutdown();
+        return false;
+    }
 
-            if (params[i].type == MaterialParamType::Texture)
-            {
-                slot.offset = 0;
-                slot.textureSlot = nextTextureSlot++;
-            }
-            else
-            {
-                u32 align = getParamAlign(params[i].type);
-                u32 size = getParamSize(params[i].type);
-                uniformOffset = alignOffset(uniformOffset, align);
-                slot.offset = uniformOffset;
-                slot.textureSlot = 0;
-                uniformOffset += size;
-            }
+    // -- CPU constant blob + param table ------------------------------------
+    m_uniform_data_size = blobOffset;
+    if (m_uniform_data_size > 0)
+    {
+        m_uniform_data = static_cast<u8 *>(DefaultAllocator::alloc(m_uniform_data_size, 16));
+        std::memset(m_uniform_data, 0, m_uniform_data_size);
+    }
 
-            m_params.insert(key, slot);
-        }
-
-        if (uniformOffset > 0)
-        {
-            m_uniform_data_size = alignOffset(uniformOffset, 16);
-            m_uniform_data = static_cast<u8 *>(DefaultAllocator::alloc(m_uniform_data_size, alignof(u8)));
-            std::memset(m_uniform_data, 0, m_uniform_data_size);
-        }
+    if (!buildParamLayout(params, paramCount, vsReflection, psReflection))
+    {
+        LOG_ERROR(LogCategories::kEngine, "Material::initFromBytecode: param layout build failed");
+        shutdown();
+        return false;
     }
 
     m_valid = true;
@@ -374,6 +388,9 @@ void Material::shutdown()
     m_pipeline_state.reset();
     m_vertex_shader.reset();
     m_fragment_shader.reset();
+    m_bind_group.shutdown();
+    m_bind_layout = BindGroupLayout{};
+    m_cbuffers.clear();
     if (m_uniform_data)
     {
         DefaultAllocator::free(m_uniform_data);
@@ -385,16 +402,17 @@ void Material::shutdown()
 }
 
 // ------------------------------------------------------------------
-// Parameter setters
+// Parameter setters — resolve the shader member name, write into the
+// CPU blob at (cbuffer blob offset + member offset).
 // ------------------------------------------------------------------
 void Material::setFloat(StringId name, f32 value)
 {
     if (!m_uniform_data || name.value() == 0)
         return;
     auto *slot = m_params.find(name);
-    if (!slot || slot->type != MaterialParamType::Float)
+    if (!slot || slot->isTexture || slot->memberType != ShaderMemberType::Float)
         return;
-    std::memcpy(m_uniform_data + slot->offset, &value, sizeof(f32));
+    std::memcpy(m_uniform_data + m_cbuffers[slot->cbufferIndex].blobOffset + slot->memberOffset, &value, sizeof(f32));
 }
 
 void Material::setVec2(StringId name, const Vec2 &value)
@@ -402,9 +420,10 @@ void Material::setVec2(StringId name, const Vec2 &value)
     if (!m_uniform_data || name.value() == 0)
         return;
     auto *slot = m_params.find(name);
-    if (!slot || slot->type != MaterialParamType::Vec2)
+    if (!slot || slot->isTexture || slot->memberType != ShaderMemberType::Vec2)
         return;
-    std::memcpy(m_uniform_data + slot->offset, &value.x, 2 * sizeof(f32));
+    std::memcpy(m_uniform_data + m_cbuffers[slot->cbufferIndex].blobOffset + slot->memberOffset, &value.x,
+                2 * sizeof(f32));
 }
 
 void Material::setVec3(StringId name, const Vec3 &value)
@@ -412,11 +431,10 @@ void Material::setVec3(StringId name, const Vec3 &value)
     if (!m_uniform_data || name.value() == 0)
         return;
     auto *slot = m_params.find(name);
-    if (!slot || slot->type != MaterialParamType::Vec3)
+    if (!slot || slot->isTexture || slot->memberType != ShaderMemberType::Vec3)
         return;
-    std::memcpy(m_uniform_data + slot->offset, &value.x, 3 * sizeof(f32));
-    // Note: std140 vec3 has 4 floats (16 bytes), but we only write 3.
-    // The shader only reads .xyz; the w component is padding.
+    std::memcpy(m_uniform_data + m_cbuffers[slot->cbufferIndex].blobOffset + slot->memberOffset, &value.x,
+                3 * sizeof(f32));
 }
 
 void Material::setVec4(StringId name, const Vec4 &value)
@@ -424,29 +442,45 @@ void Material::setVec4(StringId name, const Vec4 &value)
     if (!m_uniform_data || name.value() == 0)
         return;
     auto *slot = m_params.find(name);
-    if (!slot || slot->type != MaterialParamType::Vec4)
+    if (!slot || slot->isTexture || slot->memberType != ShaderMemberType::Vec4)
         return;
-    std::memcpy(m_uniform_data + slot->offset, &value.x, 4 * sizeof(f32));
+    std::memcpy(m_uniform_data + m_cbuffers[slot->cbufferIndex].blobOffset + slot->memberOffset, &value.x,
+                4 * sizeof(f32));
 }
 
-void Material::setMat3(StringId name, const Mat3 &value, bool /*transpose*/)
+void Material::setMat3(StringId name, const Mat3 &value)
 {
+    // No engine shader uses mat3 cbuffer members (matrices are float4x4 to
+    // keep HLSL/std140 layouts identical); kept for API completeness. Writes
+    // the std140 layout (3 columns of vec3, each 16 bytes) — HLSL packs mat3
+    // with 12-byte columns, so a mat3 member would NOT be cross-backend
+    // safe; do not add one without revisiting this setter.
     if (!m_uniform_data || name.value() == 0)
         return;
     auto *slot = m_params.find(name);
-    if (!slot || slot->type != MaterialParamType::Mat3)
+    if (!slot || slot->isTexture || slot->memberType != ShaderMemberType::Mat3)
         return;
-    std::memcpy(m_uniform_data + slot->offset, value.m, 9 * sizeof(f32));
+    u8 *dst = m_uniform_data + m_cbuffers[slot->cbufferIndex].blobOffset + slot->memberOffset;
+    for (int col = 0; col < 3; ++col)
+    {
+        std::memcpy(dst + col * 16, value.m + col * 3, 3 * sizeof(f32));
+        std::memset(dst + col * 16 + 12, 0, 4);
+    }
 }
 
-void Material::setMat4(StringId name, const Mat4 &value, bool /*transpose*/)
+void Material::setMat4(StringId name, const Mat4 &value)
 {
+    // Writes the matrix column-major (Mat4::m). The GLSL UBO declares the
+    // matrix `layout(row_major)` and SPIRV-Cross emits the multiply in the
+    // transposed operand order, so column-major bytes are what both the GL
+    // and D3D12 backends expect from one shared blob.
     if (!m_uniform_data || name.value() == 0)
         return;
     auto *slot = m_params.find(name);
-    if (!slot || slot->type != MaterialParamType::Mat4)
+    if (!slot || slot->isTexture || slot->memberType != ShaderMemberType::Mat4)
         return;
-    std::memcpy(m_uniform_data + slot->offset, value.m, 16 * sizeof(f32));
+    std::memcpy(m_uniform_data + m_cbuffers[slot->cbufferIndex].blobOffset + slot->memberOffset, value.m,
+                16 * sizeof(f32));
 }
 
 void Material::setTexture(StringId name, RHITextureRef texture)
@@ -454,7 +488,7 @@ void Material::setTexture(StringId name, RHITextureRef texture)
     if (name.value() == 0)
         return;
     auto *slot = m_params.find(name);
-    if (!slot || slot->type != MaterialParamType::Texture)
+    if (!slot || !slot->isTexture)
         return;
     m_textures.insert(name, texture);
 }
@@ -462,73 +496,36 @@ void Material::setTexture(StringId name, RHITextureRef texture)
 // ------------------------------------------------------------------
 // Bind
 // ------------------------------------------------------------------
-void Material::bind(IRHICommandList *cmdList)
+void Material::bind(IRHICommandList *cmdList, ConstantBufferRing *ring)
 {
-    if (!m_valid || !cmdList)
+    if (!m_valid || !cmdList || !ring)
         return;
 
     cmdList->bindPipeline(m_pipeline_state.get());
 
-    // Upload scalar/vector/matrix uniforms
-    for (auto kv : m_params)
+    // Upload each cbuffer into the ring and point the BindGroup at the
+    // freshly allocated block. Textures are set on the group during prepare
+    // (setTexture) and re-asserted here each draw.
+    for (usize i = 0; i < m_cbuffers.size(); ++i)
     {
-        StringId name = kv.first;
-        const ParamSlot &slot = kv.second;
-
-        switch (slot.type)
-        {
-        case MaterialParamType::Float:
-        {
-            f32 v;
-            std::memcpy(&v, m_uniform_data + slot.offset, sizeof(f32));
-            cmdList->setUniformFloat(name, v);
-            break;
-        }
-        case MaterialParamType::Vec2:
-        {
-            cmdList->setUniformVec2(name, reinterpret_cast<f32 *>(m_uniform_data + slot.offset));
-            break;
-        }
-        case MaterialParamType::Vec3:
-        {
-            cmdList->setUniformVec3(name, reinterpret_cast<f32 *>(m_uniform_data + slot.offset));
-            break;
-        }
-        case MaterialParamType::Vec4:
-        {
-            cmdList->setUniformVec4(name, reinterpret_cast<f32 *>(m_uniform_data + slot.offset));
-            break;
-        }
-        case MaterialParamType::Mat3:
-        {
-            cmdList->setUniformMat3(name, reinterpret_cast<f32 *>(m_uniform_data + slot.offset), false);
-            break;
-        }
-        case MaterialParamType::Mat4:
-        {
-            cmdList->setUniformMat4(name, reinterpret_cast<f32 *>(m_uniform_data + slot.offset), false);
-            break;
-        }
-        default:
-            break;
-        }
+        const CBufferSlot &slot = m_cbuffers[i];
+        u32 ringOffset = 0;
+        if (!ring->allocate(m_uniform_data + slot.blobOffset, slot.size, ringOffset))
+            continue; // ring overflow — draw will use stale data (logged once)
+        m_bind_group.setBuffer(slot.binding, ring->buffer(), ringOffset, slot.size);
     }
-
-    // Bind textures and set sampler uniforms
     for (auto kv : m_textures)
     {
-        StringId name = kv.first;
         RHITexture *texture = kv.second.get();
         if (!texture)
             continue;
-
-        auto *slot = m_params.find(name);
+        const ParamSlot *slot = m_params.find(kv.first);
         if (!slot)
             continue;
-
-        cmdList->bindTexture(slot->textureSlot, texture);
-        cmdList->setUniformInt(name, static_cast<i32>(slot->textureSlot));
+        m_bind_group.setTexture(slot->textureSlot, texture);
     }
+
+    m_bind_group.bind(cmdList);
 }
 
 } // namespace Entelechy

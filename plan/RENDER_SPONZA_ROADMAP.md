@@ -11,7 +11,7 @@
 
 ## 现状一句话总结
 
-四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-5 完成（2026-08-06），NewSponza 全量 405 primitive 经 Extract → Cull → Queue → Execute 完整链路渲染——方向光 lit PBR（GGX）、法线/MR 贴图采样、天空渐变、调试统计面板（FPS/draw calls/剔除/PSO 缓存/显存）全部落地，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。阶段 6a RHI 接口审计 + 6b 延迟命令缓冲已完成（2026-08-07），GL 后端已从立即执行切换为录制+回放模式。阶段 6c 着色器编译工具链已完成（2026-08-07）：HLSL-first + DXC + SPIRV-Cross 管线落地，3 组 shader 移植为 HLSL SM 6.0，离线编译产出 DXIL/SPIR-V/GLSL 三格式，运行时从预编译字节码加载。阶段 6d D3D12 后端已完成（2026-08-07）：Sponza 在 DX12 下渲染与 GL 功能等价（~114 fps，剔除统计一致），`--backend=d3d12` 选择后端，默认仍 OpenGL。下一步是 6e（UBO/CBV 绑定）。
+四大集成断裂已全部修复，glTF 导入/cook 链路已打通：阶段 1-5 完成（2026-08-06），NewSponza 全量 405 primitive 经 Extract → Cull → Queue → Execute 完整链路渲染——方向光 lit PBR（GGX）、法线/MR 贴图采样、天空渐变、调试统计面板（FPS/draw calls/剔除/PSO 缓存/显存）全部落地，场景加载入口已归引擎（`asset/scene/`），异步加载无 fallback 残留，视锥剔除实时生效，~60 fps（vsync 上限）。阶段 6a RHI 接口审计 + 6b 延迟命令缓冲已完成（2026-08-07），GL 后端已从立即执行切换为录制+回放模式。阶段 6c 着色器编译工具链已完成（2026-08-07）：HLSL-first + DXC + SPIRV-Cross 管线落地，3 组 shader 移植为 HLSL SM 6.0，离线编译产出 DXIL/SPIR-V/GLSL 三格式，运行时从预编译字节码加载。阶段 6d D3D12 后端已完成（2026-08-07）：Sponza 在 DX12 下渲染与 GL 功能等价（~114 fps，剔除统计一致），`--backend=d3d12` 选择后端，默认仍 OpenGL。阶段 6e UBO/CBV 统一绑定层已完成（2026-08-08）：ConstantBufferRing + BindGroup/反射元数据驱动，GL 真 UBO / D3D12 root CBV 统一绑定路径，SPIRV-Cross 展平命名债务彻底消除，双后端画面与 6d 一致。下一步是 6f（Vulkan 预留）/ 6g（PSO 异步编译）。
 
 ## 断裂修复与阶段的对应关系
 
@@ -220,7 +220,7 @@
 
 ---
 
-### 6e. UBO/CBV 统一绑定层 ⭐
+### 6e. UBO/CBV 统一绑定层 ⭐ ✅ 已完成（2026-08-08）
 
 **目标**: 替换当前 per-draw `glUniform*` 立即上传模式，建立跨后端的 Constant Buffer / Uniform Buffer Object 绑定抽象。这既是 GL 后端的性能修复（10+ 材质时 `glUniform*` 瓶颈），也是 D3D12 Root Signature / Vulkan Descriptor Set 的统一表达。**同时消除 6c SPIRV-Cross 降级路径遗留的 uniform 命名脆弱性问题。**
 
@@ -240,6 +240,8 @@
 **验证**: GL 后端 Sponza 画面无回归；draw call 耗时下降（ImGui 面板 FPS 不降或提升）；D3D12 后端使用同一绑定路径；材质参数表不再包含任何 SPIRV-Cross 生成的内部名称。新增 BindGroup 创建/绑定单元测试。
 
 **对应章节**: 5.13（材质参数绑定与 GPU 上传）、5.14（PreparedMaterial → bind_group + pipeline_key）
+
+> **落地记录（2026-08-08）**：五项子任务全部完成。(1) `ConstantBufferRing`（`render/binding/constant_buffer_ring.h/.cpp`）：GL 持久映射 `GL_UNIFORM_BUFFER`（`glBufferStorage` + persistent/coherent map，缺失时降级 `glBufferData`+`glMapBufferRange`）、D3D12 upload-heap CBV（`createBuffer` 对 cpuAccessible 缓冲持久 Map），256B 对齐按块分配、线性游标满则回卷（8MB 容量 >> 2 帧 in-flight × ~300KB/帧用量）。(2) `BindGroupLayout`/`BindGroup`（`render/binding/bind_group.h/.cpp`）：声明式 binding 描述（cbuffer b 寄存器 + 纹理 t 寄存器 + stage 可见性）；BindGroup 自持 layout 副本（修复 move 后 m_layout 悬垂导致命令洪泛 + 段错误的缺陷），`bind()` 逐 entry 发 `bindConstantBuffer`/`bindTexture`。(3) `Material::bind` 重写：反射驱动的 CPU 常量 blob（cbuffer 成员 name→offset 来自 shader_compiler 输出 `_reflection.json`，`ShaderReflection` 解析）→ 每 cbuffer 一次 memcpy 进 ring → BindGroup 绑定；`setUniform*` 从材质路径彻底移除（GL 翻译器保留命令序列化兼容，D3D12 翻译器删除展平名解析与 staging，`bindConstantBuffer` 按 PSO 反射的 vs/ps cbuffer 解析 binding → root CBV slot 延迟到 draw 提交）。(4) 按更新频率分层：绑定点语义落地为 b0=view/light、b1=material、b2=object（BindGroupLayout 结构），ring 每 draw 全量分配的 per-frame/per-material 复用优化记 TODO。(5) **SPIRV-Cross 命名债务消除**：`flatten_buffer_block` 移除（cbuffer 保持真 UBO `layout(binding=N, std140)`）、420pack 扩展启用（UBO/sampler 带显式 binding）、combined sampler 继承 image 的 Binding 装饰（t-register 即纹理单元）、`_reflection.json` 每 entry point 输出（cbuffer 成员 name/type/offset/size + 纹理 binding）。**配套 shader 变更**：cbuffer 成员改为 vec4/mat4-only（HLSL 打包与 std140 偏移完全一致，单 CPU blob 双后端共用——float3+float、mat3 的 HLSL/std140 会分叉）；同一材质内 cbuffer binding 跨 stage 唯一（GL `GL_UNIFORM_BUFFER` 命名空间共享，sky PS `PerFramePS` 与 simple_cube PS `PerMaterial` 改 b1）；uNormalMatrix 改 float4x4 承载 mat3（shader 内 `(float3x3)` 转型）；GLSL 矩阵输出 `layout(row_major)` + SPIRV-Cross 乘序转置补偿，CPU 照写 column-major `Mat4::m`。**验收**：Debug 构建通过，247 测试全绿（原 240 + 4 BindGroup + 3 ShaderReflection）；GL 与 D3D12 双后端实跑 Sponza 零渲染期 ERROR、剔除统计一致（285 visible / 120 culled）、28 材质全量就绪后截图与 6d 画面一致；材质参数表仅剩真实 HLSL 成员名（grep 验证无 `type_*[N]`/`_2xx`）。**已知限制（记 TODO）**：ring 每 draw 全量分配未做 per-frame/per-material 复用；GL 退出时 `window->destroy()` 先于设备析构的 pending-delete flush，glad 报 1282（既有问题，进程退出无害）。
 
 ---
 

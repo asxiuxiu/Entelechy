@@ -71,6 +71,17 @@ public:
         return m_resource ? m_resource->GetGPUVirtualAddress() : 0;
     }
 
+    // Persistent CPU map for cpuAccessible (upload) buffers; valid until
+    // the buffer is destroyed. Nullptr for default-heap buffers.
+    void *getCpuMappedPointer() override
+    {
+        return m_mapped;
+    }
+    void setMappedPointer(void *mapped)
+    {
+        m_mapped = mapped;
+    }
+
     u64 memorySizeBytes() const override
     {
         return static_cast<u64>(m_size);
@@ -80,6 +91,11 @@ public:
 protected:
     void onDestroy() override
     {
+        if (m_mapped)
+        {
+            m_resource->Unmap(0, nullptr);
+            m_mapped = nullptr;
+        }
         m_resource.Reset();
     }
 
@@ -88,6 +104,7 @@ private:
     BufferUsage m_usage = BufferUsage::None;
     ComPtr<ID3D12Resource> m_resource;
     u32 m_vertex_stride = 0;
+    void *m_mapped = nullptr;
 };
 
 class D3D12Texture : public RHITexture

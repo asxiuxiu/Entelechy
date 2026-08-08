@@ -16,6 +16,12 @@ struct SpirvCrossResult
     std::string error_message;
 };
 
+struct SpirvReflectionResult
+{
+    bool success = false;
+    std::string error_message;
+};
+
 class SpirvCrossCompiler
 {
 public:
@@ -27,8 +33,15 @@ public:
 
     bool isValid() const { return m_valid; }
 
-    // Cross-compile SPIR-V bytecode to desktop GLSL 450.
+    // Cross-compile SPIR-V bytecode to desktop GLSL 410.
     SpirvCrossResult compileToGlsl(const uint8_t *spirvData, size_t spirvSize);
+
+    // Dump the cbuffer / texture binding layout of the SPIR-V to a JSON
+    // file consumed at runtime by ShaderReflection (6e). The cbuffer member
+    // offsets come from the SPIR-V (DXC HLSL packing, identical to DXIL);
+    // textures carry their t-register as the binding.
+    SpirvReflectionResult writeReflection(const char *jsonPath, const uint8_t *spirvData, size_t spirvSize,
+                                          const char *shaderName, const char *stage);
 
 private:
     bool m_valid = false;

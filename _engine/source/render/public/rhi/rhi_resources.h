@@ -189,6 +189,14 @@ class RHIBuffer : public GPUResource
 public:
     virtual u32 getSize() const = 0;
     virtual BufferUsage getUsage() const = 0;
+
+    // Backend CPU-mapped pointer for cpuAccessible buffers (persistent map,
+    // valid until the buffer is destroyed). Returns nullptr when the buffer
+    // is not mapped — e.g. ConstantBufferRing relies on this.
+    virtual void *getCpuMappedPointer()
+    {
+        return nullptr;
+    }
 };
 
 class RHITexture : public GPUResource

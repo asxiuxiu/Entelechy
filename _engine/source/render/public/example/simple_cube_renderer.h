@@ -5,6 +5,7 @@
 #include "render/rhi/rhi_device.h"
 #include "render/rhi/rhi_resources.h"
 #include "render/material/material.h"
+#include "render/binding/constant_buffer_ring.h"
 #include "render/material/shader_cache.h"
 #include <memory>
 
@@ -47,6 +48,7 @@ private:
     std::unique_ptr<ShaderCache> m_shader_cache;
     IRHIDevice *m_device = nullptr; // Borrowed, not owned
     Material m_material;
+    ConstantBufferRing m_ring;
 
     RHIBufferRef m_vertex_buffer;
     RHIBufferRef m_index_buffer;

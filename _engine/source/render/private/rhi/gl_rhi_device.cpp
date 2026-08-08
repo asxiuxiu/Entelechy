@@ -238,8 +238,8 @@ static GLenum getGLShaderStage(ShaderStage stage)
 // ==================================================================
 // GLBuffer
 // ==================================================================
-GLBuffer::GLBuffer(u32 size, BufferUsage usage, GLuint vbo, GLuint vao)
-    : m_size(size), m_usage(usage), m_vbo(vbo), m_vao(vao)
+GLBuffer::GLBuffer(u32 size, BufferUsage usage, GLuint vbo, GLuint vao, void *mapped)
+    : m_size(size), m_usage(usage), m_vbo(vbo), m_vao(vao), m_mapped(mapped)
 {
 }
 
@@ -250,6 +250,14 @@ GLBuffer::~GLBuffer()
 
 void GLBuffer::onDestroy()
 {
+    if (m_mapped)
+    {
+        // Unmap before deleting the buffer object (context must be current).
+        glBindBuffer(GL_UNIFORM_BUFFER, m_vbo);
+        glUnmapBuffer(GL_UNIFORM_BUFFER);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+        m_mapped = nullptr;
+    }
     if (m_vao)
     {
         glDeleteVertexArrays(1, &m_vao);
@@ -592,7 +600,33 @@ RHIBufferRef GLRHIDevice::createBuffer(const BufferDesc &desc, const void *initi
     }
 
     glBindBuffer(target, bufferObj);
-    glBufferData(target, desc.size, initialData, GL_STATIC_DRAW);
+
+    void *mapped = nullptr;
+    if (desc.cpuAccessible)
+    {
+        // CPU-writable buffer (ConstantBufferRing): persistent map so the
+        // CPU can memcpy into it every frame without map/unmap overhead.
+        // Prefer glBufferStorage (GL 4.4 / ARB_buffer_storage) with
+        // persistent+coherent mapping; fall back to a single long-lived
+        // glMapBufferRange on GL_DYNAMIC_DRAW when unavailable.
+#if defined(GLAD_GL_VERSION_4_4) || defined(GLAD_GL_ARB_buffer_storage)
+        glBufferStorage(target, desc.size, initialData, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+        mapped = glMapBufferRange(target, 0, desc.size, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+#else
+        glBufferData(target, desc.size, initialData, GL_DYNAMIC_DRAW);
+        mapped = glMapBufferRange(target, 0, desc.size, GL_MAP_WRITE_BIT);
+#endif
+        if (!mapped)
+        {
+            LOG_ERROR(LogCategories::kEngine, "GL createBuffer: persistent map failed (%u bytes)", desc.size);
+            glDeleteBuffers(1, &bufferObj);
+            return nullptr;
+        }
+    }
+    else
+    {
+        glBufferData(target, desc.size, initialData, GL_STATIC_DRAW);
+    }
     glBindBuffer(target, 0);
 
     GLuint vao = 0;
@@ -616,7 +650,7 @@ RHIBufferRef GLRHIDevice::createBuffer(const BufferDesc &desc, const void *initi
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    auto *buffer = allocateResource<GLBuffer>(desc.size, desc.usage, bufferObj, vao);
+    auto *buffer = allocateResource<GLBuffer>(desc.size, desc.usage, bufferObj, vao, mapped);
     buffer->setDevice(this);
     trackResourceCreated(buffer);
     return RHIBufferRef(buffer);
